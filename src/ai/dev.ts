@@ -1,0 +1,21 @@
+'use server';
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/autofill-cv-gaps.ts';
+import '@/ai/flows/generate-application-feedback.ts';
+import '@/ai/flows/generate-motivation-letter.ts';
+import '@/ai/flows/extract-job-keywords.ts';
+import '@/ai/flows/generate-cv-from-documents.ts';
+import '@/ai/flows/refine-documents-for-ats.ts';
+import '@/ai/flows/generate-interview-questions.ts';
+import '@/ai/flows/generateLinkedInSummary.ts';
+import '@/ai/flows/analyze-interview-answer.ts';
+import '@/ai/flows/suggest-job-opportunities.ts';
+import '@/ai/flows/generate-marketing-content.ts';
+import '@/ai/flows/analyze-writing-style.ts';
+import '@/ai/flows/generate-email-response.ts';
+import '@/ai/flows/generate-audio-from-text.ts';
+import '@/ai/flows/predict-salary-range.ts';
+import '@/ai/flows/generate-professional-photo.ts';
+import '@/ai/flows/analyze-required-documents.ts';

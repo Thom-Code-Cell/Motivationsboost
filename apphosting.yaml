@@ -1,0 +1,12 @@
+
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  cpu: 1
+  memoryMiB: 512
+requiredAPIs:
+  - run.googleapis.com
+  - artifactregistry.googleapis.com
+  - cloudbuild.googleapis.com

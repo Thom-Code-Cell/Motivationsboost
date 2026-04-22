@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users can read their own data, and only authenticated users can create their own document.
+    // Updates are handled by server-side logic (Stripe webhook, etc.).
+    match /users/{userId} {
+      allow read, update, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+    
+    // Users can manage their own applications.
+    match /applications/{docId} {
+      allow read, write, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Users can only read and update their own progress documents.
+    match /progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Feedback collection can be written to by any authenticated user, but not read directly.
+    // This is a write-only collection for user feedback.
+    match /feedback/{docId} {
+        allow create: if request.auth != null;
+        allow read, update, delete: if false;
+    }
+  }
+}
