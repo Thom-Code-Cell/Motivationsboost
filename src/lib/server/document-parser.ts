@@ -21,7 +21,7 @@ export async function parseDocument(bytes: Buffer, mimeType: string): Promise<st
   if (mimeType === 'application/pdf') {
     if (!bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) throw new Error('Ungültige PDF-Datei.');
     const parser = new PDFParse({ data: new Uint8Array(bytes) });
-    try { return (await parser.getText()).text; } finally { await parser.destroy(); }
+    try { return (await parser.getText({ pageJoiner: '' })).text; } finally { await parser.destroy(); }
   }
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     const xml = await readDocumentXml(bytes);

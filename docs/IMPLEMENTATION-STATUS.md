@@ -13,14 +13,14 @@ Date: 2026-10-11. Branch: `fix/platform-reliability`. Production remains unchang
 | AI | All 17 entry points authenticated; shared transaction-based 30/hour quota; actual advert text, paste fallback, schema-validated Gemini requests/results; missing/truncated/invalid output handled | All entry points tested with controlled provider responses; no live Gemini calls |
 | CV data quality | Removed fictional contact details, hardcoded applicant profile and invented gap explanations; existing documents preserved on generation failures | Schema/prompt request tests; human review of generated facts remains required |
 | Drive | Identity-bound access; app folder, pagination, Picker copies, direct PDF/DOCX/TXT/photo uploads; save errors propagated; no folder creation during read-only lookups | Isolated ownership/import/persistence tests; live Drive/Picker authorization pending |
-| Parsing/export | Current PDF parser; bounded Word XML extraction; genuine multi-page PDF and DOCX extraction roundtrips; Word entitlement guard | Unit tests prove first/last lines and actual DOCX text survive |
+| Parsing/export | Current PDF parser, Gemini OCR fallback for scanned PDFs without a text layer; bounded Word XML extraction; genuine multi-page PDF and DOCX extraction roundtrips; Word entitlement guard; bounded 8 MB photo input and 12 MB media request allowance | Unit tests prove first/last lines and actual DOCX text survive |
 | Reviewed revisions | CV editor and ATS review explicitly save revised text; export and other AI actions use saved revisions | Typecheck/build and flow coverage; live save/reload/export acceptance pending |
 | Usability | Fixed consent scrolling, sequential consent dialogs, mobile-sized dialog content, actionable data errors, missing-CV states, export navigation, accessible account control | All four desktop/mobile browser and API tests pass |
 | CI | PR checks for clean install, typecheck, unit/rules/browser tests, production-dependency audit and build | Initial GitHub run verified installation, types, unit/rules tests and runtime audit; final run also verifies Firebase CLI 15 with Java 21 |
 
 ## Local evidence
 
-- 84 unit tests passed, including controlled responses for all structured AI functions, audio and image handling, rejected authorization, model errors, URL/private-network protection, Drive identity checks, quotas and export parsing.
+- 88 unit tests passed, including controlled responses for all structured AI functions, audio and image handling, rejected authorization, model errors, URL/private-network protection, Drive identity checks, quotas and export parsing.
 - 12 Firestore rules tests passed against `demo-motivationsboost`, including owner application create/query/update/delete and rejected cross-account operations.
 - Four Playwright browser/API tests passed on desktop and a 360px mobile viewport: consent, authenticated session, saved application after reload, six core views without horizontal overflow, logout and security rejections. Mobile navigation now supplies accessible dialog title/description. The local runner used an installed Chromium headless shell; CI installs its matching browser.
 - Production build and strict TypeScript validation passed. No type/build error suppression is enabled.

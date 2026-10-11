@@ -105,7 +105,6 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
       setLoadingMessage("Generiere Lebenslauf aus Dokumenten...");
       const result = await generateCvFromDocuments({ documentTexts, language: language });
       setLocalCvJson(result);
-      onCvGenerated(result);
       await saveFileToDrive(accessToken, 'cv_data.json', JSON.stringify(result, null, 2), 'application/json');
       await saveFileToDrive(accessToken, 'cv_refined.txt', '', 'text/plain');
       onCvGenerated(result);

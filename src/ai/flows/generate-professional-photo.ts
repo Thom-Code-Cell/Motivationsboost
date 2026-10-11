@@ -27,7 +27,7 @@ const stylePrompts: Record<string, string> = {
 
 export async function generateProfessionalPhoto(input: GenerateProfessionalPhotoInput): Promise<GenerateProfessionalPhotoOutput> {
   input = GenerateProfessionalPhotoInputSchema.parse(input);
-  await authorizeAI(input);
+  await authorizeAI(input, 12_000_000);
   return generateProfessionalPhotoFlow(input);
 }
 

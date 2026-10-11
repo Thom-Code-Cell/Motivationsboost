@@ -21,6 +21,8 @@ describe('server session and shared AI limits', () => {
   it('uses a server-only admin allowlist', async () => { vi.stubEnv('ALLOWED_ADMIN_UIDS', 'bob, alice'); expect((await requireAdmin()).uid).toBe('alice'); });
   it('rejects AI calls when no provider key exists', async () => { vi.stubEnv('GOOGLE_API_KEY', ''); await expect(authorizeAI({ text: 'test' })).rejects.toThrow('konfiguriert'); expect(mocks.write).not.toHaveBeenCalled(); });
   it('enforces the shared quota on the thirty-first request', async () => { for (let i = 0; i < 30; i++) await authorizeAI({ text: 'test' }); await expect(authorizeAI({ text: 'test' })).rejects.toThrow('Limit'); expect(mocks.count).toBe(30); });
+  it('accepts bounded photo payloads above the text limit', async () => { await expect(authorizeAI({ userPhoto: 'x'.repeat(3000000) }, 12_000_000)).resolves.toMatchObject({ uid: 'alice' }); });
+  it('rejects oversized photo payloads', async () => await expect(authorizeAI({ userPhoto: 'x'.repeat(12000001) }, 12_000_000)).rejects.toThrow('groß'));
   it('rejects oversized model inputs', async () => await expect(authorizeAI({ text: 'x'.repeat(2000001) })).rejects.toThrow('groß'));
 });
 describe('host-based CSRF verification behind Next.js', () => {

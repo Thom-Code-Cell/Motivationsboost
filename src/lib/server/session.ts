@@ -15,10 +15,10 @@ export async function requireAdmin() {
   if (session.admin !== true && !allowed.includes(session.uid)) throw new Error('Zugriff verweigert.');
   return session;
 }
-export async function authorizeAI(input: unknown) {
+export async function authorizeAI(input: unknown, maxInputBytes = 2_000_000) {
   const session = await requireSession();
   if (!process.env.GOOGLE_API_KEY) throw new Error('Der KI-Dienst ist noch nicht konfiguriert.');
-  if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 2_000_000) throw new Error('Die Eingabe ist zu groß.');
+  if (Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes) throw new Error('Die Eingabe ist zu groß.');
   // A transaction enforces a shared limit across all instances and all AI functions.
   const hour = Math.floor(Date.now() / 3_600_000);
   const ref = adminDb().doc(`aiUsage/${session.uid}`);
