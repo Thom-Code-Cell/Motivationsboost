@@ -27,7 +27,23 @@ export async function POST(request: NextRequest) {
         return new NextResponse('Firestore not initialized', { status: 500 });
     }
     
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    // Never derive payment redirect destinations from an untrusted Origin header.
+    // Configure this to the canonical deployed application URL.
+    const configuredUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+    if (!configuredUrl) {
+      return NextResponse.json({ error: 'APP_URL is not configured.' }, { status: 503 });
+    }
+    let origin: string;
+    try {
+      const parsed = new URL(configuredUrl);
+      if (parsed.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && parsed.hostname === 'localhost' && parsed.protocol === 'http:')) {
+        throw new Error('Invalid application URL protocol');
+      }
+      if (parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error('Invalid application URL');
+      origin = parsed.origin;
+    } catch {
+      return NextResponse.json({ error: 'APP_URL is invalid.' }, { status: 503 });
+    }
 
     const sessionOptions: any = {
         line_items: [
