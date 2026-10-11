@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 
 import { db } from '@/lib/firebase';
 import {
@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   orderBy,
   Timestamp,
-  limit
+  limit,
+  type QueryConstraint
 } from 'firebase/firestore';
 import { type AddApplicationData, type Application, type ApplicationStatus } from '@/types/application';
 
@@ -31,7 +32,7 @@ export async function addApplication(userId: string, data: AddApplicationData): 
 
 export async function getApplications(userId: string, count?: number): Promise<Application[]> {
   if (!db) throw new Error('Firestore not initialized');
-  const constraints = [
+  const constraints: QueryConstraint[] = [
       where('userId', '==', userId),
       orderBy('applicationDate', 'desc')
   ];
@@ -60,3 +61,5 @@ export async function deleteApplication(docId: string): Promise<void> {
   const docRef = doc(db, 'applications', docId);
   await deleteDoc(docRef);
 }
+
+export type { Application } from "@/types/application";

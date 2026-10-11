@@ -17,7 +17,7 @@ export const ApplicationSchema = z.object({
   userId: z.string(),
   jobTitle: z.string(),
   company: z.string(),
-  jobUrl: z.string().url(),
+  jobUrl: z.string().regex(/^https?:\/\//, 'Bitte einen HTTP- oder HTTPS-Link eingeben.').url(),
   status: ApplicationStatusSchema,
   // Using any to prevent build errors with Timestamp objects from Firestore
   // Validation is now handled by safeToDate utility
@@ -31,7 +31,7 @@ export type Application = z.infer<typeof ApplicationSchema>;
 export const AddApplicationSchema = z.object({
   jobTitle: z.string().min(1, "Jobtitel ist erforderlich."),
   company: z.string().min(1, "Firma ist erforderlich."),
-  jobUrl: z.string().url("Bitte geben Sie eine gültige URL ein."),
+  jobUrl: z.string().regex(/^https?:\/\//, 'Bitte einen HTTP- oder HTTPS-Link eingeben.').url("Bitte geben Sie eine gültige URL ein."),
   notes: z.string().optional(),
 });
 export type AddApplicationData = z.infer<typeof AddApplicationSchema>;

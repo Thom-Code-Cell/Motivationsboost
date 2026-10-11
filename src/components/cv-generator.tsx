@@ -61,7 +61,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
     resolver: zodResolver(formSchema),
     defaultValues: { fileIds: [] },
   });
-  
+
   useEffect(() => {
     setLanguage(initialLanguage);
   }, [initialLanguage]);
@@ -92,9 +92,8 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
     }
     setIsLoading(true);
     setLocalCvJson(null);
-    onCvGenerated(null);
-    onSummaryGenerated(null);
-    
+
+
     try {
       setLoadingMessage(`Extrahiere Text aus ${values.fileIds.length} Dokument(en)...`);
       const documentTexts: string[] = [];
@@ -102,11 +101,12 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
           const text = await extractTextFromDriveFile(fileId, accessToken);
           documentTexts.push(text);
       }
-      
+
       setLoadingMessage("Generiere Lebenslauf aus Dokumenten...");
       const result = await generateCvFromDocuments({ documentTexts, language: language });
       setLocalCvJson(result);
       await saveFileToDrive(accessToken, 'cv_data.json', JSON.stringify(result, null, 2), 'application/json');
+      await saveFileToDrive(accessToken, 'cv_refined.txt', '', 'text/plain');
       onCvGenerated(result);
 
       if (user) {
@@ -121,6 +121,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
       }
 
       if (useAutoLinkedInBooster) {
+        try {
         setLoadingMessage("Optimiere LinkedIn Profil...");
         const linkedinResult = await generateLinkedInSummary({
             cvData: result,
@@ -134,6 +135,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
             title: "LinkedIn Profil automatisch aktualisiert!",
             description: "Wechseln Sie zum 'LinkedIn'-Tab, um das Ergebnis zu sehen.",
         });
+        } catch { toast({ title: 'Lebenslauf gespeichert', description: 'Die zusätzliche LinkedIn-Zusammenfassung konnte nicht erstellt werden.', variant: 'destructive' }); }
       }
 
     } catch (error) {
@@ -176,7 +178,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
-                
+
                 {!accessToken && (
                     <p className="text-sm text-muted-foreground">Bitte melden Sie sich an, um Ihre Dokumente aus Google Drive zu laden.</p>
                 )}
@@ -184,7 +186,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
                 {accessToken && driveFiles.length === 0 && !isLoading && (
                     <p className="text-sm text-muted-foreground">Keine Dokumente im Ordner "Bewerbungsunterlagen AI" in Ihrem Google Drive gefunden. Bitte laden Sie zuerst Dokumente im "Dokumente"-Tab hoch.</p>
                 )}
-                 
+
                  <FormItem>
                     <FormLabel>Sprache der Bewerbung</FormLabel>
                     <LanguageSelect onValueChange={setLanguage} defaultValue={language} />
@@ -257,7 +259,7 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
               </div>
             </div>
          )}
-        
+
         {localCvJson && (
           <div className="space-y-6">
             <Card>
@@ -273,13 +275,13 @@ export function CvGenerator({ accessToken, user, useAutoLinkedInBooster, userSty
                   <RadioGroup value={selectedTemplate} onValueChange={setSelectedTemplate} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-2">
                       <RadioGroupItem value="modern" id="modern" className="sr-only peer" />
                       <Label htmlFor="modern" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">Modern</Label>
-                      
+
                       <RadioGroupItem value="classic" id="classic" className="sr-only peer" />
                       <Label htmlFor="classic" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">Klassisch</Label>
-                      
+
                       <RadioGroupItem value="minimalist" id="minimalist" className="sr-only peer" />
                       <Label htmlFor="minimalist" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">Minimalistisch</Label>
-                      
+
                       <RadioGroupItem value="creative" id="creative" className="sr-only peer" />
                       <Label htmlFor="creative" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">Kreativ</Label>
 

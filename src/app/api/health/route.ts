@@ -1,20 +1,10 @@
-
 import { NextResponse } from 'next/server';
-
 export async function GET() {
-  const env = {
-    stripeSecretKey: !!process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY.startsWith('sk_'),
-    stripePublishableKey: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.startsWith('pk_'),
-    stripeProPriceId: !!process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID && process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID.startsWith('price_'),
-    stripeWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_'),
-    googleApiKey: !!process.env.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY.length > 20,
-    firebaseProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  const checks = {
+    firebaseClient: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY && process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN && process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID && process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+    firebaseServer: Boolean((process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) || process.env.GOOGLE_APPLICATION_CREDENTIALS),
+    aiConfigured: Boolean(process.env.GOOGLE_API_KEY),
   };
-
-  const allOk = Object.values(env).every(v => v);
-
-  return NextResponse.json({
-    status: allOk ? 'ok' : 'degraded',
-    checks: env
-  });
+  const ready = Object.values(checks).every(Boolean);
+  return NextResponse.json({ status: ready ? 'configured' : 'degraded', checks, liveServicesVerified: false }, { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
 }

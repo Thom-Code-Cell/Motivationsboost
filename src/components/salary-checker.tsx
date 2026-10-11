@@ -1,5 +1,6 @@
 
 "use client";
+import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -20,6 +21,7 @@ import { LanguageSelect } from './language-select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const formSchema = z.object({
+  jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
   language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
@@ -56,6 +58,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
       const response = await predictSalaryRange({
         cvData: cvJson,
         jobUrl: values.jobUrl,
+          jobText: values.jobText,
         location: values.location,
         language: values.language as Language,
       });
@@ -118,8 +121,10 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+<FormField control={form.control} name="jobText" render={({ field }) => (<FormItem><FormLabel>Stellenanzeige als Text (optional)</FormLabel><FormControl><Textarea {...field} value={field.value || ""} placeholder="Falls der Link nicht lesbar ist, hier den vollständigen Anzeigentext einfügen." /></FormControl><FormMessage /></FormItem>)} />
+
                 <FormField
                 control={form.control}
                 name="jobUrl"
@@ -147,7 +152,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
                 )}
                 />
             </div>
-            
+
              <FormField
                 control={form.control}
                 name="language"
@@ -170,7 +175,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
           </CardFooter>
         </form>
       </Form>
-      
+
       {isLoading && (
         <CardContent>
             <div className="w-full text-center p-8 bg-secondary/30 rounded-lg">
@@ -192,7 +197,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
                     </p>
                 </CardContent>
             </Card>
-          
+
             <Alert>
                 <Lightbulb className="h-4 w-4" />
                 <AlertTitle>Begründung der KI</AlertTitle>

@@ -15,6 +15,8 @@ const checkoutSchema = z.object({
 const PROMOTION_CODE_ID = 'promo_1Phy3dRxW1y7V5hG5hOfYnKE';
 
 export async function POST(request: NextRequest) {
+  if (process.env.STRIPE_PAYMENTS_ENABLED !== 'true') return NextResponse.json({ error: 'Zahlungen sind während der technischen Vorbereitung deaktiviert.' }, { status: 503 });
+  if (!stripe || !db) return NextResponse.json({ error: 'Zahlungsdienst nicht konfiguriert.' }, { status: 503 });
   try {
     const body = await request.json();
     const { priceId, userId, referralCode } = checkoutSchema.parse(body);
@@ -22,11 +24,11 @@ export async function POST(request: NextRequest) {
     if (!userId || !priceId) {
       return new NextResponse('User ID and Price ID are required', { status: 400 });
     }
-    
+
     if (!db) {
         return new NextResponse('Firestore not initialized', { status: 500 });
     }
-    
+
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
     const sessionOptions: any = {
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
         },
         allow_promotion_codes: true,
     };
-    
+
     if (referralCode) {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where("referralCode", "==", referralCode.trim().toUpperCase()));
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
 
 
     const session = await stripe.checkout.sessions.create(sessionOptions);
-    
+
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);

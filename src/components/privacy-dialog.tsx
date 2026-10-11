@@ -59,7 +59,7 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
 
   return (
     <Dialog open={open}>
-      <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-2xl">Unsere Datenschutzerklärung wurde aktualisiert</DialogTitle>
           <DialogDescription>
@@ -67,7 +67,7 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
           </DialogDescription>
         </DialogHeader>
         <div className="my-4">
-          <ScrollArea className="h-96 rounded-md border p-4" onScroll={handleScroll}>
+          <ScrollArea className="h-[35dvh] sm:h-80 rounded-md border p-4" onScroll={handleScroll}>
             <div className="space-y-4 prose prose-sm prose-neutral dark:prose-invert max-w-none">
                 <p className="text-sm text-muted-foreground">
                     Stand: 7. Juli 2024
@@ -78,7 +78,7 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
                 <p>
                     Diese Datenschutzerklärung ist Bestandteil unserer <Link href="/agb" className="text-primary hover:underline" target="_blank">Allgemeinen Geschäftsbedingungen</Link>.
                 </p>
-                
+
                 <h2>1. Verantwortliche Stelle</h2>
                 <p>
                     <strong>Thomas Hullin</strong><br />
@@ -86,7 +86,7 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
                     3775 Lenk, Schweiz<br />
                     📧 E-Mail: <a href="mailto:thhullin@gmail.com" className="text-primary hover:underline">thhullin@gmail.com</a>
                 </p>
-                
+
                 <h2>2. Welche Daten erfassen wir?</h2>
                 <h3>a) Firebase Authentication</h3>
                 <p>Zur Anmeldung verwenden wir Google Login. Dabei speichern wir:</p>
@@ -112,7 +112,7 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
                     <p>🗂️ <strong>„Bewerbungsunterlagen AI“</strong></p>
                 </blockquote>
                 <p>✅ Nur Sie haben Zugriff darauf.<br/>
-                   ❌ Wir als Anbieter haben <strong>zu keinem Zeitpunkt Zugriff auf Ihre persönlichen Drive-Dateien</strong>.
+                   Die App verarbeitet die von Ihnen freigegebenen Dateien serverseitig für Import und KI-Analyse. Der Drive-Zugriff ist auf von der App angelegte oder von Ihnen ausgewählte Dateien beschränkt.
                 </p>
 
                 <h3>d) Stripe Zahlungsabwicklung</h3>
@@ -123,9 +123,9 @@ export function PrivacyDialog({ open, user, currentVersion, onAccept }: PrivacyD
                     <li>Stripe-Kundennummer</li>
                 </ul>
 
-                <h3>e) KI-Funktion (Google Gemini / Genkit)</h3>
-                <p>Die App nutzt <strong>Google Gemini</strong> zur Analyse, Optimierung und Generierung Ihrer Bewerbungsunterlagen. Die Verarbeitung erfolgt temporär über Google-Server. Gemini verarbeitet Ihre Eingaben nur zur Erfüllung Ihrer Anfrage und <strong>nicht zur Schulung der Modelle</strong>.</p>
-                
+                <h3>e) KI-Funktion (Google Gemini)</h3>
+                <p>Die App nutzt <strong>Google Gemini</strong> zur Analyse, Optimierung und Generierung Ihrer Bewerbungsunterlagen. Die Verarbeitung erfolgt temporär über Google-Server. Eingaben werden an Google Gemini übermittelt. Die dort geltenden Datenbedingungen hängen vom eingerichteten API-Angebot ab. Die Freigabe für echte Bewerbungsunterlagen erfolgt erst nach Prüfung der produktiven Konfiguration.</p>
+
                 <h2>3. Ihre Rechte</h2>
                 <p>Sie haben jederzeit das Recht auf:</p>
                 <ul>

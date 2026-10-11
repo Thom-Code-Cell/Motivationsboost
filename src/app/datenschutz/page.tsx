@@ -25,7 +25,7 @@ export default function DatenschutzPage() {
                 <p>
                     Diese Datenschutzerklärung ist Bestandteil unserer <Link href="/agb" className="text-primary hover:underline">Allgemeinen Geschäftsbedingungen</Link>.
                 </p>
-                
+
                 <h2>1. Verantwortliche Stelle</h2>
                 <p>
                     <strong>Thomas Hullin</strong><br />
@@ -33,7 +33,7 @@ export default function DatenschutzPage() {
                     3775 Lenk, Schweiz<br />
                     📧 E-Mail: <a href="mailto:thhullin@gmail.com" className="text-primary hover:underline">thhullin@gmail.com</a>
                 </p>
-                
+
                 <h2>2. Welche Daten erfassen wir?</h2>
                 <h3>a) Firebase Authentication</h3>
                 <p>Zur Anmeldung verwenden wir Google Login. Dabei speichern wir:</p>
@@ -59,7 +59,7 @@ export default function DatenschutzPage() {
                     <p className="font-semibold">🗂️ „Bewerbungsunterlagen AI“</p>
                 </blockquote>
                 <p>✅ Nur Sie haben Zugriff darauf.<br/>
-                   ❌ Wir als Anbieter haben <strong>zu keinem Zeitpunkt Zugriff auf Ihre persönlichen Drive-Dateien</strong>.
+                   Die App verarbeitet freigegebene Dateien serverseitig für Import und KI-Analyse.
                 </p>
 
                 <h3>d) Stripe Zahlungsabwicklung</h3>
@@ -70,9 +70,9 @@ export default function DatenschutzPage() {
                     <li>Stripe-Kundennummer</li>
                 </ul>
 
-                <h3>e) KI-Funktion (Google Gemini / Genkit)</h3>
-                <p>Die App nutzt <strong>Google Gemini</strong> zur Analyse, Optimierung und Generierung Ihrer Bewerbungsunterlagen. Die Verarbeitung erfolgt temporär über Google-Server. Gemini verarbeitet Ihre Eingaben nur zur Erfüllung Ihrer Anfrage und <strong>nicht zur Schulung der Modelle</strong>.</p>
-                
+                <h3>e) KI-Funktion (Google Gemini)</h3>
+                <p>Die App nutzt <strong>Google Gemini</strong> zur Analyse, Optimierung und Generierung Ihrer Bewerbungsunterlagen. Die Verarbeitung erfolgt temporär über Google-Server. Eingaben werden an Google Gemini übermittelt. Die dort geltenden Datenbedingungen hängen vom eingerichteten API-Angebot ab.</p>
+
                 <h2>3. Ihre Rechte</h2>
                 <p>Sie haben jederzeit das Recht auf:</p>
                 <ul>

@@ -6,8 +6,9 @@
  * - generateLinkedInSummary - A function that handles the profile summary generation.
  */
 
+import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import {
   GenerateLinkedInSummaryInputSchema,
   GenerateLinkedInSummaryOutputSchema,
@@ -27,6 +28,8 @@ const languageMap: Record<string, string> = {
 export async function generateLinkedInSummary(
   input: GenerateLinkedInSummaryInput
 ): Promise<GenerateLinkedInSummaryOutput> {
+  input = GenerateLinkedInSummaryInputSchema.parse(input);
+  await authorizeAI(input);
   return generateLinkedInSummaryFlow(input);
 }
 
@@ -93,6 +96,7 @@ const generateLinkedInSummaryFlow = ai.defineFlow(
       languageName: languageName,
     });
 
-    return output!;
+    if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
+    return output;
   }
 );

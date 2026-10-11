@@ -1,6 +1,8 @@
 
 "use client";
+import { Textarea } from '@/components/ui/core-textarea';
 
+import { saveFileToDrive } from '@/services/drive';
 import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { useForm } from 'react-hook-form';
@@ -15,7 +17,6 @@ import type { GenerateApplicationFeedbackOutput, Language } from '@/ai/schemas';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/core-input";
-import { Textarea } from "@/components/ui/core-textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Target, ListChecks, Wrench, Wand2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +26,7 @@ import { LanguageSelect } from './language-select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const formSchema = z.object({
+  jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   coverLetter: z.string().min(1, { message: "Bitte geben Sie Ihr Motivationsschreiben ein oder generieren Sie es." }),
   cv: z.string().min(1, { message: "Bitte geben Sie Ihren Lebenslauf ein oder generieren Sie ihn." }),
@@ -32,13 +34,15 @@ const formSchema = z.object({
 });
 
 interface ApplicationFeedbackProps {
+    accessToken: string | null;
+    onDocumentsUpdated: (cv: string, letter: string) => void;
     user: User | null;
     language: Language;
     cvText: string | null;
     coverLetterText: string | null;
 }
 
-export function ApplicationFeedback({ user, language, cvText, coverLetterText }: ApplicationFeedbackProps) {
+export function ApplicationFeedback({ accessToken, onDocumentsUpdated, user, language, cvText, coverLetterText }: ApplicationFeedbackProps) {
   const [feedback, setFeedback] = useState<GenerateApplicationFeedbackOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -56,6 +60,7 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
 
   useEffect(() => {
     form.reset({
+        jobText: form.getValues().jobText,
         jobUrl: form.getValues().jobUrl, // Keep jobUrl if already entered
         coverLetter: coverLetterText || "",
         cv: cvText || "",
@@ -70,6 +75,7 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
     try {
       const result = await generateApplicationFeedback({
           jobUrl: values.jobUrl,
+          jobText: values.jobText,
           coverLetter: values.coverLetter,
           cv: values.cv,
           language: values.language as Language
@@ -116,7 +122,7 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
         title: "Optimierung erfolgreich",
         description: "Ihre Dokumente wurden aktualisiert. Starten Sie die Analyse erneut, um den neuen Score zu sehen.",
       });
-      setFeedback(null); 
+      setFeedback(null);
     } catch (error) {
       console.error("Error optimizing documents:", error);
       toast({
@@ -127,6 +133,19 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
     } finally {
       setIsOptimizing(false);
     }
+  }
+
+  async function saveReviewedDocuments() {
+    if (!accessToken) { toast({ title: 'Bitte Google Drive verbinden', variant: 'destructive' }); return; }
+    setIsOptimizing(true);
+    try {
+      const values = form.getValues();
+      await saveFileToDrive(accessToken, 'cv_refined.txt', values.cv, 'text/plain');
+      await saveFileToDrive(accessToken, 'motivation_letter.txt', values.coverLetter, 'text/plain');
+      onDocumentsUpdated(values.cv, values.coverLetter);
+      toast({ title: 'Unterlagen gespeichert', description: 'Die überprüften Texte werden jetzt auch beim Export verwendet.' });
+    } catch { toast({ title: 'Speichern fehlgeschlagen', description: 'Bitte erneut versuchen.', variant: 'destructive' }); }
+    finally { setIsOptimizing(false); }
   }
 
   const getScoreColor = (score: number) => {
@@ -160,6 +179,8 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
                 </AccordionItem>
             </Accordion>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+<FormField control={form.control} name="jobText" render={({ field }) => (<FormItem><FormLabel>Stellenanzeige als Text (optional)</FormLabel><FormControl><Textarea {...field} value={field.value || ""} placeholder="Falls der Link nicht lesbar ist, hier den vollständigen Anzeigentext einfügen." /></FormControl><FormMessage /></FormItem>)} />
+
                 <FormField
                 control={form.control}
                 name="jobUrl"
@@ -217,7 +238,7 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? 'Analysiere...' : 'Feedback generieren'}
             </Button>
-            
+
             {isLoading && (
                  <div className="w-full text-center p-8 bg-secondary/30 rounded-lg">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -283,6 +304,7 @@ export function ApplicationFeedback({ user, language, cvText, coverLetterText }:
                 )}
               </div>
             )}
+            <Button type="button" variant="outline" onClick={saveReviewedDocuments} disabled={isOptimizing || isLoading}>Überprüfte Unterlagen speichern</Button>
           </CardFooter>
         </form>
       </Form>

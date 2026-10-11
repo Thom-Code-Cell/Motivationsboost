@@ -22,6 +22,8 @@ const getProFeatureFlags = (enable: boolean): Partial<FeatureFlags> => ({
 
 
 export async function POST(request: NextRequest) {
+  if (process.env.STRIPE_PAYMENTS_ENABLED !== 'true') return NextResponse.json({ error: 'Zahlungen sind während der technischen Vorbereitung deaktiviert.' }, { status: 503 });
+  if (!stripe || !db) return NextResponse.json({ error: 'Zahlungsdienst nicht konfiguriert.' }, { status: 503 });
   const body = await request.text();
   const sig = request.headers.get('stripe-signature') as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -79,10 +81,10 @@ export async function POST(request: NextRequest) {
       if (!priceItem) {
         throw new Error(`Subscription ${subscription.id} has no price item.`);
       }
-      
+
       let planType: UserData['plan'] = 'free';
       let price: UserData['price'] = 0;
-      
+
       if (isPro) {
           planType = 'pro_month';
           price = priceItem.unit_amount ? priceItem.unit_amount / 100 : 0;
@@ -104,10 +106,10 @@ export async function POST(request: NextRequest) {
           priceId: priceItem.id,
           interval: priceItem.recurring?.interval || 'unknown',
       };
-      
+
       const features = getProFeatureFlags(isPro);
 
-      const updateData: any = { 
+      const updateData: any = {
         ...subscriptionData,
         features: features,
         pricePlanHistory: arrayUnion(newHistoryEntry)
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
         if (!querySnapshot.empty) {
             const referrerDoc = querySnapshot.docs[0];
             const referrerId = referrerDoc.id;
-            
+
             // Add the new user to the referrer's list
             await setDoc(doc(db, 'users', referrerId), {
                 referrals: arrayUnion({ newUserId: userId, date: new Date().toISOString() })

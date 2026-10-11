@@ -8,8 +8,9 @@
  * - GenerateEmailResponseOutput - The return type for the function.
  */
 
+import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import {
   GenerateEmailResponseInputSchema,
   GenerateEmailResponseOutputSchema,
@@ -52,6 +53,8 @@ const scenarioMap: Record<string, Record<string, string>> = {
 };
 
 export async function generateEmailResponse(input: GenerateEmailResponseInput): Promise<GenerateEmailResponseOutput> {
+  input = GenerateEmailResponseInputSchema.parse(input);
+  await authorizeAI(input);
   return generateEmailResponseFlow(input);
 }
 
@@ -100,6 +103,7 @@ const generateEmailResponseFlow = ai.defineFlow(
         languageName,
         scenarioDescription
     });
-    return output!;
+    if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
+    return output;
   }
 );

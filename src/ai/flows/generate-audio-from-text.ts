@@ -8,10 +8,10 @@
  * - GenerateAudioFromTextOutput - The return type for the function.
  */
 
+import { authorizeAI } from '@/lib/server/session';
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { z } from 'genkit';
-import wav from 'wav';
+import { z } from 'zod';
+import { pcmToWav } from '@/lib/audio';
 import {
   GenerateAudioFromTextInputSchema,
   GenerateAudioFromTextOutputSchema,
@@ -22,33 +22,11 @@ import {
 
 
 export async function generateAudioFromText(input: GenerateAudioFromTextInput): Promise<GenerateAudioFromTextOutput> {
+  input = GenerateAudioFromTextInputSchema.parse(input);
+  await authorizeAI(input);
   return generateAudioFromTextFlow(input);
 }
 
-
-// Helper function to convert raw PCM audio buffer to a Base64-encoded WAV string.
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    let bufs: Buffer[] = [];
-    writer.on('error', reject);
-    writer.on('data', (chunk) => bufs.push(chunk));
-    writer.on('end', () => resolve(Buffer.concat(bufs).toString('base64')));
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
 
 const generateAudioFromTextFlow = ai.defineFlow(
   {
@@ -66,7 +44,7 @@ const generateAudioFromTextFlow = ai.defineFlow(
     const voice = voiceMap[input.language] || 'Algenib';
 
     const { media } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      model: process.env.GOOGLE_AI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -77,7 +55,7 @@ const generateAudioFromTextFlow = ai.defineFlow(
       },
       prompt: input.text,
     });
-    
+
     if (!media || !media.url) {
       throw new Error('No audio media was returned from the model.');
     }
@@ -87,9 +65,9 @@ const generateAudioFromTextFlow = ai.defineFlow(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'
     );
-    
+
     // Convert the PCM buffer to a WAV buffer and then to a base64 string.
-    const wavBase64 = await toWav(audioBuffer);
+    const wavBase64 = Buffer.from(pcmToWav(audioBuffer)).toString('base64');
 
     return {
       audioDataUri: 'data:audio/wav;base64,' + wavBase64,

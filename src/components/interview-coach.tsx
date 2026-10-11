@@ -1,5 +1,6 @@
 
 "use client";
+import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -17,7 +18,6 @@ import type { User } from 'firebase/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/core-input";
-import { Textarea } from "@/components/ui/core-textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, BrainCircuit, UserCheck, Building, Lightbulb, Info, Sparkles, PencilRuler, CheckCircle, Volume2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,7 @@ const SpeechInput = dynamic(() => import('./speech-input').then(mod => mod.Speec
 });
 
 const formSchema = z.object({
+  jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
   cvData: z.string().optional(),
@@ -57,7 +58,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [analysis, setAnalysis] = useState<AnalysisState>({});
-  
+
   const [isAudioPlaying, setIsAudioPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
@@ -120,7 +121,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
         toast({ title: "Keine Antwort", description: "Bitte geben Sie zuerst eine Antwort ein.", variant: "destructive" });
         return;
     }
-    
+
     setAnalysis(prev => ({ ...prev, [question]: { isLoading: true, data: null, error: null } }));
 
     try {
@@ -128,6 +129,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
             question,
             userAnswer,
             jobUrl: form.getValues("jobUrl"),
+            jobText: form.getValues("jobText"),
             cvData: cvData || undefined,
             userStyleSample: userStyleSample || undefined,
             language: form.getValues("language"),
@@ -140,7 +142,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
         toast({ title: "Analyse fehlgeschlagen", description: errorMessage, variant: "destructive" });
     }
   };
-  
+
   const playQuestionAudio = async (question: string) => {
     if (isAudioPlaying !== null) {
         if (audioRef.current) {
@@ -153,11 +155,11 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
     setIsAudioPlaying(question);
     try {
         const result = await generateAudioFromText({ text: question, language: form.getValues('language') });
-        
+
         if (audioRef.current) {
           audioRef.current.pause();
         }
-        
+
         const newAudio = new Audio(result.audioDataUri);
         audioRef.current = newAudio;
         newAudio.play();
@@ -174,7 +176,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
   const handleAnswerChange = (question: string, value: string) => {
       setAnswers(prev => ({ ...prev, [question]: value }));
   };
-  
+
   const renderQuestionBlock = (question: string, index: number) => {
     const currentAnalysis = analysis[question];
 
@@ -186,8 +188,8 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
                     {isAudioPlaying === question ? <Loader2 className="h-5 w-5 animate-spin" /> : <Volume2 className="h-5 w-5" />}
                 </Button>
             </div>
-            
-            <SpeechInput 
+
+            <SpeechInput
               value={answers[question] || ''}
               onTextChange={(value) => handleAnswerChange(question, value)}
               language={form.getValues('language')}
@@ -274,8 +276,10 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+<FormField control={form.control} name="jobText" render={({ field }) => (<FormItem><FormLabel>Stellenanzeige als Text (optional)</FormLabel><FormControl><Textarea {...field} value={field.value || ""} placeholder="Falls der Link nicht lesbar ist, hier den vollständigen Anzeigentext einfügen." /></FormControl><FormMessage /></FormItem>)} />
+
                  <FormField
                     control={form.control}
                     name="jobUrl"
@@ -342,7 +346,7 @@ export function InterviewCoach({ user, language, cvData, userStyleSample }: Inte
                 {questions.summary}
               </AlertDescription>
             </Alert>
-            
+
             <Separator />
 
             <h3 className="text-xl font-semibold">Ihre personalisierten Fragen</h3>
