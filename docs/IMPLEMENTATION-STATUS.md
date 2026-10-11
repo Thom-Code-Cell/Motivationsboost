@@ -16,7 +16,7 @@ Date: 2026-10-11. Branch: `fix/platform-reliability`. Production remains unchang
 | Parsing/export | Current PDF parser; bounded Word XML extraction; genuine multi-page PDF and DOCX extraction roundtrips; Word entitlement guard | Unit tests prove first/last lines and actual DOCX text survive |
 | Reviewed revisions | CV editor and ATS review explicitly save revised text; export and other AI actions use saved revisions | Typecheck/build and flow coverage; live save/reload/export acceptance pending |
 | Usability | Fixed consent scrolling, sequential consent dialogs, mobile-sized dialog content, actionable data errors, missing-CV states, export navigation, accessible account control | All four desktop/mobile browser and API tests pass |
-| CI | PR checks for clean install, typecheck, unit/rules/browser tests, production-dependency audit and build | Workflow prepared; remote result must be checked on PR |
+| CI | PR checks for clean install, typecheck, unit/rules/browser tests, production-dependency audit and build | Initial GitHub run verified installation, types, unit/rules tests and runtime audit; final run also verifies Firebase CLI 15 with Java 21 |
 
 ## Local evidence
 
@@ -25,7 +25,7 @@ Date: 2026-10-11. Branch: `fix/platform-reliability`. Production remains unchang
 - Four Playwright browser/API tests passed on desktop and a 360px mobile viewport: consent, authenticated session, saved application after reload, six core views without horizontal overflow, logout and security rejections. Mobile navigation now supplies accessible dialog title/description. The local runner used an installed Chromium headless shell; CI installs its matching browser.
 - Production build and strict TypeScript validation passed. No type/build error suppression is enabled.
 - `npm audit --omit=dev --audit-level=high`: **0 vulnerabilities** after dependency repair.
-- Full development-tool audit still reports **12 findings: 9 moderate and 3 high**, confined to Firebase CLI 14's dependency chain. CLI 15 is the upstream upgrade path but requires Java 21, unavailable in this local runtime. This is a documented residual, not a claim that every development dependency is clean. The CLI is not imported by the application runtime.
+- Full development-tool audit still reports **7 findings: 4 moderate and 3 high**, confined to Firebase CLI 15's dependency chain. Upgrading the CLI removed five findings. Remaining upstream dependencies have no fully clean compatible update; forced API-incompatible overrides were not retained. CI provisions Java 21 to verify the new CLI; the local runtime has Java 17, so local emulator/browser evidence is from CLI 14 before the upgrade. This is a documented residual, not a claim that every development dependency is clean. The CLI is not imported by the application runtime.
 
 ## PR #1 review
 
@@ -33,6 +33,6 @@ PR #1 is an unmerged draft. Its canonical checkout redirect fix is useful but do
 
 ## Preview and live blockers
 
-A separate protected Vercel project, `motivationsboost-preview`, has been created. It has no production deployment and is not linked for automatic main-branch publication. Preview is built from the reviewed feature branch. The project currently has no Firebase/AI configuration. Therefore a successful preview build verifies deployability and the preparation screen, not a functioning live Google account or live AI provider.
+A separate protected Vercel project, `motivationsboost-preview`, has been created. Preview `dpl_Fm6xBjJvBxChHdyKJPoQJgaL2NZF` reached READY for commit `59e634500e53dc86d1848e009ced7779d78a53e8`. The root returned HTTP 200 with the preparation screen; `/api/health` returned HTTP 503 and all configuration checks false. The first request unexpectedly classified the explicit preview target as production; it was canceled while BUILDING and never reached READY. The replacement correctly has a null preview target. It has no completed production deployment and is not linked for automatic main-branch publication. Preview is built from the reviewed feature branch. The project currently has no Firebase/AI configuration. Therefore a successful preview build verifies deployability and the preparation screen, not a functioning live Google account or live AI provider.
 
 The exact Firebase project, its authorized preview domain, Admin credentials, deployed rules/index, Google Drive/Picker API setup and Gemini billing/data terms must be configured before live acceptance. See `RELEASE-CHECKLIST.md`. Credentials must be entered directly in service settings, never committed or disclosed in chat. Production publication requires the live evidence and Thomas's final approval.
