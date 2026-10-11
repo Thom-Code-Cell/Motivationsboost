@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, increment, arrayUnion } from 'firebase/firestore';
@@ -36,7 +36,7 @@ export async function getProgress(userId: string): Promise<ProgressData> {
     return ProgressDataSchema.parse(docSnap.data()?.progress || {});
 }
 
-type ProgressEvent = 
+type ProgressEvent =
     | { type: 'CV_GENERATED' }
     | { type: 'ATS_CHECK_COMPLETED'; score: number }
     | { type: 'INTERVIEW_PREPARED' }
@@ -46,7 +46,7 @@ type ProgressEvent =
 
 export async function updateProgress(userId: string, event: ProgressEvent): Promise<BadgeId | null> {
     if (!userId || !db) return null;
-    
+
     const progressDocRef = doc(db, 'progress', userId);
     const userDocRef = doc(db, 'users', userId);
 
@@ -54,7 +54,7 @@ export async function updateProgress(userId: string, event: ProgressEvent): Prom
         getOrCreateProgressDoc(userId),
         getDoc(userDocRef)
     ]);
-    
+
     const progressData = ProgressDataSchema.parse(progressDocSnap.data()?.progress || {});
     const userData = userSnap.data() as UserData | undefined;
 
@@ -134,7 +134,7 @@ export async function updateProgress(userId: string, event: ProgressEvent): Prom
             }
         }
     }
-    
+
     // --- Batch Database Writes ---
     const updates: Promise<any>[] = [];
     if (Object.keys(userUpdates).length > 1) { // 1 because lastActivity is always there

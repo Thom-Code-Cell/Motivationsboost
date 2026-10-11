@@ -17,7 +17,7 @@ export function TrustCenter() {
       </CardHeader>
       <CardContent>
         <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
-          
+
           <AccordionItem value="item-1">
             <AccordionTrigger className="text-lg">
               <div className="flex items-center gap-3">
@@ -26,7 +26,7 @@ export function TrustCenter() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10">
-              Nur Sie! Die Datenspeicherung ist aufgeteilt: Ihre App-Einstellungen (z.B. gewählte Sprache, Abo-Status) werden sicher in unserer Datenbank (Firestore) gespeichert. Alle Ihre persönlichen und generierten Dokumente (Lebensläufe, Anschreiben, Zeugnisse) liegen ausschliesslich in Ihrem persönlichen Google Drive. Wir als Anbieter haben darauf keinen Zugriff.
+              Die Datenspeicherung ist aufgeteilt: Ihre App-Einstellungen (z.B. gewählte Sprache, Abo-Status) werden sicher in unserer Datenbank (Firestore) gespeichert. Alle Ihre persönlichen und generierten Dokumente (Lebensläufe, Anschreiben, Zeugnisse) liegen ausschliesslich in Ihrem persönlichen Google Drive. Die App verarbeitet die von Ihnen freigegebenen Dateien serverseitig für Import und KI-Funktionen. Der Drive-Zugriff ist auf von der App angelegte oder von Ihnen ausgewählte Dateien beschränkt.
             </AccordionContent>
           </AccordionItem>
 
@@ -38,7 +38,7 @@ export function TrustCenter() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10">
-              Wenn Sie Dokumente wie Zeugnisse oder Diplome scannen oder importieren, werden diese ausschließlich in **Ihrem eigenen Google Drive** gespeichert. Wir legen dafür einen speziellen Ordner namens `Bewerbungsunterlagen AI` an. Die App greift nur auf diesen Ordner zu und hat keine Berechtigungen für andere Bereiche Ihres Drives. Sie behalten die volle Kontrolle.
+              Wenn Sie Dokumente wie Zeugnisse oder Diplome scannen oder importieren, werden diese ausschließlich in **Ihrem eigenen Google Drive** gespeichert. Wir legen dafür einen speziellen Ordner namens `Bewerbungsunterlagen AI` an. Der Drive-Zugriff umfasst Dateien, die diese App anlegt oder die Sie über die Dateiauswahl freigeben. Sie können die Freigabe in Ihrem Google-Konto widerrufen.
             </AccordionContent>
           </AccordionItem>
 
@@ -50,9 +50,9 @@ export function TrustCenter() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10 space-y-2">
-              <p>Unsere App nutzt die fortschrittlichen Sprachmodelle von Google (Gemini), um hochwertige Texte für Sie zu erstellen. Wenn Sie eine Funktion nutzen, senden wir Ihre anonymisierten Eingaben (z.B. den Job-Link, Ihren CV-Text) an die KI.</p>
+              <p>Unsere App nutzt die fortschrittlichen Sprachmodelle von Google (Gemini), um hochwertige Texte für Sie zu erstellen. Wenn Sie eine Funktion nutzen, senden wir Ihre Eingaben (z.B. den Job-Link, Ihren CV-Text) an die KI.</p>
               <p>Die KI analysiert diese Informationen und generiert basierend darauf die gewünschte Ausgabe (z.B. ein Motivationsschreiben oder Interviewfragen). Ihre persönlichen Stilproben helfen der KI, einen Text zu verfassen, der authentisch nach Ihnen klingt.</p>
-              <p><strong>Wichtig:</strong> Ihre Daten werden nicht zur Verbesserung der allgemeinen KI-Modelle von Google verwendet und nicht dauerhaft für andere Zwecke bei Google gespeichert.</p>
+              <p><strong>Wichtig:</strong> Ihre Eingaben können personenbezogene Daten enthalten. Die Verarbeitung, Aufbewahrung und mögliche Modellnutzung richten sich nach dem verwendeten Google-Dienst und seinen Vertragsbedingungen. Diese Bedingungen müssen vor der Veröffentlichung für die konkrete Dienstkonfiguration geprüft werden.</p>
             </AccordionContent>
           </AccordionItem>
 
@@ -69,7 +69,7 @@ export function TrustCenter() {
                 <strong>Prüfen Sie daher bitte unbedingt alle von der KI generierten Inhalte (insbesondere Daten, Namen und Fakten in Lebensläufen und Anschreiben) sorgfältig auf Richtigkeit und Vollständigkeit, bevor Sie diese verwenden.</strong> Sie tragen die endgültige Verantwortung für Ihre Bewerbungsunterlagen.
             </AccordionContent>
           </AccordionItem>
-          
+
            <AccordionItem value="item-5">
             <AccordionTrigger className="text-lg">
               <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ export function TrustCenter() {
               Sie haben jederzeit das Recht, eine Auskunft über die von Ihnen gespeicherten Daten zu verlangen. Senden Sie hierfür bitte eine formlose Anfrage an die im <Link href="/impressum" className="underline hover:text-primary">Impressum</Link> angegebene E-Mail-Adresse. Wir werden Ihnen Ihre Daten exportieren und zur Verfügung stellen.
             </AccordionContent>
           </AccordionItem>
-          
+
           <AccordionItem value="item-6" className="border-b-0">
             <AccordionTrigger className="text-lg">
               <div className="flex items-center gap-3">
@@ -100,4 +100,4 @@ export function TrustCenter() {
   );
 }
 
-    
+

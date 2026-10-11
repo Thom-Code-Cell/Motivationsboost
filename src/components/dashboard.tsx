@@ -57,14 +57,15 @@ const PrivacyDialog: React.ComponentType<any> = dynamic(() => import('./privacy-
 const UpsellPrompt: React.ComponentType<any> = dynamic(() => import('./upsell-prompt').then(mod => mod.UpsellPrompt), { ssr: false });
 
 
-type ActiveView = 
-  | 'start' | 'generator' | 'job-tracker' | 'job-finder' 
-  | 'style-profile' | 'linkedin-booster' | 'cv-generator' 
-  | 'cv-gaps' | 'feedback' | 'interview' | 'email' 
-  | 'uploads' | 'export' | 'abo' | 'trust' 
+type ActiveView =
+  | 'start' | 'generator' | 'job-tracker' | 'job-finder'
+  | 'style-profile' | 'linkedin-booster' | 'cv-generator'
+  | 'cv-gaps' | 'feedback' | 'interview' | 'email'
+  | 'uploads' | 'export' | 'abo' | 'trust'
   | 'owner-dashboard' | 'salary-checker' | 'photo-studio';
 
 interface DashboardProps {
+  isAdmin: boolean;
   user: User | null;
   accessToken: string | null;
   isAuthLoading: boolean;
@@ -72,11 +73,13 @@ interface DashboardProps {
   handleSignOut: () => void;
 }
 
-export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, handleSignOut }: DashboardProps) {
+export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSignIn, handleSignOut }: DashboardProps) {
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('start');
   const [userData, setUserData] = useState<UserData | null>(null);
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [cvTextOverride, setCvTextOverride] = useState<string | null>(null);
   const [cvJson, setCvJson] = useState<GenerateCvFromDocumentsOutput | null>(null);
   const [linkedinSummary, setLinkedinSummary] = useState<string | null>(null);
   const [motivationLetter, setMotivationLetter] = useState<string | null>(null);
@@ -86,16 +89,17 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
   const [isPrivacyDialogOpen, setIsPrivacyDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const userProfile = "Max Mustermann, ein detailorientierter und kreativer Problemlöser mit 5 Jahren Erfahrung in der agilen Softwareentwicklung. Leidenschaftlich bei der Entwicklung von benutzerfreundlichen Webanwendungen.";
+  const userProfile = [user?.displayName, cvJson?.summary].filter(Boolean).join(': ');
 
   useEffect(() => {
     if (user && db) {
+      setLoadError(null);
       const userDocRef = doc(db, 'users', user.uid);
       const userUnsubscribe = onSnapshot(userDocRef, (doc) => {
           if (doc.exists()) {
               const data = doc.data() as UserData;
               setUserData(data);
-              
+
               if(data.upsellSuggested && !data.upsellAccepted) {
                   setShowUpsell(true);
               }
@@ -113,6 +117,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
       }, (error) => {
         console.error("Error listening to user document:", error);
         setUserData(null);
+        setLoadError('Ihre Kontodaten konnten nicht geladen werden. Bitte erneut versuchen.');
       });
 
       const progressDocRef = doc(db, 'progress', user.uid);
@@ -122,17 +127,17 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
               if (parsedData.success) {
                 setProgress(parsedData.data);
               } else {
-                 getProgress(user.uid).then(setProgress);
+                 getProgress(user.uid).then(setProgress).catch(() => setLoadError('Ihr Fortschritt konnte nicht geladen werden. Bitte erneut versuchen.'));
               }
           } else {
-              getProgress(user.uid).then(setProgress);
+              getProgress(user.uid).then(setProgress).catch(() => setLoadError('Ihr Fortschritt konnte nicht geladen werden. Bitte erneut versuchen.'));
           }
       }, (error) => {
         console.error("Error listening to progress document:", error);
-        getProgress(user.uid).then(setProgress);
+        getProgress(user.uid).then(setProgress).catch(() => setLoadError('Ihr Fortschritt konnte nicht geladen werden. Bitte erneut versuchen.'));
       });
 
-      getApplications(user.uid).then(setApplications);
+      getApplications(user.uid).then(setApplications).catch(() => toast({ title: 'Bewerbungen konnten nicht geladen werden', variant: 'destructive' }));
 
       return () => {
           userUnsubscribe();
@@ -157,7 +162,8 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
           } else {
             setCvJson(null);
           }
-          
+
+          setCvTextOverride(await getFileContentFromDrive(accessToken, 'cv_refined.txt'));
           const summaryString = await getFileContentFromDrive(accessToken, 'linkedin_summary.txt');
           setLinkedinSummary(summaryString);
 
@@ -176,48 +182,49 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
       // User signed out, clear data
       setIsDriveDataLoading(false);
       setCvJson(null);
+      setCvTextOverride(null);
       setLinkedinSummary(null);
       setMotivationLetter(null);
     }
   }, [user, accessToken, toast]);
 
   const features = userData?.features;
-  
+
   const language: Language = userData?.language || 'de';
 
   const isBlocked = isAgbDialogOpen || isPrivacyDialogOpen;
 
   const isLoadingContent = isAuthLoading || (user && (isDriveDataLoading || !userData || !progress));
-  
-  const cvDataAsText = cvJson 
+
+  const cvDataAsText = cvTextOverride || (cvJson
     ? `Zusammenfassung: ${cvJson.summary}\n\n${cvJson.sections.map(s => `${s.title}:\n${s.items.map(i => `${i.title} bei ${i.subtitle} (${i.date}): ${i.description}`).join('\n')}`).join('\n\n')}`
-    : "";
+    : "");
 
   const renderActiveView = () => {
     if (!user || !userData || !progress) return loadingSpinner();
-    
+
     switch(activeView) {
         case 'start':
             if (!progress) return loadingSpinner();
             return <StartDashboard user={user} userData={userData} progress={progress} applications={applications} cvJson={cvJson} onNavigate={setActiveView} />;
         case 'generator':
-            return <MotivationsGenerator user={user} accessToken={accessToken} language={language} cvData={cvDataAsText} userProfile={userProfile} userStyleSample={userData.userStyleSample} useStyleSample={userData.useStyleSample} onLetterUpdated={setMotivationLetter} initialLetter={motivationLetter} />;
+            return <MotivationsGenerator onExport={() => setActiveView('export')} user={user} accessToken={accessToken} language={language} cvData={cvDataAsText} userProfile={userProfile} userStyleSample={userData.userStyleSample} useStyleSample={userData.useStyleSample} onLetterUpdated={setMotivationLetter} initialLetter={motivationLetter} />;
         case 'job-tracker':
             return <JobTracker user={user} />;
         case 'job-finder':
-            if (!cvJson) return loadingSpinner();
+            if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <JobFinder user={user} cvJson={cvJson} language={language} />;
         case 'style-profile':
             return <StyleProfile user={user} initialUserData={userData} language={language} />;
         case 'linkedin-booster':
-             if (!cvJson) return loadingSpinner();
+             if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <LinkedinBooster user={user} accessToken={accessToken} linkedinSummary={linkedinSummary} cvJson={cvJson} userStyleSample={userData.userStyleSample || ''} language={language} onSummaryUpdated={setLinkedinSummary} />;
         case 'cv-generator':
-            return <CvGenerator user={user} accessToken={accessToken} useAutoLinkedInBooster={userData.useAutoLinkedInBooster} userStyleSample={userData.userStyleSample || ''} language={language} onCvGenerated={setCvJson} onSummaryGenerated={setLinkedinSummary} />;
+            return <CvGenerator user={user} accessToken={accessToken} useAutoLinkedInBooster={userData.useAutoLinkedInBooster} userStyleSample={userData.userStyleSample || ''} language={language} onCvGenerated={(cv: GenerateCvFromDocumentsOutput | null) => { setCvJson(cv); setCvTextOverride(null); }} onSummaryGenerated={setLinkedinSummary} />;
         case 'cv-gaps':
-            return <CvGapsFiller accessToken={accessToken} language={language} />;
+            return <CvGapsFiller initialCvText={cvDataAsText} onCvTextUpdated={setCvTextOverride} accessToken={accessToken} language={language} />;
         case 'feedback':
-            return <ApplicationFeedback user={user} language={language} cvText={cvDataAsText} coverLetterText={motivationLetter} />;
+            return <ApplicationFeedback accessToken={accessToken} onDocumentsUpdated={(cv: string, letter: string) => { setCvTextOverride(cv); setMotivationLetter(letter); }} user={user} language={language} cvText={cvDataAsText} coverLetterText={motivationLetter} />;
         case 'interview':
             return <InterviewCoach user={user} language={language} cvData={cvDataAsText} userStyleSample={userData.userStyleSample} />;
         case 'email':
@@ -225,7 +232,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
         case 'uploads':
             return <DocumentUploads user={user} accessToken={accessToken} handleSignIn={handleSignIn} />;
         case 'export':
-            return <ExportCenter userData={userData} accessToken={accessToken} cvJson={cvJson} linkedinSummary={linkedinSummary} motivationLetter={motivationLetter} />;
+            return <ExportCenter cvTextOverride={cvTextOverride} userData={userData} accessToken={accessToken} cvJson={cvJson} linkedinSummary={linkedinSummary} motivationLetter={motivationLetter} />;
         case 'abo':
             return <Abo user={user} userData={userData} isAuthLoading={isAuthLoading} />;
         case 'trust':
@@ -233,7 +240,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
         case 'owner-dashboard':
             return <OwnerDashboard user={user}/>;
         case 'salary-checker':
-            if (!cvJson) return loadingSpinner();
+            if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <SalaryChecker user={user} cvJson={cvJson} language={language} />;
         case 'photo-studio':
             return <PhotoStudio user={user} />;
@@ -254,7 +261,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
     { id: 'photo-studio', label: 'KI-Foto-Studio', icon: Camera, group: 'Optimierung' },
     { id: 'cv-gaps', label: 'CV-Editor', icon: FileText, group: 'Optimierung' },
     { id: 'salary-checker', label: 'Gehalts-Check', icon: DollarSign, group: 'Optimierung' },
-    
+
     { id: 'job-tracker', label: 'Job-Tracker', icon: Briefcase, group: 'Verwaltung', feature: !!features?.showJobTracker },
     { id: 'job-finder', label: 'Job-Finder', icon: Search, group: 'Verwaltung', feature: !!features?.showJobFinder },
     { id: 'email', label: 'E-Mail-Vorlagen', icon: Mail, group: 'Verwaltung', feature: !!features?.emailLetter },
@@ -280,30 +287,30 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col bg-muted/40">
         {user && userData && (
-            <UpsellPrompt 
-                open={showUpsell} 
-                onOpenChange={setShowUpsell} 
-                user={user} 
-                userData={userData} 
+            <UpsellPrompt
+                open={showUpsell}
+                onOpenChange={setShowUpsell}
+                user={user}
+                userData={userData}
             />
         )}
         {user && userData && (
-            <AgbDialog 
-                open={isAgbDialogOpen} 
-                user={user} 
-                currentVersion={CURRENT_AGB_VERSION} 
-                onAccept={() => setIsAgbDialogOpen(false)} 
+            <AgbDialog
+                open={isAgbDialogOpen}
+                user={user}
+                currentVersion={CURRENT_AGB_VERSION}
+                onAccept={() => setIsAgbDialogOpen(false)}
             />
         )}
         {user && userData && (
-            <PrivacyDialog 
-                open={isPrivacyDialogOpen} 
-                user={user} 
-                currentVersion={CURRENT_PRIVACY_VERSION} 
-                onAccept={() => setIsPrivacyDialogOpen(false)} 
+            <PrivacyDialog
+                open={isPrivacyDialogOpen && !isAgbDialogOpen}
+                user={user}
+                currentVersion={CURRENT_PRIVACY_VERSION}
+                onAccept={() => setIsPrivacyDialogOpen(false)}
             />
         )}
-        
+
         <Sidebar>
             <SidebarContent className="p-0">
                 <SidebarHeader className="p-2">
@@ -338,7 +345,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
             </SidebarContent>
 
             <SidebarFooter className="p-2">
-                {userData?.admin && (
+                {isAdmin && (
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => setActiveView('owner-dashboard')} isActive={activeView === 'owner-dashboard'} tooltip="Admin Dashboard">
@@ -351,17 +358,18 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
             </SidebarFooter>
         </Sidebar>
 
-        <div className="flex flex-col flex-1 md:pl-[var(--sidebar-width-icon)] peer-data-[state=expanded]:md:pl-[var(--sidebar-width)] transition-[padding-left] ease-in-out duration-200">
+        <div className="flex min-w-0 flex-col flex-1 md:pl-[var(--sidebar-width-icon)] peer-data-[state=expanded]:md:pl-[var(--sidebar-width)] transition-[padding-left] ease-in-out duration-200">
              <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
                  <div className="md:hidden">
                     <SidebarTrigger />
                  </div>
                  <div className="ml-auto flex items-center gap-4">
+                     {user && !accessToken && <Button variant="outline" onClick={handleSignIn}>Drive verbinden</Button>}
                      {isAuthLoading ? (
                         <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
                      ) : user ? (
                         <>
-                           {userData?.admin && (
+                           {isAdmin && (
                                 <Badge variant="destructive" className="hidden sm:flex items-center gap-1.5">
                                     <Shield className="h-3.5 w-3.5" />
                                     Admin
@@ -369,10 +377,10 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
                             )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                <Avatar className="cursor-pointer h-9 w-9 border-2 border-background/50">
+                                <Button variant="ghost" size="icon" aria-label="Konto öffnen"><Avatar className="cursor-pointer h-9 w-9 border-2 border-background/50">
                                     <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} data-ai-hint="person" />
                                     <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                                </Avatar>
+                                </Avatar></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={handleSignOut}>
@@ -389,7 +397,7 @@ export function Dashboard({ user, accessToken, isAuthLoading, handleSignIn, hand
             </header>
             <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">
               <div className={isBlocked ? 'blur-sm pointer-events-none' : ''}>
-                 {isLoadingContent ? loadingSpinner() : renderActiveView()}
+                 {loadError ? <div role="alert" className="space-y-4"><p>{loadError}</p><Button onClick={() => window.location.reload()}>Erneut versuchen</Button></div> : isLoadingContent ? loadingSpinner() : renderActiveView()}
               </div>
             </main>
              <footer className="border-t py-4 px-4 sm:px-6 md:px-8 mt-auto bg-background">

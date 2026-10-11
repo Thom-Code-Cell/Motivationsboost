@@ -1,5 +1,5 @@
 
-'use server';
+'use client';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -8,7 +8,7 @@ import type { UserData, FeatureFlags, JobSearchPreferences } from '@/types/user'
 
 const defaultFeatures: FeatureFlags = {
     reminderEnabled: false,
-    exportEnabled: true, 
+    exportEnabled: true,
     languageSwitcher: true,
     emailLetter: true,
     previewEnabled: true,
@@ -37,34 +37,24 @@ const generateReferralCode = (length = 8) => {
 export async function initializeUserDocument(userId: string, browserLang?: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized");
     const userDocRef = doc(db, 'users', userId);
-    const adminUids = process.env.NEXT_PUBLIC_ALLOWED_UIDS?.split(',') || [];
+
 
     try {
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
             const data = docSnap.data() as Partial<UserData>;
             const updates: {[key: string]: any} = {};
-            
-            if (!data.features) {
-                updates['features'] = defaultFeatures;
-            } else {
-                const missingFeatures = Object.keys(defaultFeatures).filter(
-                    key => data.features?.[key as keyof FeatureFlags] === undefined
-                );
-                if (missingFeatures.length > 0) {
-                    updates['features'] = { ...defaultFeatures, ...data.features };
-                }
-            }
+
             if (!data.language) {
                 const lang = browserLang?.substring(0, 2);
                 updates['language'] = ['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de';
             }
-            if (data.plan === undefined) updates['plan'] = 'free';
+
             if (data.progressStage === undefined) updates['progressStage'] = 'onboarding';
             if (data.trustLevel === undefined) updates['trustLevel'] = 0;
             if (data.lastActivity === undefined) updates['lastActivity'] = new Date().toISOString();
-            
-            if (data.price === undefined) updates['price'] = 0;
+
+
             if (data.conversionPotential === undefined) updates['conversionPotential'] = 0;
             if (data.upsellSuggested === undefined) updates['upsellSuggested'] = false;
             if (data.upsellAccepted === undefined) updates['upsellAccepted'] = false;
@@ -73,12 +63,12 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
             if (!data.variantGroup || data.variantGroup === 'default') {
                 updates['variantGroup'] = Math.random() < 0.5 ? 'standard_upsell' : 'bonus_upsell';
             }
-            if (!data.pricePlanHistory) updates['pricePlanHistory'] = [];
+
 
             if (data.agbAccepted === undefined) updates['agbAccepted'] = false;
             if (data.agbVersion === undefined) updates['agbVersion'] = "0.0";
             if (data.acceptedPrivacyVersion === undefined) updates['acceptedPrivacyVersion'] = "0.0";
-            
+
             if (data.userStyleSample === undefined) updates['userStyleSample'] = '';
             if (data.useStyleSample === undefined) updates['useStyleSample'] = true;
             if (data.useAutoLinkedInBooster === undefined) updates['useAutoLinkedInBooster'] = true;
@@ -87,21 +77,14 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 updates['jobSearchPreferences'] = { keywords: [], locations: [], roles: [] };
             }
 
-            if (!data.referralCode) {
-                 updates['referralCode'] = generateReferralCode();
-            }
-            if (data.referrals === undefined) updates['referrals'] = [];
-            if (data.referredBy === undefined) updates['referredBy'] = null;
-
-
             if (!data.migrationComplete) {
               updates['migrationComplete'] = true;
             }
-            
-            updates['admin'] = adminUids.includes(userId);
 
 
-            if (Object.keys(updates).length > 0) { 
+
+
+            if (Object.keys(updates).length > 0) {
                 await setDoc(userDocRef, updates, { merge: true });
             }
         } else {
@@ -114,7 +97,7 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 language: (['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de') as Language,
                 progressStage: 'onboarding',
                 features: defaultFeatures,
-                admin: adminUids.includes(userId),
+                admin: false,
                 trustLevel: 0,
                 lastActivity: new Date().toISOString(),
                 migrationComplete: true,
@@ -174,7 +157,7 @@ interface StyleProfileData {
 export async function updateUserStyleProfile(userId: string, data: StyleProfileData): Promise<void> {
   if (!db) throw new Error('Firestore not initialized');
   const userDocRef = doc(db, 'users', userId);
-  
+
   const dataToUpdate: Partial<UserData> = {};
 
   if (data.userStyleSample !== undefined) {
@@ -186,7 +169,7 @@ export async function updateUserStyleProfile(userId: string, data: StyleProfileD
   if (data.useAutoLinkedInBooster !== undefined) {
     dataToUpdate.useAutoLinkedInBooster = data.useAutoLinkedInBooster;
   }
-  
+
   // Robust check for jobSearchPreferences
   if (data.jobSearchPreferences) {
     dataToUpdate.jobSearchPreferences = {
@@ -195,7 +178,7 @@ export async function updateUserStyleProfile(userId: string, data: StyleProfileD
       roles: Array.isArray(data.jobSearchPreferences.roles) ? data.jobSearchPreferences.roles : [],
     };
   }
-  
+
   if (Object.keys(dataToUpdate).length > 0) {
       await setDoc(userDocRef, dataToUpdate, { merge: true });
   }

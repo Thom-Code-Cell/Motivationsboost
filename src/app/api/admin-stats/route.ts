@@ -1,45 +1,15 @@
-
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
-import type { UserData } from '@/types/user';
-
+import { requireAdmin } from '@/lib/server/session';
+import { adminDb } from '@/lib/server/firebase-admin';
 export async function GET() {
-  // In a real production app, you would use Firebase Admin SDK to verify the token
-  // and ensure the user has admin privileges. For this demo, we assume the call
-  // is made by an authorized admin.
-  
-  if (!db) {
-    return new NextResponse('Firestore not initialized', { status: 500 });
-  }
-
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Zugriff verweigert.' }, { status: 403 }); }
   try {
-    const usersCollection = collection(db, 'users');
-    const usersSnapshot = await getDocs(query(usersCollection));
-
-    let totalUsers = 0;
-    let proUsers = 0;
-    let mrr = 0;
-    
-    usersSnapshot.forEach(doc => {
-      const userData = doc.data() as UserData;
-      totalUsers++;
-      if (userData.plan === 'pro_month' && userData.subscriptionStatus === 'active') {
-        proUsers++;
-        mrr += userData.price || 0;
-      }
+    const users = await adminDb().collection('users').get();
+    let proUsers = 0, mrr = 0;
+    users.forEach(doc => {
+      const data = doc.data();
+      if (data.plan === 'pro_month' && data.subscriptionStatus === 'active') { proUsers++; mrr += Number(data.price) || 0; }
     });
-    
-    const stats = {
-      totalUsers,
-      proUsers,
-      freeUsers: totalUsers - proUsers,
-      mrr: mrr,
-    };
-
-    return NextResponse.json(stats);
-  } catch (error) {
-    console.error("Error fetching admin stats:", error);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
+    return NextResponse.json({ totalUsers: users.size, proUsers, freeUsers: users.size - proUsers, mrr }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch { return NextResponse.json({ error: 'Statistiken derzeit nicht verfügbar.' }, { status: 503 }); }
 }

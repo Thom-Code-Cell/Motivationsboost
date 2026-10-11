@@ -19,7 +19,7 @@ const CvSectionSchema = z.object({
 export const GenerateCvFromDocumentsOutputSchema = z.object({
   personalInfo: z.object({
     name: z.string().describe("The full name of the applicant."),
-    email: z.string().email().describe("The email address."),
+    email: z.union([z.string().email(), z.literal('')]).describe("The email address."),
     phone: z.string().describe("The phone number."),
     address: z.string().describe("The full address."),
     linkedin: z.string().optional().describe("URL to the LinkedIn profile."),
@@ -33,7 +33,7 @@ export type GenerateCvFromDocumentsOutput = z.infer<typeof GenerateCvFromDocumen
 
 // CV Generator
 export const GenerateCvFromDocumentsInputSchema = z.object({
-  documentTexts: z.array(z.string()).describe('An array of text contents from various documents like work certificates, diplomas, etc.'),
+  documentTexts: z.array(z.string().trim().min(1).max(100000)).min(1).max(20).describe('An array of text contents from various documents like work certificates, diplomas, etc.'),
   language: LanguageSchema,
 });
 export type GenerateCvFromDocumentsInput = z.infer<typeof GenerateCvFromDocumentsInputSchema>;
@@ -58,6 +58,7 @@ export const AnalyzeInterviewAnswerInputSchema = z.object({
   question: z.string().describe('The interview question that was asked.'),
   userAnswer: z.string().describe("The user's answer to the question."),
   jobUrl: z.string().url().describe('The URL of the job posting for context.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   cvData: z.string().optional().describe("The applicant's CV data for more context."),
   userStyleSample: z.string().optional().describe('A text sample from the user to learn their writing style for the example answer.'),
   language: LanguageSchema,
@@ -73,7 +74,8 @@ export type AnalyzeInterviewAnswerOutput = z.infer<typeof AnalyzeInterviewAnswer
 
 // Motivation Letter Schemas
 export const GenerateMotivationLetterInputSchema = z.object({
-  jobUrl: z.string().describe('The URL of the job posting.'),
+  jobUrl: z.string().url().describe('The URL of the job posting.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   stilwahl: z.string().optional().describe('The chosen style for the cover letter.'),
   cvDaten: z.string().describe('The applicant\u2019s CV data.'),
   benutzerprofil: z.string().describe('The applicant\u2019s profile information.'),
@@ -92,6 +94,7 @@ export type GenerateMotivationLetterOutput = z.infer<typeof GenerateMotivationLe
 // Application Feedback Schemas
 export const GenerateApplicationFeedbackInputSchema = z.object({
   jobUrl: z.string().url().describe('The URL of the job posting to compare against.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   coverLetter: z.string().describe('The cover letter to provide feedback on.'),
   cv: z.string().describe('The CV to provide feedback on.'),
   language: LanguageSchema,
@@ -145,6 +148,7 @@ export type AutofillCVGapsOutput = z.infer<typeof AutofillCVGapsOutputSchema>;
 // Extract Job Keywords Schemas
 export const ExtractJobKeywordsInputSchema = z.object({
   jobUrl: z.string().url().describe('The URL of the job posting to analyze.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   language: LanguageSchema,
 });
 export type ExtractJobKeywordsInput = z.infer<typeof ExtractJobKeywordsInputSchema>;
@@ -172,6 +176,7 @@ export type ExtractJobKeywordsOutput = z.infer<typeof ExtractJobKeywordsOutputSc
 // Generate Interview Questions Schemas
 export const GenerateInterviewQuestionsInputSchema = z.object({
   jobUrl: z.string().url().describe('The URL of the job posting to analyze.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   language: LanguageSchema,
   cvData: z.string().optional().describe("The applicant's CV data for more context."),
 });
@@ -266,6 +271,7 @@ export type GenerateAudioFromTextOutput = z.infer<typeof GenerateAudioFromTextOu
 export const PredictSalaryRangeInputSchema = z.object({
   cvData: GenerateCvFromDocumentsOutputSchema.describe("The structured CV data in JSON format."),
   jobUrl: z.string().url().describe('The URL of the job posting for context.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   location: z.string().describe("The user's work location (e.g., 'Zurich, Switzerland')."),
   language: LanguageSchema,
 });
@@ -318,6 +324,7 @@ export type GenerateProfessionalPhotoOutput = z.infer<typeof GenerateProfessiona
 // Document Check Schemas
 export const AnalyzeRequiredDocumentsInputSchema = z.object({
   jobUrl: z.string().url().describe('The URL of the job posting to analyze.'),
+  jobText: z.string().max(50000).optional().describe("The job posting text, if provided directly by the user."),
   language: LanguageSchema,
 });
 export type AnalyzeRequiredDocumentsInput = z.infer<typeof AnalyzeRequiredDocumentsInputSchema>;

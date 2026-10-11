@@ -8,8 +8,9 @@
  * - AnalyzeWritingStyleOutput - The return type for the function.
  */
 
+import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import {
   AnalyzeWritingStyleInputSchema,
   AnalyzeWritingStyleOutputSchema,
@@ -25,6 +26,8 @@ const languageMap: Record<string, string> = {
 };
 
 export async function analyzeWritingStyle(input: AnalyzeWritingStyleInput): Promise<AnalyzeWritingStyleOutput> {
+  input = AnalyzeWritingStyleInputSchema.parse(input);
+  await authorizeAI(input);
   return analyzeWritingStyleFlow(input);
 }
 
@@ -59,6 +62,7 @@ const analyzeWritingStyleFlow = ai.defineFlow(
   async (input) => {
     const languageName = languageMap[input.language] || 'Deutsch';
     const {output} = await prompt({...input, languageName});
-    return output!;
+    if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
+    return output;
   }
 );

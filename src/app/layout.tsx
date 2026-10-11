@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Bewerbung leicht gemacht mit AI',
+  title: 'Motivationsboost | KI-Bewerbungsplattform',
   description: 'Ihr intelligenter Bewerbungs-Copilot. Erstellen Sie herausragende Bewerbungsunterlagen, optimieren Sie Ihren Lebenslauf für ATS-Systeme, generieren Sie professionelle KI-Bewerbungsfotos und bereiten Sie sich perfekt auf Interviews vor.',
 };
 

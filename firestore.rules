@@ -1,31 +1,39 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Users can read their own data, and only authenticated users can create their own document.
-    // Updates are handled by server-side logic (Stripe webhook, etc.).
+    function signedIn() { return request.auth != null; }
+    function ownUser(userId) { return signedIn() && request.auth.uid == userId; }
     match /users/{userId} {
-      allow read, update, write: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow read: if ownUser(userId);
+      allow create: if ownUser(userId)
+        && request.resource.data.plan == 'free'
+        && request.resource.data.price == 0
+        && request.resource.data.admin == false
+        && request.resource.data.subscriptionStatus == 'free'
+        && request.resource.data.features.atsFeedbackUnlocked == false
+        && request.resource.data.features.optimizerEnabled == false
+        && !request.resource.data.keys().hasAny(['stripeCustomerId', 'stripeSubscriptionId', 'stripePriceId', 'activeUntil']);
+      allow update: if ownUser(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'language', 'userStyleSample', 'useStyleSample', 'useAutoLinkedInBooster', 'jobSearchPreferences',
+        'agbAccepted', 'agbVersion', 'acceptedPrivacyVersion', 'lastActivity', 'trustLevel', 'progressStage',
+        'migrationComplete', 'userScore', 'conversionPotential', 'upsellSuggested', 'upsellAccepted',
+        'upsellType', 'variantGroup', 'aiTriggeredUpsell'
+      ]);
+      allow delete: if false;
     }
-    
-    // Users can manage their own applications.
     match /applications/{docId} {
-      allow read, write, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['userId', 'jobTitle', 'company', 'jobUrl', 'status', 'applicationDate', 'notes', 'cvId', 'letterId']);
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['jobTitle', 'company', 'jobUrl', 'status', 'notes', 'cvId', 'letterId']);
     }
-
-    // Users can only read and update their own progress documents.
-    match /progress/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Feedback collection can be written to by any authenticated user, but not read directly.
-    // This is a write-only collection for user feedback.
+    match /progress/{userId} { allow read, write: if ownUser(userId); }
     match /feedback/{docId} {
-        allow create: if request.auth != null;
-        allow read, update, delete: if false;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if false;
     }
+    match /{document=**} { allow read, write: if false; }
   }
 }

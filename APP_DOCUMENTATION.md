@@ -1,3 +1,7 @@
+# Historical product overview
+
+Operational setup and release status are documented in README.md and docs/RELEASE-CHECKLIST.md. This older product overview is not proof that a feature has been verified live.
+
 
 # App-Zusammenfassung & Technische Dokumentation
 
@@ -23,9 +27,9 @@ Die Anwendung ist ein **intelligenter Bewerbungs-Copilot**, der Nutzer durch den
 ## 3. Authentifizierung & Nutzerdaten
 
 *   **Anbieter:** Firebase Authentication mit **Google Provider**.
-*   **Scopes:** Bei der Anmeldung werden zusätzlich die Scopes `https://www.googleapis.com/auth/drive.file` und `https://www.googleapis.com/auth/drive.readonly` angefragt, um Dokumenten-Uploads und -Import zu ermöglichen.
+*   **Scopes:** Bei der Anmeldung werden zusätzlich die Scopes `https://www.googleapis.com/auth/drive.file`  angefragt, um Dokumenten-Uploads und -Import zu ermöglichen.
 *   **Nutzerdaten:** Nach erfolgreicher Authentifizierung werden nutzerspezifische Daten in der Firestore-Datenbank gespeichert.
-*   **Admin-Zugriff:** Die Umgebungsvariable `NEXT_PUBLIC_ALLOWED_UIDS` wird verwendet, um bestimmten Nutzern Admin-Rechte zu gewähren (z.B. für den Zugriff auf das Owner-Dashboard). Diese Variable beschränkt nicht den allgemeinen Login.
+*   **Admin-Zugriff:** Die Umgebungsvariable `ALLOWED_ADMIN_UIDS` wird verwendet, um bestimmten Nutzern Admin-Rechte zu gewähren (z.B. für den Zugriff auf das Owner-Dashboard). Diese Variable beschränkt nicht den allgemeinen Login.
 
 ## 4. Firestore-Datenstruktur
 
@@ -151,7 +155,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 
 # Admin-Zugriff (kommagetrennte Liste von Firebase User IDs)
 # Wenn gesetzt, erhalten NUR diese Nutzer Admin-Rechte. Beschränkt den Login NICHT.
-NEXT_PUBLIC_ALLOWED_UIDS=...
+ALLOWED_ADMIN_UIDS=...
 
 # Stripe Konfiguration
 STRIPE_SECRET_KEY=sk_...

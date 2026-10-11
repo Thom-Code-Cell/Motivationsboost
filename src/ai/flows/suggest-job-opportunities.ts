@@ -8,8 +8,9 @@
  * - SuggestJobOpportunitiesOutput - The return type for the function.
  */
 
+import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import {
   SuggestJobOpportunitiesInputSchema,
   SuggestJobOpportunitiesOutputSchema,
@@ -29,6 +30,8 @@ const languageMap: Record<string, string> = {
 export async function suggestJobOpportunities(
   input: SuggestJobOpportunitiesInput
 ): Promise<SuggestJobOpportunitiesOutput> {
+  input = SuggestJobOpportunitiesInputSchema.parse(input);
+  await authorizeAI(input);
   return suggestJobOpportunitiesFlow(input);
 }
 
@@ -94,6 +97,7 @@ const suggestJobOpportunitiesFlow = ai.defineFlow(
       languageName,
     });
 
-    return output!;
+    if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
+    return output;
   }
 );

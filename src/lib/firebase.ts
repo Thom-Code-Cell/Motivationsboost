@@ -1,8 +1,8 @@
 
 import { initializeApp, getApps, getApp, type FirebaseOptions, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getAnalytics, type Analytics, isSupported } from "firebase/analytics";
+import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
+import type { Analytics } from "firebase/analytics";
 
 // For client-side Firebase services, we MUST use the public-facing NEXT_PUBLIC_FIREBASE_API_KEY.
 const firebaseConfig: FirebaseOptions = {
@@ -22,20 +22,16 @@ let isFirebaseInitialized = false;
 
 // We check if the essential keys for initialization are present.
 // This prevents the app from crashing and allows us to show a setup guide.
-if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+if (firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.authDomain && firebaseConfig.appId) {
     try {
         app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
-        
-        // Conditionally initialize Analytics only if fully configured and supported.
-        if (firebaseConfig.appId && typeof window !== "undefined") {
-            isSupported().then((supported) => {
-              if (supported) {
-                analytics = getAnalytics(app);
-              }
-            });
+        if (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname) && process.env.NEXT_PUBLIC_USE_EMULATORS === 'true') {
+          connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+          connectFirestoreEmulator(db, '127.0.0.1', 8080);
         }
+
         isFirebaseInitialized = true;
     } catch (error) {
         console.error("Firebase initialization error:", error);

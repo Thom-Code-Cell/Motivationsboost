@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { autofillCVGaps } from '@/ai/flows/autofill-cv-gaps';
-import { listDriveFiles, extractTextFromDriveFile } from '@/services/drive';
+import { listDriveFiles, extractTextFromDriveFile, saveFileToDrive } from '@/services/drive';
 import type { Language } from '@/ai/schemas';
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ const formSchema = z.object({
 });
 
 interface CvGapsFillerProps {
+    initialCvText: string;
+    onCvTextUpdated: (text: string) => void;
     accessToken: string | null;
     language: Language;
 }
@@ -35,7 +37,7 @@ interface DriveFile {
     name: string;
 }
 
-export function CvGapsFiller({ accessToken, language }: CvGapsFillerProps) {
+export function CvGapsFiller({ initialCvText, onCvTextUpdated, accessToken, language }: CvGapsFillerProps) {
   const [filledCv, setFilledCv] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isExtractingText, setIsExtractingText] = useState(false);
@@ -44,7 +46,7 @@ export function CvGapsFiller({ accessToken, language }: CvGapsFillerProps) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { cvText: "", language: language },
+    defaultValues: { cvText: initialCvText, language: language },
   });
 
    useEffect(() => {
@@ -115,11 +117,24 @@ export function CvGapsFiller({ accessToken, language }: CvGapsFillerProps) {
     }
   }
 
+  async function saveReviewedCv() {
+    if (!accessToken) { toast({ title: 'Bitte Google Drive verbinden', variant: 'destructive' }); return; }
+    const text = filledCv || form.getValues('cvText');
+    if (!text.trim()) return;
+    setIsLoading(true);
+    try {
+      await saveFileToDrive(accessToken, 'cv_refined.txt', text, 'text/plain');
+      onCvTextUpdated(text);
+      toast({ title: 'Lebenslauf gespeichert', description: 'Dieser Text wird für weitere KI-Funktionen und den Export verwendet.' });
+    } catch { toast({ title: 'Speichern fehlgeschlagen', variant: 'destructive' }); }
+    finally { setIsLoading(false); }
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle>CV-Editor & Lücken-Analyse</CardTitle>
-        <CardDescription>Hier können Sie Ihren Lebenslauf-Text bearbeiten und Lücken von der KI füllen lassen. So wirkt Ihr Werdegang lückenlos und überzeugend.</CardDescription>
+        <CardDescription>Hier können Sie Ihren Lebenslauf-Text bearbeiten und Lücken erkennen und passende Rückfragen erhalten. Angaben werden nicht erfunden.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -139,7 +154,7 @@ export function CvGapsFiller({ accessToken, language }: CvGapsFillerProps) {
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={form.control}
@@ -199,19 +214,20 @@ export function CvGapsFiller({ accessToken, language }: CvGapsFillerProps) {
           <CardFooter className="flex-col items-start gap-4">
             <Button type="submit" disabled={isLoading || isExtractingText}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? 'Prüfe...' : 'Lücken füllen'}
+              {isLoading ? 'Prüfe...' : 'Lücken analysieren'}
             </Button>
             {filledCv && (
               <div className="w-full space-y-2">
                 <Label htmlFor="filled-cv">Vervollständigter Lebenslauf</Label>
                 <Textarea
                   id="filled-cv"
-                  readOnly
+                  onChange={e => setFilledCv(e.target.value)}
                   value={filledCv}
                   className="min-h-[300px] bg-secondary/30"
                 />
               </div>
             )}
+            <Button type="button" variant="outline" onClick={saveReviewedCv} disabled={isLoading}>Überprüften Lebenslauf speichern</Button>
           </CardFooter>
         </form>
       </Form>

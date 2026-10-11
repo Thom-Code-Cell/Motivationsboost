@@ -1,5 +1,6 @@
 
 "use client";
+import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,7 +19,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/core-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/core-textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -39,12 +39,14 @@ const motivationStyles = [
 ];
 
 const formSchema = z.object({
+  jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL ein." }),
   stilwahl: z.string({ required_error: "Bitte wählen Sie einen Stil." }).min(1, "Bitte wählen Sie einen Stil."),
   language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
 });
 
 interface MotivationsGeneratorProps {
+  onExport: () => void;
   user: User | null;
   accessToken: string | null;
   cvData: string | null;
@@ -56,7 +58,7 @@ interface MotivationsGeneratorProps {
   onLetterUpdated: (letter: string | null) => void;
 }
 
-export function MotivationsGenerator({ user, accessToken, cvData, userProfile, userStyleSample, useStyleSample, language, initialLetter, onLetterUpdated }: MotivationsGeneratorProps) {
+export function MotivationsGenerator({ onExport, user, accessToken, cvData, userProfile, userStyleSample, useStyleSample, language, initialLetter, onLetterUpdated }: MotivationsGeneratorProps) {
   const [editedLetter, setEditedLetter] = useState(initialLetter || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isExtractingKeywords, setIsExtractingKeywords] = useState(false);
@@ -87,7 +89,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
     setIsExtractingKeywords(true);
     setExtractedData(null);
     try {
-      const result = await extractJobKeywords({ jobUrl, language: form.getValues('language') });
+      const result = await extractJobKeywords({ jobUrl, jobText: form.getValues('jobText'), language: form.getValues('language') });
       setExtractedData(result);
     } catch (error) {
       console.error("Error extracting keywords:", error);
@@ -109,7 +111,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
 
     setIsLoading(true);
     setEditedLetter("");
-    onLetterUpdated(null);
+
 
     try {
        const allKeywords = extractedData ? [
@@ -117,7 +119,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
             ...extractedData.softSkills,
             ...extractedData.schluesselbegriffe,
         ] : [];
-        
+
       const result = await generateMotivationLetter({
         ...values,
         cvDaten: cvData || '',
@@ -129,7 +131,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
 
       setEditedLetter(result.motivationLetter);
       onLetterUpdated(result.motivationLetter);
-      
+
       await saveFileToDrive(accessToken, 'motivation_letter.txt', result.motivationLetter, 'text/plain');
 
       const newBadge = await updateProgress(user.uid, { type: 'LETTER_GENERATED' });
@@ -152,9 +154,10 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
     }
   }
 
-  const handleSaveToDrive = () => {
+  const handleSaveToDrive = async () => {
     if (accessToken && editedLetter !== initialLetter) {
-        saveFileToDrive(accessToken, 'motivation_letter.txt', editedLetter, 'text/plain');
+        try { await saveFileToDrive(accessToken, 'motivation_letter.txt', editedLetter, 'text/plain'); }
+        catch { toast({ title: 'Speichern fehlgeschlagen', description: 'Ihre Änderungen sind noch nicht in Drive gespeichert.', variant: 'destructive' }); return; }
         onLetterUpdated(editedLetter);
         toast({ title: "Gespeichert", description: "Ihre Änderungen wurden in Google Drive gesichert."})
     }
@@ -184,6 +187,8 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+<FormField control={form.control} name="jobText" render={({ field }) => (<FormItem><FormLabel>Stellenanzeige als Text (optional)</FormLabel><FormControl><Textarea {...field} value={field.value || ""} placeholder="Falls der Link nicht lesbar ist, hier den vollständigen Anzeigentext einfügen." /></FormControl><FormMessage /></FormItem>)} />
+
             <FormField
               control={form.control}
               name="jobUrl"
@@ -192,7 +197,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
                   <FormLabel>Job-Link</FormLabel>
                   <FormControl>
                     <Input placeholder="https://www.beispiel-firma.de/karriere/job123" {...field} onBlur={(e) => {
-                      field.onBlur(e);
+                      field.onBlur();
                       handleExtractKeywords(e.target.value);
                     }}/>
                   </FormControl>
@@ -295,7 +300,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
           </CardFooter>
         </form>
       </Form>
-      
+
       {(isLoading || editedLetter) && (
         <CardContent className="mt-6 border-t pt-6">
            {isLoading ? (
@@ -334,11 +339,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
       {editedLetter && !isLoading && (
           <CardFooter className="mt-6 border-t pt-6 flex-col items-start gap-4">
               <p className="text-sm text-muted-foreground">Ihr Dokument wurde gespeichert. Sie können es nun im "Export"-Tab als Teil Ihrer Bewerbungsmappe herunterladen.</p>
-               <Button onClick={() => {
-                const tabsContainer = document.querySelector('[role="tablist"]');
-                const exportButton = tabsContainer?.querySelector('[data-state="inactive"][value="export"]') as HTMLButtonElement | null;
-                exportButton?.click();
-               }}>Zum Export-Tab</Button>
+               <Button onClick={onExport}>Zum Export-Tab</Button>
           </CardFooter>
       )}
 

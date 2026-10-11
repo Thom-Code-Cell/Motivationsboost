@@ -5,14 +5,13 @@ import { Button } from '@/components/ui/button';
 import { HeroSection } from '@/components/hero-section';
 import { FeaturesSection } from '@/components/features-section';
 import { HowItWorksSection } from '@/components/how-it-works-section';
-import { TestimonialsSection } from '@/components/testimonials-section';
 import { CtaSection } from '@/components/cta-section';
 
 export const LandingPage = ({ handleSignIn }: { handleSignIn: () => void }) => (
   <div className="flex flex-col min-h-dvh bg-background">
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <Link href="/" className="flex items-center gap-2 font-headline text-xl font-bold tracking-tight text-foreground">
-        Bewerbung leicht gemacht mit AI
+        Motivationsboost
       </Link>
       <Button onClick={handleSignIn}>Anmelden</Button>
     </header>
@@ -34,7 +33,7 @@ export const LandingPage = ({ handleSignIn }: { handleSignIn: () => void }) => (
       </HeroSection>
       <FeaturesSection />
       <HowItWorksSection />
-      <TestimonialsSection />
+
       <CtaSection onCtaClick={handleSignIn} />
     </main>
     <footer className="border-t py-6 px-4 md:px-6 bg-muted/40">

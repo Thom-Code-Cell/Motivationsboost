@@ -1,5 +1,6 @@
 
 "use client";
+import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,8 +16,8 @@ import { FileArchive, Loader2, Info, Lock, ListChecks, CheckCircle, XCircle } fr
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { createTextPdf } from '@/lib/export-documents';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
 import type { UserData } from '@/types/user';
 import { type GenerateCvFromDocumentsOutput, type AnalyzeRequiredDocumentsOutput } from '@/ai/schemas';
 import { analyzeRequiredDocuments } from '@/ai/flows/analyze-required-documents';
@@ -26,6 +27,7 @@ import { Separator } from './ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 interface ExportCenterProps {
+    cvTextOverride?: string | null;
     userData: UserData | null;
     accessToken: string | null;
     cvJson: GenerateCvFromDocumentsOutput | null;
@@ -34,6 +36,7 @@ interface ExportCenterProps {
 }
 
 const formSchema = z.object({
+  jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
 });
 
@@ -45,7 +48,7 @@ const generateCvTextForPdf = (cv: GenerateCvFromDocumentsOutput): string => {
     text += `${cv.personalInfo.email} | ${cv.personalInfo.phone}\n`;
     text += `${cv.personalInfo.address}\n`;
     if (cv.personalInfo.linkedin) text += `LinkedIn: ${cv.personalInfo.linkedin}\n`;
-    
+
     text += `\n----------------------\nZUSAMMENFASSUNG\n----------------------\n${cv.summary}\n\n`;
 
     cv.sections.forEach(section => {
@@ -82,13 +85,13 @@ const generateCvDocx = (cv: GenerateCvFromDocumentsOutput): Document => {
                     alignment: AlignmentType.CENTER
                 }),
                 new Paragraph({ children: [new TextRun({ text: cv.personalInfo.linkedin || '', style: "Hyperlink" })], alignment: AlignmentType.CENTER }),
-                
-                new Paragraph({ text: "Zusammenfassung", heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, value: "single", size: 6 } } }),
+
+                new Paragraph({ text: "Zusammenfassung", heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 6 } } }),
                 new Paragraph(cv.summary),
                 new Paragraph(""),
 
                 ...cv.sections.flatMap(section => [
-                    new Paragraph({ text: section.title, heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, value: "single", size: 6 } } }),
+                    new Paragraph({ text: section.title, heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 6 } } }),
                     ...section.items.flatMap(item => [
                          new Paragraph({
                             children: [
@@ -102,7 +105,7 @@ const generateCvDocx = (cv: GenerateCvFromDocumentsOutput): Document => {
                      new Paragraph(""),
                 ]),
 
-                new Paragraph({ text: "Kenntnisse", heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, value: "single", size: 6 } } }),
+                new Paragraph({ text: "Kenntnisse", heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 6 } } }),
                 new Paragraph(cv.skills.join(' • ')),
             ],
         }],
@@ -110,7 +113,7 @@ const generateCvDocx = (cv: GenerateCvFromDocumentsOutput): Document => {
 }
 
 
-export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, motivationLetter }: ExportCenterProps) {
+export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, linkedinSummary, motivationLetter }: ExportCenterProps) {
     const [includeCv, setIncludeCv] = useState(true);
     const [includeLetter, setIncludeLetter] = useState(true);
     const [includeLinkedin, setIncludeLinkedin] = useState(true);
@@ -129,7 +132,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
 
     useEffect(() => {
         if (accessToken) {
-            listDriveFiles(accessToken).then(files => setDriveFiles(files.map(f => f.name)));
+            listDriveFiles(accessToken).then(files => setDriveFiles(files.map(f => f.name))).catch(() => toast({ title: 'Drive-Dateien konnten nicht geladen werden', variant: 'destructive' }));
         }
     }, [accessToken]);
 
@@ -139,25 +142,17 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
         try {
             if (!userData) throw new Error("Benutzerdaten nicht gefunden.");
 
+            if (format === 'docx' && !isPro) throw new Error('Der Word-Export erfordert einen aktiven Pro-Zugang.');
             const zip = new JSZip();
             let fileCount = 0;
 
             // --- CV Generation ---
-            if (includeCv && cvJson) {
+            if (includeCv && (cvJson || cvTextOverride)) {
                 if (format === 'pdf') {
-                    const doc = new jsPDF({
-                        orientation: 'p',
-                        unit: 'mm',
-                        format: 'a4'
-                    });
-                    doc.setFont("helvetica", "normal");
-                    doc.setFontSize(10);
-                    const cvText = generateCvTextForPdf(cvJson);
-                    const splitText = doc.splitTextToSize(cvText, 180);
-                    doc.text(splitText, 15, 20);
+                    const doc = createTextPdf(cvTextOverride || generateCvTextForPdf(cvJson!));
                     zip.file("Lebenslauf.pdf", doc.output('blob'));
                 } else if (format === 'docx' && isPro) {
-                    const doc = generateCvDocx(cvJson);
+                    const doc = cvTextOverride ? new Document({ sections: [{ children: cvTextOverride.split('\n').map(text => new Paragraph(text)) }] }) : generateCvDocx(cvJson!);
                     const blob = await Packer.toBlob(doc);
                     zip.file("Lebenslauf.docx", blob);
                 }
@@ -167,11 +162,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
             // --- Letter Generation ---
             if (includeLetter && motivationLetter) {
                  if (format === 'pdf') {
-                    const doc = new jsPDF();
-                    doc.setFont("helvetica", "normal");
-                    doc.setFontSize(11);
-                    const splitText = doc.splitTextToSize(motivationLetter, 180);
-                    doc.text(splitText, 15, 20);
+                    const doc = createTextPdf(motivationLetter);
                     zip.file("Motivationsschreiben.pdf", doc.output('blob'));
                 } else if (format === 'docx' && isPro) {
                     const doc = new Document({ sections: [{ children: motivationLetter.split('\n').map(t => new Paragraph(t)) }] });
@@ -180,13 +171,13 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
                 }
                  fileCount++;
             }
-            
+
             // --- LinkedIn Summary (always as .txt) ---
             if (includeLinkedin && linkedinSummary) {
                 zip.file("LinkedIn_Profil.txt", linkedinSummary);
                 fileCount++;
             }
-            
+
             if (fileCount === 0) {
                 toast({
                     title: "Keine Dokumente ausgewählt",
@@ -217,7 +208,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
             setIsLoading(false);
         }
     };
-    
+
     const handleCheckDocuments = async (values: z.infer<typeof formSchema>) => {
         setIsCheckingDocs(true);
         setCheckResult(null);
@@ -225,12 +216,13 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
             if (!userData) throw new Error("Benutzerdaten nicht gefunden.");
             const result = await analyzeRequiredDocuments({
                 jobUrl: values.jobUrl,
+          jobText: values.jobText,
                 language: userData.language,
             });
             setCheckResult(result);
             if (accessToken) {
                 // Refresh drive file list
-                listDriveFiles(accessToken).then(files => setDriveFiles(files.map(f => f.name)));
+                listDriveFiles(accessToken).then(files => setDriveFiles(files.map(f => f.name))).catch(() => toast({ title: 'Drive-Dateien konnten nicht geladen werden', variant: 'destructive' }));
             }
 
         } catch (error) {
@@ -243,7 +235,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
             setIsCheckingDocs(false);
         }
     }
-    
+
     const doesFileExist = (requiredDoc: string) => {
         const normalizedDoc = requiredDoc.toLowerCase().replace(/[\s-]/g, '');
         return driveFiles.some(driveFile => {
@@ -264,7 +256,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
                 <div className="space-y-4 rounded-lg border p-4">
                     <h3 className="font-semibold">Dokumente für ZIP-Mappe auswählen</h3>
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="cv" checked={includeCv} onCheckedChange={(checked) => setIncludeCv(!!checked)} disabled={!cvJson} />
+                        <Checkbox id="cv" checked={includeCv} onCheckedChange={(checked) => setIncludeCv(!!checked)} disabled={!cvJson && !cvTextOverride} />
                         <Label htmlFor="cv" className="flex-grow">Lebenslauf</Label>
                         {!cvJson && <span className="text-xs text-muted-foreground">Noch nicht generiert</span>}
                     </div>
@@ -307,7 +299,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
                 </Button>
             </CardFooter>
         </Card>
-        
+
         <Card>
             <CardHeader>
                 <CardTitle>Dokumenten-Vollständigkeits-Check</CardTitle>
@@ -316,6 +308,8 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCheckDocuments)}>
                     <CardContent className="space-y-4">
+<FormField control={form.control} name="jobText" render={({ field }) => (<FormItem><FormLabel>Stellenanzeige als Text (optional)</FormLabel><FormControl><Textarea {...field} value={field.value || ""} placeholder="Falls der Link nicht lesbar ist, hier den vollständigen Anzeigentext einfügen." /></FormControl><FormMessage /></FormItem>)} />
+
                         <FormField
                             control={form.control}
                             name="jobUrl"
@@ -345,7 +339,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
                     </div>
                 </CardContent>
             )}
-            
+
             {checkResult && (
                 <CardContent className="space-y-4">
                      <Separator />
