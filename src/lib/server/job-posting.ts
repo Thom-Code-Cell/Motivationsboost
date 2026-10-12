@@ -5,6 +5,7 @@ import { isIP } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { load } from 'cheerio';
 import { safeWebUrl } from '@/lib/security';
+import { isLocalMode } from '@/lib/local-mode';
 
 export function isPublicAddress(address: string): boolean {
   try {
@@ -44,6 +45,7 @@ export async function getJobPosting(value: string, suppliedText?: string): Promi
     if (suppliedText.length < 50 || suppliedText.length > 50000) throw new Error('Bitte einen Anzeigentext mit 50 bis 50.000 Zeichen eingeben.');
     return suppliedText.trim();
   }
+  if (isLocalMode()) throw new Error('Im lokalen Modus bitte Stellenanzeigentext einfügen oder eine lokale Datei verwenden.');
   const html = await download(value);
   const $ = load(html); $('script,style,nav,footer,header,noscript').remove();
   const text = ($('main').length ? $('main').text() : $('body').text()).replace(/\s+/g, ' ').trim().slice(0, 50000);

@@ -3,11 +3,17 @@
 import Handlebars from 'handlebars';
 import { z, type ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { isLocalMode } from '@/lib/local-mode';
+import { generateLocal } from '@/lib/server/ollama';
 
 type PromptPart = { text: string } | { media: { url: string } };
 type Options = { model?: string; prompt: string | PromptPart[]; config?: Record<string, unknown> };
 type Result = { text: string; media?: { url: string } };
 async function generate(options: Options): Promise<Result> {
+  if (isLocalMode()) {
+    if (typeof options.prompt !== 'string' || options.model) throw new Error('Diese Medienfunktion benötigt eine separate lokale Komponente und ist hier nicht verfügbar.');
+    return generateLocal(options.prompt, options.config?.responseJsonSchema);
+  }
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error('Der KI-Dienst ist noch nicht konfiguriert.');
   const model = (options.model || process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash').replace(/^googleai\//, '');

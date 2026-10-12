@@ -1,0 +1,245 @@
+.local-shell {
+  font-family: system-ui, sans-serif;
+  background: #f4f6f4;
+  color: #163029;
+  min-height: 100vh;
+  padding: 32px;
+  line-height: 1.55;
+}
+.local-shell * {
+  box-sizing: border-box;
+}
+.local-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  max-width: 1440px;
+  margin: 0 auto 24px;
+}
+.local-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: #55776a;
+}
+.local-shell h1 {
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+.local-shell h1 span {
+  font-size: 14px;
+  border: 1px solid #b8c9bf;
+  padding: 4px 10px;
+  border-radius: 24px;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+.local-shell h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.local-shell h3 {
+  font-weight: 700;
+  font-size: 19px;
+}
+.local-badge {
+  background: #e2eee7;
+  padding: 10px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+}
+.local-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1440px;
+  margin: auto;
+}
+.local-panel {
+  border: 1px solid #d6e0d9;
+  background: white;
+  border-radius: 16px;
+  padding: 22px;
+  margin: 0 0 20px;
+  min-width: 0;
+}
+.local-panel legend {
+  font-size: 19px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+.local-grid aside {
+  align-self: start;
+}
+.local-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.local-shell input:not([type="checkbox"]),
+.local-shell textarea,
+.local-shell select {
+  width: 100%;
+  border: 1px solid #bdcec4;
+  border-radius: 8px;
+  padding: 10px;
+  color: #17372b;
+  background: #fcfdfc;
+  font-size: 14px;
+  font-weight: 400;
+  min-width: 0;
+}
+.local-shell textarea {
+  resize: vertical;
+}
+.local-shell button {
+  background: #205d46;
+  color: white;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 4px 0;
+  white-space: normal;
+}
+.local-shell button:hover {
+  background: #163f30;
+}
+.local-shell button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.local-shell .local-secondary {
+  background: #edf3ef;
+  color: #254d3b;
+  border-color: #c5d7cc;
+}
+.local-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.local-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.local-shell .local-application {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  text-align: left;
+  background: #f3f7f4;
+  color: #254d3b;
+  margin-top: 10px;
+  gap: 2px;
+}
+.local-application[aria-current="page"] {
+  outline: 2px solid #4e8068;
+}
+.local-application span {
+  font-weight: 400;
+}
+.local-shell hr {
+  border: 0;
+  border-top: 1px solid #d6e0d9;
+  margin: 22px 0;
+}
+.local-small {
+  font-size: 12px;
+  color: #587064;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.local-status {
+  max-width: 1440px;
+  margin: 0 auto 16px;
+  font-size: 14px;
+  background: #e5efe8;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.local-error {
+  max-width: 1440px;
+  margin: 0 auto 16px;
+  padding: 14px;
+  border: 1px solid #d49f9b;
+  background: #fff2f0;
+  color: #922e28;
+  border-radius: 10px;
+}
+.local-shell details {
+  font-size: 13px;
+  margin-top: 12px;
+}
+.local-shell summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.local-shell pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 300px;
+  overflow: auto;
+  background: #f3f6f4;
+  padding: 12px;
+  font-size: 12px;
+}
+.local-document {
+  border-bottom: 1px solid #e1e9e4;
+  padding: 10px 0;
+}
+.local-result {
+  border: 1px solid #dbe4de;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+  margin: 12px 0;
+}
+.local-result legend {
+  font-size: 14px;
+}
+.local-draft {
+  border-top: 1px solid #cad9d0;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.local-cancel {
+  position: sticky;
+  top: 12px;
+  z-index: 2;
+}
+.local-shell :focus-visible {
+  outline: 3px solid #d29a35;
+  outline-offset: 2px;
+}
+@media (max-width: 800px) {
+  .local-shell {
+    padding: 16px;
+  }
+  .local-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .local-grid {
+    grid-template-columns: 1fr;
+  }
+  .local-columns {
+    grid-template-columns: 1fr;
+  }
+  .local-panel {
+    padding: 16px;
+  }
+  .local-shell h1 {
+    font-size: 27px;
+  }
+}
