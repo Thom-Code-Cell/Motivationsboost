@@ -47,3 +47,9 @@ firestore-debug.log
 /test-results/
 /playwright-report/
 !.env.example
+
+/.next-local/
+/local-resources/
+/local-data/
+/output/
+/local-evidence/

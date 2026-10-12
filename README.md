@@ -2,7 +2,13 @@
 
 Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and Gemini.
 
-## Local development
+## Fully local use with Ollama
+
+An isolated local mode runs without Google login, Firebase services, Drive or paid AI APIs. It uses SQLite, local files, local OCR and Ollama. Start with [the local installation guide](docs/LOCAL-SETUP.md). Use `npm run build:local`, then `Start-Local.ps1` on Windows. The browser address is `http://127.0.0.1:3210`.
+
+Local model and hardware acceptance is recorded separately from cloud checks in [LOCAL-VERIFICATION.md](docs/LOCAL-VERIFICATION.md). Existing cloud deployment settings and data are not migrated.
+
+## Cloud-variant development
 
 Use Node.js 22 or 24. Copy `.env.example` to `.env.local` and configure the app's own Firebase project and server credentials. Enable Google sign-in in Firebase and add the development/deployment host to authorized domains. Never commit credentials.
 

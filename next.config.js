@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   distDir: process.env.NEXT_DIST_DIR || '.next',
-  serverExternalPackages: ['firebase-admin', 'pdf-parse', 'handlebars'],
+  serverExternalPackages: ['firebase-admin', 'pdf-parse', 'handlebars', 'tesseract.js', 'tesseract.js-core', 'sharp'],
   experimental: { serverActions: { bodySizeLimit: '12mb' }, cpus: 2 },
   async headers() {
     return [{ source: '/(.*)', headers: [

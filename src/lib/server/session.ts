@@ -1,9 +1,15 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { adminAuth, adminDb } from './firebase-admin';
+import { isLocalMode } from '@/lib/local-mode';
+import { localRequest } from './local-security';
 
 export const SESSION_COOKIE = '__session';
 export async function requireSession() {
+  if (isLocalMode()) {
+    if (!localRequest.getStore()) throw new Error('Lokale Funktionen nur über die geschützte lokale API starten.');
+    return { uid: 'local-user', admin: false, firebase: { sign_in_provider: 'local', identities: {} as Record<string, string[]> } };
+  }
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) throw new Error('Bitte zuerst mit Google anmelden.');
   try { return await adminAuth().verifyIdToken(token, true); }
@@ -17,6 +23,10 @@ export async function requireAdmin() {
 }
 export async function authorizeAI(input: unknown, maxInputBytes = 2_000_000) {
   const session = await requireSession();
+  if (isLocalMode()) {
+    if (Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes) throw new Error('Die Eingabe ist zu groß.');
+    return session;
+  }
   if (!process.env.GOOGLE_API_KEY) throw new Error('Der KI-Dienst ist noch nicht konfiguriert.');
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes) throw new Error('Die Eingabe ist zu groß.');
   // A transaction enforces a shared limit across all instances and all AI functions.
