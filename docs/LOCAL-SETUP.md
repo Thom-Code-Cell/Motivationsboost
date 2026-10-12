@@ -9,7 +9,7 @@ Einmalig im Repository installieren (Internet nur für die Einrichtung):
 ```powershell
 npm ci
 npm run setup:local
-ollama pull qwen3:4b-instruct
+ollama pull qwen2.5:7b
 npm run build:local
 ```
 
@@ -62,13 +62,13 @@ Umgebungsvariablen vor dem Start setzen (PowerShell: `$env:NAME='Wert'`):
 | `LOCAL_DATA_DIR` | Absolutes eigenes Datenverzeichnis; nicht in einen automatisch synchronisierten Cloud-Ordner legen. |
 | `LOCAL_PORT` | `3210`, App immer an `127.0.0.1`. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434`; nur numerische Loopback-Adressen, kein DNS, kein Proxy/Redirect. Das Windows-Startskript verwendet den Standard. Für eigenen Loopback-Port Ollama selbst starten und `npm run start:local` verwenden. |
-| `OLLAMA_MODEL` | `qwen3:4b-instruct`; muss vorher lokal installiert sein. |
+| `OLLAMA_MODEL` | `qwen2.5:7b`; muss vorher lokal installiert sein. |
 | `OLLAMA_TIMEOUT_MS` | `300000`, zulässig 1000–900000 ms. |
 | `OLLAMA_NUM_CTX` | `8192`, zulässig 4096–32768; größere Werte benötigen mehr RAM. Zu große Eingaben werden abgewiesen, nicht still gekürzt. |
 | `LOCAL_OCR_DIR` | `local-resources/ocr`; deutsche und englische Tesseract-Sprachdateien. |
 | `LOCAL_NETWORK_LOG` | Optionaler Dateipfad für Verbindungsmetadaten des App-Servers (nur Host, Zeitpunkt, erlaubt/gesperrt; keine Inhalte). |
 
-Die Standardwahl wurde mit Qwen 2.5 7B auf dem tatsächlichen Rechner verglichen. Qwen 3 4B benötigt weniger Speicher. `gpt-oss:20b` ist grundsätzlich lokal möglich, benötigt aber laut Ollama ungefähr 16 GB Modellspeicher; bei nur rund 6 GB freiem RAM wurde es nicht geladen. Cloud-Varianten von gpt-oss sind ausdrücklich gesperrt.
+Die Standardwahl Qwen 2.5 7B wurde auf dem tatsächlichen Rechner mit Qwen 3 4B verglichen. Das kleinere Modell war schneller, bestand aber die strengere Prüfung abgeschlossener Beschäftigungen nicht zuverlässig. `gpt-oss:20b` ist grundsätzlich lokal möglich, benötigt aber laut Ollama ungefähr 16 GB Modellspeicher; bei nur rund 6 GB freiem RAM wurde es nicht geladen. Cloud-Varianten von gpt-oss sind ausdrücklich gesperrt.
 
 ## Dokumente und Zusatzfunktionen
 
@@ -86,7 +86,7 @@ Nach Installation sind App, Modelle, OCR, Daten und Exporte lokal vorhanden. `np
 
 Vor einem Update sichern, App stoppen, gewünschten geprüften Commit auschecken, `npm ci` und `npm run build:local` ausführen. Updates benötigen Internet. Das Datenverzeichnis liegt außerhalb des Codes und wird dabei nicht gelöscht.
 
-Deinstallation: App stoppen, Repository entfernen. Bewerbungsdaten/Sicherungen nur bewusst separat löschen. Das Löschen des Repositorys löscht das Standard-Datenverzeichnis nicht. Nur ausschließlich für diese App installierte Modelle bei Bedarf mit `ollama rm qwen3:4b-instruct` entfernen; andere Modelle und Cloud-Daten bleiben unberührt.
+Deinstallation: App stoppen, Repository entfernen. Bewerbungsdaten/Sicherungen nur bewusst separat löschen. Das Löschen des Repositorys löscht das Standard-Datenverzeichnis nicht. Nur ausschließlich für diese App installierte Modelle bei Bedarf mit `ollama rm qwen2.5:7b` entfernen; andere Modelle und Cloud-Daten bleiben unberührt.
 
 ## Entwicklerprüfungen
 

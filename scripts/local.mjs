@@ -19,7 +19,7 @@ const env = {
   NEXT_DIST_DIR: ".next-local",
   NEXT_TELEMETRY_DISABLED: "1",
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
-  OLLAMA_MODEL: process.env.OLLAMA_MODEL || "qwen3:4b-instruct",
+  OLLAMA_MODEL: process.env.OLLAMA_MODEL || "qwen2.5:7b",
 };
 if (action === "start")
   env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ""} --require ${JSON.stringify(path.join(root, "scripts/local-egress.cjs"))}`;

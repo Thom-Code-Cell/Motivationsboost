@@ -3,6 +3,7 @@ import { assertLocalRequest, localRequest } from "@/lib/server/local-security";
 import { checkOllama, ollamaConfig } from "@/lib/server/ollama";
 import * as store from "@/lib/server/local-store";
 import { localFlows } from "@/lib/server/local-flows";
+import { checkApplicantFacts } from "@/lib/server/local-facts";
 import { exportApplication } from "@/lib/server/local-export";
 import { parseLocalDocument, ocrAvailable } from "@/lib/server/local-documents";
 
@@ -140,11 +141,11 @@ export async function POST(request: Request) {
       if (!flow) throw new Error("Diese lokale Funktion ist nicht verfügbar.");
       aiBusy = true;
       try {
-        return json(
-          await localRequest.run({ signal: request.signal }, () =>
-            flow(body.input),
-          ),
+        const output = await localRequest.run({ signal: request.signal }, () =>
+          flow(body.input),
         );
+        checkApplicantFacts(body.feature, body.input, output);
+        return json(output);
       } finally {
         aiBusy = false;
       }

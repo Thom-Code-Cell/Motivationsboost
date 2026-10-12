@@ -33,5 +33,5 @@ await writeFile(
   JSON.stringify(hashes, null, 2),
 );
 console.log(
-  "OCR bereit. Modell separat mit ollama pull qwen3:4b-instruct installieren.",
+  "OCR bereit. Modell separat mit ollama pull qwen2.5:7b installieren.",
 );

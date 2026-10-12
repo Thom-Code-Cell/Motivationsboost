@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { jsPDF } from "jspdf";
+import { Document, Packer, Paragraph } from "docx";
 
 const witness =
   "Erfundene Testdaten. Arbeitszeugnis: Lea Muster war von 01/2021 bis 12/2024 als Sachbearbeiterin bei Beispiel AG tätig. Aufgaben: Kundenkontakt, Terminorganisation, Pflege von Excel-Listen. Sie arbeitete sorgfältig und zuverlässig. Diplom: Kauffrau EFZ, Berufsschule Musterstadt, Abschluss 2020. E-Mail, Telefonnummer und Adresse sind nicht angegeben.";
@@ -15,6 +16,104 @@ test.beforeEach(async ({ request }) => {
     state.dataDirectory,
     "Tests require an isolated local-evidence data directory",
   ).toMatch(/[\\/]local-evidence[\\/]/);
+});
+test("real document files to reviewed CV and complete exported application", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.LOCAL_REAL_AI !== "1",
+    "Requires installed local Ollama.",
+  );
+  const company = "Dokumenten-Test " + randomUUID().slice(0, 8);
+  const external: string[] = [];
+  await page.route("**/*", (route) => {
+    if (new URL(route.request().url()).hostname !== "127.0.0.1") {
+      external.push(route.request().url());
+      return route.abort();
+    }
+    return route.continue();
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Neue Bewerbung", exact: true })
+    .click();
+  await page.getByLabel("Unternehmen", { exact: true }).fill(company);
+  await page.getByLabel("Position", { exact: true }).fill("Sachbearbeiterin");
+  const diploma = await Packer.toBuffer(
+    new Document({
+      sections: [
+        {
+          children: [
+            new Paragraph(
+              "Fiktives Diplom: Lea Muster, Kauffrau EFZ, Berufsschule Musterstadt, Abschluss 2020.",
+            ),
+          ],
+        },
+      ],
+    }),
+  );
+  for (const file of [
+    {
+      name: "Arbeitszeugnis.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(witness),
+    },
+    {
+      name: "Diplom.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: diploma,
+    },
+  ]) {
+    const uploaded = page.waitForResponse((response) =>
+      response.url().includes("op=upload"),
+    );
+    await page
+      .getByLabel("Dokument hinzufügen", { exact: true })
+      .setInputFiles(file);
+    expect((await uploaded).ok()).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "Mit Ollama erstellen", exact: true }),
+    ).toBeEnabled();
+  }
+  const generated = page.waitForResponse(
+    (response) => response.url().includes("op=ai"),
+    { timeout: 330000 },
+  );
+  await page
+    .getByRole("button", { name: "Mit Ollama erstellen", exact: true })
+    .click();
+  const response = await generated;
+  const result = await response.json();
+  expect(response.ok(), JSON.stringify(result)).toBe(true);
+  expect(result.personalInfo.name).toBe("Lea Muster");
+  expect(JSON.stringify(result)).toContain("Kauffrau");
+  await page
+    .getByRole("button", {
+      name: "Geprüft übernehmen und speichern",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole("status")).toContainText(
+    "Geprüfte Überarbeitung",
+  );
+  const received = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Vollständige Mappe (ZIP)", exact: true })
+    .click();
+  const archive = await received;
+  expect(await archive.failure()).toBeNull();
+  await archive.saveAs("local-evidence/real-application.zip");
+  await page.reload();
+  await page.getByRole("button", { name: new RegExp(company) }).click();
+  await expect(
+    page.getByLabel("Lebenslauf – bearbeitbarer Exporttext"),
+  ).toHaveValue(/Lea Muster/);
+  expect(external).toEqual([]);
+  await page.screenshot({
+    path: "local-evidence/document-flow.png",
+    fullPage: false,
+  });
 });
 test("local management, offline shell, PDF/Word/ZIP and backup restore", async ({
   page,

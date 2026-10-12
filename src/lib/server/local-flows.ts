@@ -7,7 +7,6 @@ import { generateInterviewQuestions } from "@/ai/flows/generate-interview-questi
 import { analyzeInterviewAnswer } from "@/ai/flows/analyze-interview-answer";
 import { generateLinkedInSummary } from "@/ai/flows/generateLinkedInSummary";
 import { generateEmailResponse } from "@/ai/flows/generate-email-response";
-import { autofillCVGaps } from "@/ai/flows/autofill-cv-gaps";
 import { extractJobKeywords } from "@/ai/flows/extract-job-keywords";
 import { analyzeWritingStyle } from "@/ai/flows/analyze-writing-style";
 import { analyzeRequiredDocuments } from "@/ai/flows/analyze-required-documents";
@@ -15,6 +14,7 @@ import { predictSalaryRange } from "@/ai/flows/predict-salary-range";
 import { suggestJobOpportunities } from "@/ai/flows/suggest-job-opportunities";
 import { generateMarketingContent } from "@/ai/flows/generate-marketing-content";
 import * as s from "@/ai/schemas";
+import { conservativeGapReport } from "./local-facts";
 
 function flow<I extends z.ZodTypeAny>(
   schema: I,
@@ -61,7 +61,11 @@ export const localFlows: Record<string, (input: unknown) => Promise<unknown>> =
       generateLinkedInSummary,
     ),
     email: flow(s.GenerateEmailResponseInputSchema, generateEmailResponse),
-    gaps: flow(s.AutofillCVGapsInputSchema, autofillCVGaps),
+    gaps: flow(s.AutofillCVGapsInputSchema, async (input) => {
+      const { checkOllama } = await import("./ollama");
+      await checkOllama();
+      return conservativeGapReport(input.cvText);
+    }),
     keywords: flow(s.ExtractJobKeywordsInputSchema, extractJobKeywords),
     style: flow(s.AnalyzeWritingStyleInputSchema, analyzeWritingStyle),
     required: flow(

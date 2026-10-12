@@ -14,7 +14,7 @@ export function ollamaConfig() {
     throw new Error(
       "Ollama muss eine numerische lokale Loopback-Adresse verwenden.",
     );
-  const model = process.env.OLLAMA_MODEL || "qwen3:4b-instruct";
+  const model = process.env.OLLAMA_MODEL || "qwen2.5:7b";
   if (!/^[a-zA-Z0-9_.:/-]+$/.test(model) || /cloud/i.test(model))
     throw new Error("Nur lokal installierte Modelle erlaubt.");
   const timeout = Number(process.env.OLLAMA_TIMEOUT_MS || 300000);

@@ -19,7 +19,7 @@ Ein kleiner Test verwendete ausschließlich erfundene Daten: Lea Muster, Beispie
 | `qwen3:4b-instruct`, Q4_K_M, 2,5 GB, Digest-Präfix `0edcdef34593` | Valides JSON; belegte Fähigkeiten und fehlende Angaben korrekt | 6,10 s |
 | vorhandenes `qwen2.5:7b`, 4,7 GB | Valides JSON; dieselben Fakten korrekt | 13,40 s |
 
-Das ist ein kleiner Funktionstest, kein allgemeiner Modellbenchmark. Qwen 3 4B ist wegen des begrenzten freien RAM und der gemessenen Laufzeit der Standard. Beide Modelle benötigen weiterhin Fakten- und Sprachprüfung durch den Anwender.
+Das ist ein kleiner Funktionstest, kein allgemeiner Modellbenchmark. Nach der weitergehenden Qualitätsprüfung ist Qwen 2.5 7B der Standard: Das kleinere 4B-Modell stellte trotz Vorgabe abgeschlossene Beschäftigungen als aktuell dar. Qwen 2.5 7B bestand diesen Vergleichsfall, benötigt aber mehr RAM. Beide Modelle benötigen weiterhin Fakten- und Sprachprüfung durch den Anwender.
 
 `gpt-oss:20b` wurde anhand der tatsächlichen Speichersituation geprüft, aber nicht geladen: Laut [Ollamas Modellbeschreibung](https://ollama.com/library/gpt-oss) benötigt es ungefähr 16 GB Speicher; verfügbar waren nur rund 6 GB. Es gibt keinen Ersatz durch die Cloud-Variante. [Ollamas Dokumentation](https://docs.ollama.com/faq) beschreibt die CPU/GPU-Anzeige und die lokale Serverkonfiguration.
 
@@ -32,12 +32,12 @@ Das ist ein kleiner Funktionstest, kein allgemeiner Modellbenchmark. Qwen 3 4B i
 - PDF/DOCX/TXT und unterstützte Bilder; lokale Tesseract-OCR auch je textarmer Seite gemischter PDFs.
 - Mehrseitiges PDF, echtes DOCX und ZIP-Bewerbungsmappe mit gewählten Originalanlagen.
 - Ursprungskontrolle für Schreibaktionen, Hostprüfung, gesperrte Cloud-Routen im lokalen Modus, Dateityp-/Größen-/Archivprüfungen, lokale Fonts und CSP.
-- 108 Unit-Tests einschließlich vorhandener Cloud-Regressionen sowie lokaler Anfrage-, Schema-, Speicher-, Datei-, Export- und Sicherheitsfälle.
+- 109 Unit-Tests einschließlich vorhandener Cloud-Regressionen sowie lokaler Anfrage-, Schema-, Speicher-, Datei-, Export- und Sicherheitsfälle.
 - TypeScript-Prüfung, lokaler Produktionsbuild und Cloud-Produktionsbuild erfolgreich. Produktionsabhängigkeiten: `npm audit --omit=dev` ohne gemeldete Schwachstellen. Die bereits dokumentierten Entwicklungsabhängigkeiten der Firebase-CLI sind davon getrennt.
 
 ## Auf dem Rechner nachgewiesen
 
-- Browserablauf mit echtem Ollama für alle 15 Textfunktionen: Lebenslauf, Motivationsschreiben, ATS-Analyse und Überarbeitung, Interviewfragen und schriftliche Antwortanalyse, LinkedIn, E-Mail, Lückenprüfung, Schlüsselwörter, erforderliche Dokumente, Stil, Gehalt, Suchstrategie und weiterer Text.
+- Browserablauf für 15 Textfunktionen, davon 14 generativ mit echtem Ollama und eine regelbasierte Lückenprüfung: Lebenslauf, Motivationsschreiben, ATS-Analyse und Überarbeitung, Interviewfragen und schriftliche Antwortanalyse, LinkedIn, E-Mail, Lückenprüfung, Schlüsselwörter, erforderliche Dokumente, Stil, Gehalt, Suchstrategie und weiterer Text.
 - OCR-Test mit einem lokal erzeugten Zeugnisbild und einem daraus erzeugten gescannten PDF: „Lea Muster“ korrekt erkannt. Kein OCR-Mock und kein Sprachdownload zur Laufzeit.
 - Erstellen, Ändern, Statuswechsel, Löschen, Neuladen, Sicherung und Wiederherstellung im Browser; mobile Ansicht bei 390 px ohne horizontalen Überlauf.
 - Neustartnachweis mit vollständig beendetem Node-Prozess und neuem Prozess; erhaltene Bewerbung samt Status und Notiz.
@@ -53,7 +53,9 @@ Die lokalen Rohprotokolle liegen im ignorierten `local-evidence/`: `real-ollama.
 - OCR-Worker wird aus dem lokalen Node-Paket geladen, ohne durch den Produktionsbundler verfälschte Pfade.
 - Aktuelle geprüfte CV-Texte statt veralteter strukturierter Daten für nachgelagerte KI-Funktionen.
 - Keine ATS-Umschreibung bei leerer oder ausschließlich unbelegter Schlüsselwortliste; Originaltexte bleiben erhalten. Belegte Schlüsselwörter wurden zusätzlich mit echtem Modell geprüft.
-- Explizites Referenzdatum und Vorgaben gegen die Darstellung abgeschlossener Anstellungen als aktuelle Beschäftigung; Regressionen für LinkedIn/Lückenprüfung im echten Modelltest.
+- Explizites Referenzdatum, Modellwechsel auf Qwen 2.5 7B und Vorgaben gegen die Darstellung abgeschlossener Anstellungen als aktuelle Beschäftigung; Regressionen für LinkedIn/Lückenprüfung im echten Modelltest.
+
+Zusätzlich werden unbelegte neue Jahreszahlen in Lebenslauf, Schreiben, ATS-Überarbeitung und LinkedIn sowie nicht im Quelltext enthaltene persönliche CV-Angaben abgewiesen. Dies ist eine begrenzte deterministische Prüfung, keine vollständige semantische Verifikation. Weil auch das 7B-Modell beim Lückenprüfen einen unbelegten Beginn 2017 ergänzte, verwendet die lokale Lückenprüfung jetzt ausschließlich erhaltenen Originaltext und einen ausdrücklich regelbasierten Hinweis. Es werden keine Tätigkeiten oder Zeiträume erfunden.
 
 ## Grenzen
 

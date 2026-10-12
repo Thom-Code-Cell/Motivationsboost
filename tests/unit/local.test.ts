@@ -16,6 +16,10 @@ import { ai } from "@/ai/genkit";
 import { z } from "zod";
 import { localFlows } from "@/lib/server/local-flows";
 import { ApplicationSchema, currentCv } from "@/lib/local-schema";
+import {
+  checkApplicantFacts,
+  conservativeGapReport,
+} from "@/lib/server/local-facts";
 
 let directory: string;
 beforeEach(() => {
@@ -184,6 +188,28 @@ describe("Ollama", () => {
   });
 });
 describe("SQLite, backup and exports", () => {
+  it("rejects invented dates/contact details and preserves source text in gap checks", () => {
+    expect(() =>
+      checkApplicantFacts(
+        "linkedin",
+        { cvData: "Lea Muster, 2021–2024" },
+        { linkedinSummary: "Beschäftigt seit 2017" },
+      ),
+    ).toThrow("Jahreszahl");
+    expect(() =>
+      checkApplicantFacts(
+        "cv",
+        { documentTexts: ["Lea Muster, 2021–2024"] },
+        { personalInfo: { name: "Lea Muster", email: "invented@example.com" } },
+      ),
+    ).toThrow("persönliche Angaben");
+    const text = "Lea Muster, Sachbearbeiterin 2021–2024";
+    const report = conservativeGapReport(text).filledCvText;
+    expect(report.startsWith(text)).toBe(true);
+    expect(report).toContain("2024");
+    expect(report).not.toContain("2017");
+    expect(report).toContain("regelbasierter");
+  });
   it("uses the current reviewed CV in downstream functions", () => {
     const app = ApplicationSchema.parse({
       ...application(),
