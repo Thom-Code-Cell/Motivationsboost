@@ -82,6 +82,11 @@ export const GenerateMotivationLetterInputSchema = z.object({
   keywords: z.array(z.string()).optional().describe('A list of keywords extracted from the job posting to be included in the letter.'),
   jobSummary: z.string().optional().describe('A summary of the job posting to help align the letter.'),
   userStyleSample: z.string().optional().describe('A text sample from the user to learn their writing style.'),
+  companyReason: z.string().trim().min(25).max(1200).describe('Personal truthful motivation for the target employer.'),
+  realExample: z.string().trim().min(40).max(1800).describe('First-hand real example of situation, action and result.'),
+  contribution: z.string().trim().min(25).max(1200).describe('Realistic supported value for the employer.'),
+  uncertainties: z.string().max(1000).optional().describe('Known gaps or questions.'),
+  factsConfirmed: z.literal(true).describe('Applicant attests truthfulness of submitted details.'),
   language: LanguageSchema,
 });
 export type GenerateMotivationLetterInput = z.infer<typeof GenerateMotivationLetterInputSchema>;
