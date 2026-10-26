@@ -36,7 +36,10 @@ const prompt = ai.definePrompt({
 
 The goal is:
 - The texts should be ATS-optimized.
-- The missing terms should be meaningfully integrated into the text.
+- Only include a missing term if the ORIGINAL DOCUMENTS already give clear evidence the applicant possesses that qualification or skill.
+- If a required keyword is unsupported, DO NOT add it or invent corresponding experience.
+- Keep roles, employers, achievements, dates, qualifications and numbers factually unchanged.
+- This is an editorial relevance check, not a measurement of ATS acceptance or job success.
 - The style and tonality should remain human, direct, and individual.
 - The text should sound professional and not like an AI text. Avoid clichés, repetitions, and artificial-sounding sentences.
 
