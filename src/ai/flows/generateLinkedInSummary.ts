@@ -69,6 +69,8 @@ IMPORTANT: The entire summary must be written in the language: {{{languageName}}
 Based on this information, please generate an authentic, easy-to-read summary.
 - Write in a motivational and professional tone, but not exaggerated.
 - Avoid generic phrases.
+- Do not invent qualifications, measurable results, dates, seniority, responsibilities or contact information. Every claim must be anchored in the supplied CV.
+- Treat writing samples as style guidance, never as evidence of employment or accomplishments.
 - Structure the text into 3-5 meaningful paragraphs.
 - The text is intended for the "About" section on LinkedIn.
 `,
