@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { checkLetterQuality } from '@/lib/letter-quality';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -114,6 +115,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
     const [includeCv, setIncludeCv] = useState(true);
     const [includeLetter, setIncludeLetter] = useState(true);
     const [includeLinkedin, setIncludeLinkedin] = useState(true);
+    const [exportConfirmed, setExportConfirmed] = useState(false);
     const [format, setFormat] = useState<'pdf' | 'docx'>('pdf');
     const [isLoading, setIsLoading] = useState(false);
     const [isCheckingDocs, setIsCheckingDocs] = useState(false);
@@ -121,6 +123,7 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
     const [driveFiles, setDriveFiles] = useState<string[]>([]);
     const { toast } = useToast();
     const isPro = userData?.plan === 'pro_month' || userData?.subscriptionStatus === 'active';
+    const letterFindings = includeLetter && motivationLetter ? checkLetterQuality(motivationLetter) : [];
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -134,7 +137,15 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
     }, [accessToken]);
 
 
+    useEffect(() => {
+        setExportConfirmed(false);
+    }, [cvJson, motivationLetter, linkedinSummary, includeCv, includeLetter, includeLinkedin]);
+
     const handleExport = async () => {
+        if (!exportConfirmed) {
+            toast({ title: 'Freigabe fehlt', description: 'Bitte kontrolliere zuerst alle Angaben und bestätige die Freigabe.', variant: 'destructive' });
+            return;
+        }
         setIsLoading(true);
         try {
             if (!userData) throw new Error("Benutzerdaten nicht gefunden.");
@@ -299,9 +310,27 @@ export function ExportCenter({ userData, accessToken, cvJson, linkedinSummary, m
                      {!isPro && <p className="text-xs text-muted-foreground">Der DOCX-Export ist eine Pro-Funktion.</p>}
                 </div>
 
+                <div className="rounded-lg border p-4 space-y-3">
+                    <p className="font-medium">Deine letzte Prüfung vor dem Versand</p>
+                    <p className="text-sm text-muted-foreground">
+                        Prüfe sämtliche Zeiträume, Stellenbezeichnungen, Diplome, Zahlen, Kontaktdaten
+                        und den Arbeitgeberbezug. Eine KI kann diese Angaben nicht selbst zuverlässig bestätigen.
+                    </p>
+                    {letterFindings.length > 0 && (
+                        <ul className="list-disc pl-5 text-sm space-y-1">
+                            {letterFindings.map(finding => (
+                                <li key={finding.code}><strong>{finding.title}:</strong> {finding.guidance}</li>
+                            ))}
+                        </ul>
+                    )}
+                    <label className="flex items-start gap-3 text-sm">
+                        <Checkbox checked={exportConfirmed} onCheckedChange={checked => setExportConfirmed(checked === true)} />
+                        <span>Ich habe die ausgewählten Unterlagen geprüft. Alle Angaben entsprechen meinen tatsächlichen Erfahrungen und Nachweisen.</span>
+                    </label>
+                </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleExport} disabled={isLoading || (!includeCv && !includeLetter && !includeLinkedin)}>
+                 <Button onClick={handleExport} disabled={isLoading || !exportConfirmed || (!includeCv && !includeLetter && !includeLinkedin)}>
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileArchive className="mr-2 h-4 w-4" />}
                     Bewerbungsmappe als ZIP exportieren
                 </Button>
