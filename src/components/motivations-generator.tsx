@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -70,6 +70,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
   const [needsReview, setNeedsReview] = useState(Boolean(initialLetter));
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const lastApprovedLetter = useRef<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractJobKeywordsOutput | null>(null);
   const { toast } = useToast();
 
@@ -87,9 +88,13 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
   });
 
   useEffect(() => {
-    setEditedLetter(initialLetter || "");
-    setNeedsReview(Boolean(initialLetter));
-    setReviewConfirmed(false);
+    // Accept loaded legacy letters for review; do not erase the current draft
+    // when the parent clears its previously approved letter.
+    if (initialLetter && initialLetter !== lastApprovedLetter.current) {
+      setEditedLetter(initialLetter);
+      setNeedsReview(true);
+      setReviewConfirmed(false);
+    }
   }, [initialLetter]);
 
   useEffect(() => {
@@ -171,6 +176,7 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
     setIsApproving(true);
     try {
       await saveFileToDrive(accessToken, 'motivation_letter.txt', editedLetter, 'text/plain');
+      lastApprovedLetter.current = editedLetter;
       onLetterUpdated(editedLetter);
       setNeedsReview(false);
       const newBadge = await updateProgress(user.uid, { type: 'LETTER_GENERATED' });
