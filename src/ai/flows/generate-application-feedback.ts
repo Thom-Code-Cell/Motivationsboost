@@ -48,7 +48,7 @@ Please perform the following analysis and provide the output in the specified fo
 1.  **Offer a strictly heuristic, not predictive, ATS orientation score:** This model is not connected to employers' actual ATS. A URL alone does not prove the job ad has been read. If job description text is not actually present in the input, use 0 as 'not evaluable' and explicitly explain this limitation. Never pretend you fetched the URL or saw requirements that were not provided.
 2.  **Provide Score Reasoning:** Briefly explain the main factors that led to this score (e.g., "Good match on core skills, but missing specific technical terms.").
 3.  **Identify Missing Keywords:** Extract the most important keywords, skills, and qualifications from the job description that are NOT present in the CV or cover letter.
-4.  **Give Improvement Suggestions:** Provide clear, actionable advice on how to integrate the missing keywords and better tailor the documents to the job description to improve the score.
+4.  **Give Improvement Suggestions:** Recommend only verifiable, factual improvements. Never advise inventing missing qualifications or adding unsupported keywords. Any missing job details must be marked not assessable.
 `,
 });
 
