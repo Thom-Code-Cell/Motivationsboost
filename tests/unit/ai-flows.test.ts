@@ -5,7 +5,7 @@ const cv = { personalInfo: { name: 'Thomas', email: '', phone: '', address: '' }
 const context = { language: 'de', jobUrl: 'https://example.org/job', jobText: 'Wir suchen eine Betriebsleitung mit Erfahrung in Personalführung und Organisation.' };
 const flows: [string, string, object, object][] = [
   ['generate-cv-from-documents', 'generateCvFromDocuments', { documentTexts: ['Arbeitszeugnis Thomas: Betriebsleitung und Personalführung'], language: 'de' }, cv],
-  ['generate-motivation-letter', 'generateMotivationLetter', { ...context, cvDaten: 'Betriebsleitung', benutzerprofil: 'Thomas', stilwahl: 'Kurz & Klar' }, { motivationLetter: 'Sehr geehrte Damen und Herren' }],
+  ['generate-motivation-letter', 'generateMotivationLetter', { ...context, cvDaten: 'Betriebsleitung', benutzerprofil: 'Thomas', stilwahl: 'Kurz & Klar', companyReason: 'Ich schätze die persönliche Betreuung im Unternehmen und möchte den Service stärken.', realExample: 'In meiner letzten Funktion koordinierte ich eine schwierige Warenannahme, teilte die Aufgaben auf und hielt den Betrieb gemeinsam mit dem Team aufrecht.', contribution: 'Ich bringe strukturierte Teamführung und verlässliche Abläufe ein.', factsConfirmed: true }, { motivationLetter: 'Sehr geehrte Damen und Herren' }],
   ['generate-application-feedback', 'generateApplicationFeedback', { ...context, cv: 'Betriebsleitung', coverLetter: 'Bewerbung' }, { atsScore: 75, scoreReasoning: 'Führungserfahrung', missingKeywords: ['Organisation'], improvementSuggestions: 'Beispiele ergänzen' }],
   ['generate-interview-questions', 'generateInterviewQuestions', { ...context, cvData: 'Betriebsleitung' }, { technicalQuestions: ['Wie führen Sie?'], behavioralQuestions: ['Ein Konflikt?'], questionsForCompany: ['Teamgröße?'], summary: 'Erfahrung gefragt' }],
   ['analyze-interview-answer', 'analyzeInterviewAnswer', { ...context, question: 'Wie führen Sie?', userAnswer: 'Mit klaren Zielen' }, { relevanceScore: 80, improvementSuggestions: 'Ein Beispiel geben', exampleAnswer: 'Ein konkretes Beispiel beschreiben' }],
@@ -40,6 +40,24 @@ describe('all structured AI functions with isolated provider responses', () => {
     const module = await import(`../../src/ai/flows/${path}.ts`);
     await expect(module[name](input)).rejects.toThrow('Bitte anmelden.'); expect(fetchMock).not.toHaveBeenCalled();
   });
+  it('requires truthful applicant evidence and a positive attestation before AI use', async () => {
+    const { generateMotivationLetter } = await import('@/ai/flows/generate-motivation-letter');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(generateMotivationLetter({
+      ...context,
+      cvDaten: 'Betriebsleitung',
+      benutzerprofil: 'Thomas',
+      stilwahl: 'Laura',
+      companyReason: 'Eine sehr gute Gelegenheit für meine Entwicklung.',
+      realExample: 'Ich möchte mir für diesen Fall eine konkrete Erfahrung ausdenken.',
+      contribution: 'Ich würde gerne dieses Team erfolgreich unterstützen.',
+      factsConfirmed: false,
+    } as any)).rejects.toThrow();
+    expect(auth.authorizeAI).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects a malformed model response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"atsScore":999}' }] } }] }))));
     const { generateApplicationFeedback } = await import('@/ai/flows/generate-application-feedback');
