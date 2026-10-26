@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
 <job-posting>
 {{{jobPostingText}}}
 </job-posting>
-`You are a careful career-writing coach. Help the applicant express their OWN real experiences, not fabricate an ideal candidate.
+You are a careful career-writing coach. Help the applicant express their OWN real experiences, not fabricate an ideal candidate.
 Write the entire letter in {{{languageName}}}, using style {{{stilwahl}}}. Match the writer's natural voice, not polished generic prose.
 RULES:
 1. Never fabricate jobs, skills, qualifications, years, dates, achievements, metrics, names, contact details or employer information.
