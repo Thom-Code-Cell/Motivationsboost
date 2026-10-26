@@ -276,6 +276,54 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
                 )}
               </div>
             )}
+
+            <div className="rounded-lg border p-4 space-y-4">
+              <h3 className="font-semibold">Deine echte Geschichte statt KI-Floskeln</h3>
+              <p className="text-sm text-muted-foreground">
+                Beantworte diese Fragen mit deinen eigenen Worten. Die KI darf keine Erfahrungen oder Erfolge erfinden.
+              </p>
+              <FormField control={form.control} name="companyReason" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Warum gerade dieser Arbeitgeber?</FormLabel>
+                  <FormControl><Textarea rows={3} placeholder="Was spricht dich am Unternehmen oder dieser Aufgabe wirklich an?" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="realExample" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ein echtes Beispiel aus deinem Berufsalltag</FormLabel>
+                  <FormControl><Textarea rows={4} placeholder="Situation, was du persönlich getan hast und wie es ausgegangen ist. Nur Tatsachen." {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="contribution" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Welchen Beitrag kannst du konkret leisten?</FormLabel>
+                  <FormControl><Textarea rows={3} placeholder="Was kannst du aufgrund deiner Erfahrungen glaubwürdig für diese Funktion einbringen?" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="uncertainties" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Offene Fragen oder fehlende Kenntnisse (freiwillig)</FormLabel>
+                  <FormControl><Textarea rows={2} placeholder="Was beherrschst du noch nicht oder möchtest du nicht behaupten?" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="factsConfirmed" render={({ field }) => (
+                <FormItem className="flex flex-col gap-2">
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={checked => field.onChange(checked === true)} />
+                    </FormControl>
+                    <FormLabel className="font-normal leading-relaxed">
+                      Ich bestätige, dass meine genannten Erfahrungen, Leistungen und Qualifikationen wahrheitsgetreu sind.
+                    </FormLabel>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                 control={form.control}
@@ -342,8 +390,12 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
                      <Textarea
                         id="editor"
                         value={editedLetter}
-                        onChange={(e) => setEditedLetter(e.target.value)}
-                        onBlur={handleSaveToDrive}
+                        onChange={(e) => {
+                          setEditedLetter(e.target.value);
+                          setNeedsReview(true);
+                          setReviewConfirmed(false);
+                          onLetterUpdated(null);
+                        }}
                         className="min-h-[400px] bg-background"
                         />
                 </div>
@@ -360,12 +412,38 @@ export function MotivationsGenerator({ user, accessToken, cvData, userProfile, u
 
       {editedLetter && !isLoading && (
           <CardFooter className="mt-6 border-t pt-6 flex-col items-start gap-4">
-              <p className="text-sm text-muted-foreground">Ihr Dokument wurde gespeichert. Sie können es nun im "Export"-Tab als Teil Ihrer Bewerbungsmappe herunterladen.</p>
+              {needsReview ? (
+                <div className="w-full space-y-3">
+                  <h3 className="font-semibold">Faktenprüfung vor der Freigabe</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Automatische Texthinweise sind keine Wahrheitserkennung. Kontrolliere Stellenbezug,
+                    Arbeitgebernamen, jede Berufsangabe, jede Zahl und alle behaupteten Fähigkeiten selbst.
+                  </p>
+                  {qualityFindings.length > 0 && (
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {qualityFindings.map(finding => (
+                        <li key={finding.code}><strong>{finding.title}:</strong> {finding.guidance}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <label className="flex items-start gap-3 text-sm">
+                    <Checkbox checked={reviewConfirmed} onCheckedChange={value => setReviewConfirmed(value === true)} />
+                    <span>Ich habe diesen konkreten Entwurf vollständig gelesen und bestätige die Richtigkeit aller Aussagen.</span>
+                  </label>
+                  <Button type="button" onClick={handleApproveLetter} disabled={!reviewConfirmed || isApproving}>
+                    {isApproving ? 'Speichere...' : 'Geprüften Text für den Export freigeben'}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Von dir geprüft und gespeichert. Änderungen erfordern eine erneute Freigabe.</p>
+              )}
+              {!needsReview && (
                <Button onClick={() => {
                 const tabsContainer = document.querySelector('[role="tablist"]');
                 const exportButton = tabsContainer?.querySelector('[data-state="inactive"][value="export"]') as HTMLButtonElement | null;
                 exportButton?.click();
                }}>Zum Export-Tab</Button>
+              )}
           </CardFooter>
       )}
 
