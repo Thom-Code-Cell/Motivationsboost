@@ -2,7 +2,7 @@
 "use client";
 import { Textarea } from '@/components/ui/core-textarea';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/core-input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { checkLetterQuality } from '@/lib/letter-quality';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Info } from 'lucide-react';
@@ -43,6 +45,11 @@ const formSchema = z.object({
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL ein." }),
   stilwahl: z.string({ required_error: "Bitte wählen Sie einen Stil." }).min(1, "Bitte wählen Sie einen Stil."),
   language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  companyReason: z.string().trim().min(25, 'Bitte nenne einen konkreten Grund für diesen Arbeitgeber.').max(1200),
+  realExample: z.string().trim().min(40, 'Beschreibe eine echte Situation, dein Handeln und das Ergebnis.').max(1800),
+  contribution: z.string().trim().min(25, 'Welchen realistischen Beitrag kannst du leisten?').max(1200),
+  uncertainties: z.string().max(1000).optional(),
+  factsConfirmed: z.boolean().refine(Boolean, 'Bitte bestätige, dass deine Angaben wahrheitsgetreu sind.'),
 });
 
 interface MotivationsGeneratorProps {
@@ -62,6 +69,10 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
   const [editedLetter, setEditedLetter] = useState(initialLetter || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isExtractingKeywords, setIsExtractingKeywords] = useState(false);
+  const [needsReview, setNeedsReview] = useState(Boolean(initialLetter));
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const lastApprovedLetter = useRef<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractJobKeywordsOutput | null>(null);
   const { toast } = useToast();
 
@@ -70,11 +81,22 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
     defaultValues: {
       jobUrl: "",
       language: language,
+      companyReason: '',
+      realExample: '',
+      contribution: '',
+      uncertainties: '',
+      factsConfirmed: false,
     },
   });
 
   useEffect(() => {
-    setEditedLetter(initialLetter || "");
+    // Load existing letters for fresh review, without erasing in-progress edits
+    // when the parent clears its previously approved text.
+    if (initialLetter && initialLetter !== lastApprovedLetter.current) {
+      setEditedLetter(initialLetter);
+      setNeedsReview(true);
+      setReviewConfirmed(false);
+    }
   }, [initialLetter]);
 
   useEffect(() => {
@@ -111,6 +133,9 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
 
     setIsLoading(true);
     setEditedLetter("");
+    setNeedsReview(false);
+    setReviewConfirmed(false);
+    onLetterUpdated(null);
 
 
     try {
@@ -122,6 +147,7 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
 
       const result = await generateMotivationLetter({
         ...values,
+        factsConfirmed: true as const,
         cvDaten: cvData || '',
         benutzerprofil: userProfile,
         keywords: allKeywords,
@@ -129,19 +155,11 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
         ...(useStyleSample && userStyleSample && { userStyleSample: userStyleSample }),
       });
 
+      // A generated letter is a draft until the applicant checks it.
       setEditedLetter(result.motivationLetter);
-      onLetterUpdated(result.motivationLetter);
-
-      await saveFileToDrive(accessToken, 'motivation_letter.txt', result.motivationLetter, 'text/plain');
-
-      const newBadge = await updateProgress(user.uid, { type: 'LETTER_GENERATED' });
-      if (newBadge) {
-          const config = BadgeConfig[newBadge];
-          toast({
-              title: "🎉 Abzeichen freigeschaltet!",
-              description: `Du hast das Abzeichen "${config.name}" erhalten.`,
-          });
-      }
+      setNeedsReview(true);
+      setReviewConfirmed(false);
+      toast({ title: 'Entwurf erstellt', description: 'Bitte prüfe alle Aussagen vor der Freigabe.' });
     } catch (error) {
       console.error("Error generating motivation letter:", error);
       toast({
@@ -154,14 +172,26 @@ export function MotivationsGenerator({ onExport, user, accessToken, cvData, user
     }
   }
 
-  const handleSaveToDrive = async () => {
-    if (accessToken && editedLetter !== initialLetter) {
-        try { await saveFileToDrive(accessToken, 'motivation_letter.txt', editedLetter, 'text/plain'); }
-        catch { toast({ title: 'Speichern fehlgeschlagen', description: 'Ihre Änderungen sind noch nicht in Drive gespeichert.', variant: 'destructive' }); return; }
-        onLetterUpdated(editedLetter);
-        toast({ title: "Gespeichert", description: "Ihre Änderungen wurden in Google Drive gesichert."})
+  const qualityFindings = checkLetterQuality(editedLetter);
+
+  async function handleApproveLetter() {
+    if (!user || !accessToken || !reviewConfirmed || !editedLetter.trim() || isApproving) return;
+    setIsApproving(true);
+    try {
+      await saveFileToDrive(accessToken, 'motivation_letter.txt', editedLetter, 'text/plain');
+      lastApprovedLetter.current = editedLetter;
+      onLetterUpdated(editedLetter);
+      setNeedsReview(false);
+      const newBadge = await updateProgress(user.uid, { type: 'LETTER_GENERATED' });
+      if (newBadge) toast({ title: 'Abzeichen freigeschaltet', description: BadgeConfig[newBadge].name });
+      toast({ title: 'Von dir freigegeben', description: 'Das Schreiben wurde gespeichert und kann exportiert werden.' });
+    } catch (error) {
+      console.error('Approval failed:', error);
+      toast({ title: 'Speichern fehlgeschlagen', description: 'Der Entwurf wurde nicht freigegeben.', variant: 'destructive' });
+    } finally {
+      setIsApproving(false);
     }
-  };
+  }
 
   return (
     <Card className="w-full">
