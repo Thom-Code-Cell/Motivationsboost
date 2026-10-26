@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:quality": "node --experimental-strip-types --test tests/letter-quality.test.mjs"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.13.0",
