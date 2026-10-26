@@ -1,84 +1,136 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import Link from 'next/link';
+import {
+  GoogleAuthProvider,
+  getRedirectResult,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from 'firebase/auth';
 import dynamic from 'next/dynamic';
-
 import { Loader2 } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 import { LandingPage } from '@/components/landing-page';
-import { AuthErrorCard } from '@/components/auth-error-card';
 import { FirebaseSetupCard } from '@/components/firebase-setup-card';
 
-// Mock user data for testing purposes
-const mockUser: User = {
-  uid: 'test-user-123',
-  email: 'test@example.com',
-  displayName: 'Test User',
-  photoURL: 'https://placehold.co/100x100.png',
-  emailVerified: true,
-  isAnonymous: false,
-  metadata: {},
-  providerData: [],
-  // Dummy implementations for required methods
-  getIdToken: async () => 'mock-token',
-  getIdTokenResult: async () => ({ token: 'mock-token', expirationTime: '', issuedAtTime: '', authTime: '', signInProvider: null, signInSecondFactor: null, claims: {} }),
-  reload: async () => {},
-  delete: async () => {},
-  toJSON: () => ({}),
-  providerId: 'password',
-};
-
-const Dashboard = dynamic(() => import('@/components/dashboard').then((mod) => mod.Dashboard), {
+const Dashboard = dynamic(() => import('@/components/dashboard').then(mod => mod.Dashboard), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
-      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      <p className="mt-4 text-muted-foreground">Lade Dashboard...</p>
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" aria-label="Lade Dashboard" />
     </div>
   ),
 });
 
+function googleProvider(): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
+  provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+  return provider;
+}
+
 export default function Home() {
-  const [user] = useState<User | null>(mockUser);
-  const [accessToken] = useState<string | null>('mock-access-token');
-  const [isLoading] = useState(false);
-  const [authError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  
-  // Dummy functions to satisfy Dashboard component props
-  const handleGoogleSignIn = async () => {
-     toast({ title: "Anmeldung deaktiviert", description: "Die Anmeldung ist im Testmodus deaktiviert."});
-  };
-  
-  const handleSignOut = async () => {
-     toast({ title: "Abmeldung deaktiviert", description: "Die Abmeldung ist im Testmodus deaktiviert."});
-  };
 
-  if (authError) {
-    return <AuthErrorCard />;
+  useEffect(() => {
+    if (!auth) {
+      setIsLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
+      setUser(currentUser);
+      if (!currentUser) setAccessToken(null);
+      setIsLoading(false);
+    });
+
+    getRedirectResult(auth)
+      .then(result => {
+        if (result) {
+          setUser(result.user);
+          setAccessToken(GoogleAuthProvider.credentialFromResult(result)?.accessToken ?? null);
+        }
+      })
+      .catch(error => {
+        console.error('Google redirect sign in failed', error);
+        toast({ title: 'Anmeldung fehlgeschlagen', description: 'Google-Anmeldung bitte erneut versuchen.', variant: 'destructive' });
+      });
+
+    return () => unsubscribe();
+  }, [toast]);
+
+  async function handleGoogleSignIn() {
+    if (!auth) return;
+    try {
+      const result = await signInWithPopup(auth, googleProvider());
+      const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken ?? null;
+      setAccessToken(token);
+      setUser(result.user);
+      if (!token) {
+        toast({ title: 'Drive-Zugriff fehlt', description: 'Für Dokumente ist eine erneute Google-Freigabe erforderlich.', variant: 'destructive' });
+      }
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'auth/popup-blocked') {
+        try {
+          await signInWithRedirect(auth, googleProvider());
+          return;
+        } catch (redirectError) {
+          console.error('Redirect sign in failed', redirectError);
+        }
+      }
+      console.error('Sign in failed', error);
+      toast({ title: 'Anmeldung fehlgeschlagen', description: 'Bitte prüfe deine Google-Freigabe und versuche es erneut.', variant: 'destructive' });
+    }
   }
 
-  // A check for a valid Firebase Project ID can still be useful
-  if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-    return <FirebaseSetupCard />;
+  async function handleSignOut() {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      setUser(null);
+      setAccessToken(null);
+    } catch (error) {
+      console.error('Sign out failed', error);
+      toast({ title: 'Abmeldung fehlgeschlagen', variant: 'destructive' });
+    }
   }
-  
+
+  if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || !auth) return <FirebaseSetupCard />;
+
   if (isLoading) {
     return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Lade...</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-label="Lade Anmeldung" />
       </div>
     );
   }
 
-  if (!user) {
-      // This part will now be skipped due to the mock user
-    return <LandingPage handleSignIn={handleGoogleSignIn} />;
-  }
+  if (!user) return <LandingPage handleSignIn={handleGoogleSignIn} />;
 
-  return <Dashboard user={user} accessToken={accessToken} isAuthLoading={isLoading} handleSignIn={handleGoogleSignIn} handleSignOut={handleSignOut} />;
+  return (
+    <div>
+      {!accessToken && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3 text-sm" role="status">
+          <span>Du bist angemeldet. Für Google-Drive-Dokumente musst du den Zugriff nach einem Neuladen erneut bestätigen.</span>
+          <Button type="button" size="sm" onClick={handleGoogleSignIn}>Google Drive verbinden</Button>
+        </div>
+      )}
+      <Dashboard
+        user={user}
+        accessToken={accessToken}
+        isAuthLoading={isLoading}
+        handleSignIn={handleGoogleSignIn}
+        handleSignOut={handleSignOut}
+      />
+    </div>
+  );
 }
