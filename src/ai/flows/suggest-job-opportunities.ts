@@ -65,11 +65,11 @@ IMPORTANT: All output text (summaries, titles, company names) must be in the lan
 {{{cvContext}}}
 ---
 
-Based on this information, please generate the following:
+These are suggested job-search directions, not live vacancies. The model has no verified live job feed. Never invent a vacancy, opening date, hiring status, employer rating or salary.\n\nBased on this information, please generate the following:
 
 1.  **Strategy Summary:** A 2-3 sentence summary of the recommended job search strategy, highlighting the user's key strengths for the market.
 2.  **Suggested Job Titles:** A list of 5-7 specific and relevant job titles or search keywords. Include both common and niche titles to broaden the search.
-3.  **Suggested Companies:** A list of 5-7 potential employers in or around the user's location that are known to hire for these roles. Include a mix of large corporations and interesting smaller companies if possible.
+3.  **Suggested Companies:** A list of 5-7 potential employers in or around the user's location that are plausible employers to investigate for these roles (do not assert current vacancies, recent hiring or verified availability). Include a mix of large corporations and interesting smaller companies if possible.
 4.  **Search Links:** Create direct, pre-filled search URLs for Google Jobs and LinkedIn. Use the top 3 most relevant suggested job titles (URL-encoded) and the user's location in the query. For example: \`https://www.linkedin.com/jobs/search/?keywords=URL_ENCODED_TITLE_1%20OR%20URL_ENCODED_TITLE_2&location=URL_ENCODED_LOCATION\`
 `,
 });
