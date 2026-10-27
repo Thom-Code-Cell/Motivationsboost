@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 import { Textarea } from '@/components/ui/core-textarea';
@@ -30,7 +31,7 @@ const formSchema = z.object({
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   coverLetter: z.string().min(1, { message: "Bitte geben Sie Ihr Motivationsschreiben ein oder generieren Sie es." }),
   cv: z.string().min(1, { message: "Bitte geben Sie Ihren Lebenslauf ein oder generieren Sie ihn." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
 });
 
 interface ApplicationFeedbackProps {
