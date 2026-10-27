@@ -1,6 +1,6 @@
 # Motivationsboost
 
-Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and Gemini.
+Next.js application for creating and managing application documents with optional Google login, Firebase, a private Google Drive integration and a future, owner-selected AI provider.
 
 ## Local development
 
@@ -27,4 +27,4 @@ The rules and browser tests use the demo project `demo-motivationsboost`, isolat
 
 ## Release
 
-Read `docs/RELEASE-CHECKLIST.md` and `docs/IMPLEMENTATION-STATUS.md`. Only preview deployment is authorized. Main is unchanged. Stripe is disabled by default; Payrexx migration follows technical acceptance. Do not enable the old Stripe routes.
+Read `docs/RELEASE-CHECKLIST.md` and `docs/IMPLEMENTATION-STATUS.md`. Only preview deployment is authorized. Main is unchanged. Stripe checkout/portal/webhook endpoints are permanently disabled (HTTP 503). Payrexx is the only planned payment provider. Payrexx API keys, gateway, verified webhook handling and entitlement fulfillment require isolated sandbox acceptance. Do not turn on either `PAYREXX_PAYMENTS_ENABLED` or `PAYREXX_BILLING_VALIDATED` before end-to-end tests. Names, final HTTPS domain and provider AI key remain undecided.
