@@ -1,6 +1,7 @@
-import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
