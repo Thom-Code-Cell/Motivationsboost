@@ -52,6 +52,7 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 updates['language'] = lang;
             }
 
+            if (data.targetCountry === undefined) updates['targetCountry'] = 'CH';
             if (data.progressStage === undefined) updates['progressStage'] = 'onboarding';
             if (data.trustLevel === undefined) updates['trustLevel'] = 0;
             if (data.lastActivity === undefined) updates['lastActivity'] = new Date().toISOString();
@@ -97,6 +98,7 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 subscriptionStatus: 'free',
                 subscriptionInterval: '',
                 language: (lang) as Language,
+                targetCountry: 'CH',
                 progressStage: 'onboarding',
                 features: defaultFeatures,
                 admin: false,
