@@ -1,3 +1,4 @@
+import { suggestedDocumentLanguage } from '@/lib/document-languages';
 
 'use client';
 
@@ -46,8 +47,8 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
             const updates: {[key: string]: any} = {};
 
             if (!data.language) {
-                const lang = browserLang?.substring(0, 2);
-                updates['language'] = ['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de';
+                const lang = suggestedDocumentLanguage(browserLang);
+                updates['language'] = lang;
             }
 
             if (data.progressStage === undefined) updates['progressStage'] = 'onboarding';
@@ -88,13 +89,13 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 await setDoc(userDocRef, updates, { merge: true });
             }
         } else {
-            const lang = browserLang?.substring(0, 2);
+            const lang = suggestedDocumentLanguage(browserLang);
             const initialUserData: UserData = {
                 plan: 'free',
                 price: 0,
                 subscriptionStatus: 'free',
                 subscriptionInterval: '',
-                language: (['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de') as Language,
+                language: (lang) as Language,
                 progressStage: 'onboarding',
                 features: defaultFeatures,
                 admin: false,
