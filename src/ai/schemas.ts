@@ -1,6 +1,8 @@
 import {z} from 'zod';
 
-export const LanguageSchema = z.enum(['de', 'en', 'fr', 'it']);
+// Validate language tags on the server; never trust arbitrary locale strings.
+// BCP-47-like tokens cover base languages, scripts and regional variants.
+export const LanguageSchema = z.string().trim().min(2).max(35).regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,3}$/, 'Invalid language tag');
 export type Language = z.infer<typeof LanguageSchema>;
 
 
