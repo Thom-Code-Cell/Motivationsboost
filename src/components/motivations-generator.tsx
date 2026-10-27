@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import type { User } from 'firebase/auth';
 import { generateMotivationLetter } from '@/ai/flows/generate-motivation-letter';
 import { extractJobKeywords } from '@/ai/flows/extract-job-keywords';

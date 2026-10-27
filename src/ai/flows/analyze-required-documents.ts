@@ -12,7 +12,7 @@ import { getLanguageName } from '@/lib/document-languages';
 import { getJobPosting } from '@/lib/server/job-posting';
 import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import {
   AnalyzeRequiredDocumentsInputSchema,
   AnalyzeRequiredDocumentsOutputSchema,

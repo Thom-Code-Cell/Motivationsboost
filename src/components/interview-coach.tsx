@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import dynamic from 'next/dynamic';
 import { generateInterviewQuestions } from '@/ai/flows/generate-interview-questions';
 import { analyzeInterviewAnswer } from '@/ai/flows/analyze-interview-answer';

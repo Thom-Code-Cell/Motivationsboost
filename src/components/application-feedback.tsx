@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { generateApplicationFeedback } from '@/ai/flows/generate-application-feedback';
 import { refineDocumentsForATS } from '@/ai/flows/refine-documents-for-ats';
 import { updateProgress } from '@/services/progress';

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { User } from 'firebase/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { generateProfessionalPhoto } from '@/ai/flows/generate-professional-photo';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';

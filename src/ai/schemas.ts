@@ -1,4 +1,4 @@
-import {z} from 'zod';
+import {z} from 'zod/v3';
 
 // Validate language tags on the server; never trust arbitrary locale strings.
 // BCP-47-like tokens cover base languages, scripts and regional variants.

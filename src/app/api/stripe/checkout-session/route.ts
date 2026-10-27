@@ -1,7 +1,7 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 

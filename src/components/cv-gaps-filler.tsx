@@ -6,7 +6,7 @@ import { LanguageSchema } from '@/ai/schemas';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { autofillCVGaps } from '@/ai/flows/autofill-cv-gaps';
 import { listDriveFiles, extractTextFromDriveFile, saveFileToDrive } from '@/services/drive';
 import type { Language } from '@/ai/schemas';

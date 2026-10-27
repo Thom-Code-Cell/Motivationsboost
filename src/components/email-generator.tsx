@@ -6,7 +6,7 @@ import { LanguageSchema } from '@/ai/schemas';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { generateEmailResponse } from '@/ai/flows/generate-email-response';
 import type { GenerateEmailResponseOutput, Language } from '@/ai/schemas';

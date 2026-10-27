@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import type { User } from 'firebase/auth';
 import { updateUserStyleProfile } from '@/services/user';
 import { analyzeWritingStyle } from '@/ai/flows/analyze-writing-style';

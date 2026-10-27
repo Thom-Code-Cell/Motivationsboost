@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import type { User } from 'firebase/auth';
 import type { GenerateCvFromDocumentsOutput, PredictSalaryRangeOutput, Language } from '@/ai/schemas';
 import { predictSalaryRange } from '@/ai/flows/predict-salary-range';

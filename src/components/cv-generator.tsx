@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { generateCvFromDocuments } from '@/ai/flows/generate-cv-from-documents';
 import { generateLinkedInSummary } from '@/ai/flows/generateLinkedInSummary';
 import { listDriveFiles, extractTextFromDriveFile, saveFileToDrive } from '@/services/drive';
