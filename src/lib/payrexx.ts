@@ -1,5 +1,5 @@
 import 'server-only';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { verifyPayrexxSignature } from './payrexx-signature';
 
 export type PlanId = 'monthly' | 'yearly';
 export function payrexxConfiguration() {
@@ -13,7 +13,8 @@ export function payrexxConfiguration() {
     if (url.protocol === 'https:' && url.pathname === '/' && !url.username && !url.password) verifiedOrigin = url.origin;
   } catch { /* absent final canonical domain */ }
   return {
-    enabled: process.env.PAYREXX_PAYMENTS_ENABLED === 'true',
+    // Mandatory second switch: do not accept real money until webhook-to-entitlement reconciliation and refund/cancel flows are live-tested.
+    enabled: process.env.PAYREXX_PAYMENTS_ENABLED === 'true' && process.env.PAYREXX_BILLING_VALIDATED === 'true',
     instance: /^[a-z0-9][a-z0-9-]{1,62}$/i.test(instance) ? instance : '',
     key,
     signingKey,
@@ -28,8 +29,4 @@ export function getPlan(id: PlanId) {
   if (!Number.isSafeInteger(amount) || amount > 5000000) return null;
   return { id, amount, currency: 'CHF', interval: id === 'monthly' ? 'P1M' : 'P1Y' } as const;
 }
-export function verifyPayrexxWebhook(body: string, suppliedSignature: string, key: string) {
-  if (!key || !/^[a-f0-9]{64}$/.test(suppliedSignature)) return false;
-  const expected = createHmac('sha256', key).update(body, 'utf8').digest('hex');
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(suppliedSignature));
-}
+export const verifyPayrexxWebhook = verifyPayrexxSignature;
