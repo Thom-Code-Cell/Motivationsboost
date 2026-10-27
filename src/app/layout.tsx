@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'Motivationsboost | KI-Bewerbungsplattform',
+  robots: { index: false, follow: false },
   description: 'Ihr intelligenter Bewerbungs-Copilot. Erstellen Sie herausragende Bewerbungsunterlagen, optimieren Sie Ihren Lebenslauf für ATS-Systeme, generieren Sie professionelle KI-Bewerbungsfotos und bereiten Sie sich perfekt auf Interviews vor.',
 };
 
