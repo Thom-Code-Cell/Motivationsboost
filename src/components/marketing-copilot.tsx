@@ -21,7 +21,7 @@ import { LanguageSelect } from './language-select';
 const formSchema = z.object({
   topic: z.string().min(10, "Bitte beschreiben Sie das Thema mit mindestens 10 Zeichen."),
   format: z.enum(['LinkedIn Post', 'Tweet', 'Blog Article']),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
 });
 
 export function MarketingCopilot() {
