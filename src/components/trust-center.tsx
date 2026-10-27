@@ -46,11 +46,11 @@ export function TrustCenter() {
             <AccordionTrigger className="text-lg">
               <div className="flex items-center gap-3">
                 <Bot className="h-5 w-5 text-primary"/>
-                <span>Wie wird die KI (Google Gemini) genutzt?</span>
+                <span>Wie wird die KI (OpenAI GPT) genutzt?</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10 space-y-2">
-              <p>Unsere App nutzt die fortschrittlichen Sprachmodelle von Google (Gemini), um hochwertige Texte für Sie zu erstellen. Wenn Sie eine Funktion nutzen, senden wir Ihre Eingaben (z.B. den Job-Link, Ihren CV-Text) an die KI.</p>
+              <p>Unsere App nutzt die OpenAI API mit GPT-Modellen, um Texte anhand Ihrer tatsächlichen Erfahrungen zu formulieren. Wenn Sie eine Funktion nutzen, senden wir Ihre Eingaben (z.B. den Job-Link, Ihren CV-Text) an die KI.</p>
               <p>Die KI analysiert diese Informationen und generiert basierend darauf die gewünschte Ausgabe (z.B. ein Motivationsschreiben oder Interviewfragen). Ihre persönlichen Stilproben helfen der KI, einen Text zu verfassen, der authentisch nach Ihnen klingt.</p>
               <p><strong>Wichtig:</strong> Ihre Eingaben können personenbezogene Daten enthalten. Die Verarbeitung, Aufbewahrung und mögliche Modellnutzung richten sich nach dem verwendeten Google-Dienst und seinen Vertragsbedingungen. Diese Bedingungen müssen vor der Veröffentlichung für die konkrete Dienstkonfiguration geprüft werden.</p>
             </AccordionContent>

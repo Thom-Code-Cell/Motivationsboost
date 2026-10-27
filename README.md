@@ -1,6 +1,6 @@
 # Motivationsboost
 
-Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and Gemini.
+Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and GPT through the OpenAI Responses API.
 
 ## Local development
 
@@ -23,7 +23,7 @@ npm run build
 npm audit --omit=dev
 ```
 
-The rules and browser tests use the demo project `demo-motivationsboost`, isolated Firebase emulators, and fabricated users. Java 21+ is required for Firebase CLI 15. CI provisions Temurin 21 explicitly. AI and Drive unit tests use controlled provider responses. Passing those tests does not verify real Google OAuth, Google Drive permissions, Gemini availability or deployed Firebase rules.
+The rules and browser tests use the demo project `demo-motivationsboost`, isolated Firebase emulators, and fabricated users. Java 21+ is required for Firebase CLI 15. CI provisions Temurin 21 explicitly. AI and Drive unit tests use controlled OpenAI-compatible mock responses. Passing those tests does not verify real Google OAuth, Google Drive permissions, OpenAI account credit, model permission or deployed Firebase rules.
 
 ## Release
 

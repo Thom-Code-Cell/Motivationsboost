@@ -1,25 +1,12 @@
-
 'use server';
-/**
- * @fileOverview A flow to convert text into speech using a Genkit model.
- *
- * - generateAudioFromText - A function that handles the text-to-speech conversion.
- * - GenerateAudioFromTextInput - The input type for the function.
- * - GenerateAudioFromTextOutput - The return type for the function.
- */
 
 import { authorizeAI } from '@/lib/server/session';
+import { callOpenAI } from '@/lib/server/openai-client';
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
-import { pcmToWav } from '@/lib/audio';
 import {
-  GenerateAudioFromTextInputSchema,
-  GenerateAudioFromTextOutputSchema,
-  type GenerateAudioFromTextInput,
-  type GenerateAudioFromTextOutput,
-  type Language,
+  GenerateAudioFromTextInputSchema, GenerateAudioFromTextOutputSchema,
+  type GenerateAudioFromTextInput, type GenerateAudioFromTextOutput,
 } from '@/ai/schemas';
-
 
 export async function generateAudioFromText(input: GenerateAudioFromTextInput): Promise<GenerateAudioFromTextOutput> {
   input = GenerateAudioFromTextInputSchema.parse(input);
@@ -27,50 +14,21 @@ export async function generateAudioFromText(input: GenerateAudioFromTextInput): 
   return generateAudioFromTextFlow(input);
 }
 
-
-const generateAudioFromTextFlow = ai.defineFlow(
-  {
-    name: 'generateAudioFromTextFlow',
-    inputSchema: GenerateAudioFromTextInputSchema,
-    outputSchema: GenerateAudioFromTextOutputSchema,
-  },
-  async (input) => {
-    const voiceMap: Record<Language, 'Algenib' | 'Spica' | 'Enif' | 'Regulus'> = {
-        'de': 'Algenib', // German
-        'en': 'Spica',   // English
-        'fr': 'Enif',    // French
-        'it': 'Regulus', // Italian
-    };
-    const voice = voiceMap[input.language] || 'Algenib';
-
-    const { media } = await ai.generate({
-      model: process.env.GOOGLE_AI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice },
-          },
-        },
-      },
-      prompt: input.text,
-    });
-
-    if (!media || !media.url) {
-      throw new Error('No audio media was returned from the model.');
-    }
-
-    // The media URL is a data URI with base64-encoded raw PCM data.
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-
-    // Convert the PCM buffer to a WAV buffer and then to a base64 string.
-    const wavBase64 = Buffer.from(pcmToWav(audioBuffer)).toString('base64');
-
-    return {
-      audioDataUri: 'data:audio/wav;base64,' + wavBase64,
-    };
+const generateAudioFromTextFlow = ai.defineFlow({
+  name: 'generateAudioFromTextFlow',
+  inputSchema: GenerateAudioFromTextInputSchema,
+  outputSchema: GenerateAudioFromTextOutputSchema,
+}, async input => {
+  if (!input.text.trim() || input.text.length > 4096) throw new Error('Sprachausgabe unterstützt 1 bis 4096 Zeichen.');
+  const response = await callOpenAI('/audio/speech', {
+    model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+    voice: 'alloy',
+    input: input.text,
+    response_format: 'wav',
+  });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length < 12 || bytes.toString('ascii', 0, 4) !== 'RIFF') {
+    throw new Error('OpenAI lieferte keine gültige WAV-Datei.');
   }
-);
+  return { audioDataUri: 'data:audio/wav;base64,' + bytes.toString('base64') };
+});
