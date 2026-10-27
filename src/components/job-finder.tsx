@@ -90,7 +90,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
     if (!cvJson) return;
 
     const preparedJson = {
-        action: "fillForm",
+        action: "prepareApplicationForHumanReview",
         platform: job.platform,
         url: job.url,
         fields: {
@@ -109,7 +109,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
       if (!playwrightJson) return;
       navigator.clipboard.writeText(playwrightJson);
       setIsJsonCopied(true);
-      toast({ title: 'JSON kopiert!', description: 'Die Daten für das Automations-Skript sind in der Zwischenablage.' });
+      toast({ title: 'JSON kopiert!', description: 'Prüfvorlage kopiert. Bitte keine automatische Übermittlung ohne deine Zustimmung.' });
       setTimeout(() => setIsJsonCopied(false), 2000);
   };
 
@@ -131,7 +131,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>KI-Job-Finder & Bewerbungs-Vorbereitung</CardTitle>
-        <CardDescription>Erhalten Sie eine auf Ihren Lebenslauf zugeschnittene Job-Suchstrategie und bereiten Sie Bewerbungen mit einem Klick für die Automatisierung vor.</CardDescription>
+        <CardDescription>Erhalten Sie eine auf Ihren Lebenslauf zugeschnittene Job-Suchstrategie und bereiten Sie Bewerbungen mit überprüfbaren Daten vor. Ein automatisches Versenden findet nicht statt.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -204,7 +204,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
             <Briefcase className="h-4 w-4" />
             <AlertTitle>Ihre Such-Strategie</AlertTitle>
             <AlertDescription>
-              {result.strategySummary}
+              {result.strategySummary}\n              <p className="mt-2 text-sm">Hinweis: Dies sind KI-Suchideen. Arbeitgeber und offene Stellen sind nicht live verifiziert.</p>
             </AlertDescription>
           </Alert>
           
@@ -221,7 +221,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
             </Card>
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg"><Building className="h-5 w-5"/>Potenzielle Arbeitgeber</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-lg"><Building className="h-5 w-5"/>Arbeitgeber-Ideen (nicht verifizierte Stellen)</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                      {result.suggestedCompanies.map((company, i) => (
@@ -232,7 +232,7 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
           </div>
 
           <div>
-             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Send className="h-5 w-5"/>Job-Vorschläge & Direktlinks</h3>
+             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><Send className="h-5 w-5"/>Suchvorschläge & externe Suchlinks</h3>
              <div className="space-y-4">
                  {result.searchLinks.map((link, i) => (
                     <Card key={`job-${i}`} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -240,11 +240,11 @@ export function JobFinder({ user, cvJson, language }: JobFinderProps) {
                            <Link href={link.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline flex items-center gap-1.5">
                                 {link.platform} Jobsuche <ExternalLink className="h-3.5 w-3.5" />
                            </Link>
-                           <p className="text-sm text-muted-foreground">Vorgefilterte Suche mit Ihren Top-Keywords</p>
+                           <p className="text-sm text-muted-foreground">Suchanfrage, keine bestätigte offene Stelle</p>
                         </div>
                          <Dialog>
                           <DialogTrigger asChild>
-                              <Button onClick={() => prepareForApply(link)}><Bot className="mr-2 h-4 w-4" />Bewerbung vorbereiten</Button>
+                              <Button onClick={() => prepareForApply(link)}><Bot className="mr-2 h-4 w-4" />Angaben prüfen</Button>
                           </DialogTrigger>
                           <DialogContent>
                               <DialogHeader>
