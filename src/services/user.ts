@@ -1,6 +1,7 @@
 
 'use client';
 import { suggestedDocumentLanguage } from '@/lib/document-languages';
+import { isUiLocale } from '@/lib/interface-translations';
 
 
 import { db } from '@/lib/firebase';
@@ -53,6 +54,7 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
             }
 
             if (data.targetCountry === undefined) updates['targetCountry'] = 'CH';
+            if (!data.interfaceLanguage) { const preference = browserLang?.split('-')[0] || 'de'; updates['interfaceLanguage'] = isUiLocale(preference) ? preference : 'en'; }
             if (data.progressStage === undefined) updates['progressStage'] = 'onboarding';
             if (data.trustLevel === undefined) updates['trustLevel'] = 0;
             if (data.lastActivity === undefined) updates['lastActivity'] = new Date().toISOString();
@@ -99,6 +101,7 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 subscriptionInterval: '',
                 language: (lang) as Language,
                 targetCountry: 'CH',
+                interfaceLanguage: isUiLocale(browserLang?.split('-')[0] || '') ? browserLang!.split('-')[0] : 'en',
                 progressStage: 'onboarding',
                 features: defaultFeatures,
                 admin: false,
