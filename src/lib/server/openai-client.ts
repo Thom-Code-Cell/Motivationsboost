@@ -1,5 +1,4 @@
 // Server-only OpenAI API transport. Never expose OPENAI_API_KEY to client components.
-import 'server-only';
 
 const API_ROOT = 'https://api.openai.com/v1';
 const DEFAULT_TIMEOUT_MS = 60_000;
