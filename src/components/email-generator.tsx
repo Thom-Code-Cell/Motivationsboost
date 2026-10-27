@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 
@@ -21,7 +22,7 @@ const formSchema = z.object({
   scenario: z.enum(['follow_up', 'thank_you', 'rejection_response', 'acceptance']),
   companyName: z.string().min(2, "Bitte geben Sie den Firmennamen an."),
   jobTitle: z.string().min(2, "Bitte geben Sie den Jobtitel an."),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
 });
 
 export function EmailGenerator() {
