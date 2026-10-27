@@ -20,7 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const formSchema = z.object({
   userPhoto: z.any().refine((files) => files?.length === 1, 'Bitte laden Sie ein Foto hoch.').refine(files => files?.[0]?.size <= 8 * 1024 * 1024, 'Bitte ein Foto bis 8 MB wählen.').refine(files => ['image/jpeg', 'image/png', 'image/webp'].includes(files?.[0]?.type), 'Bitte JPG, PNG oder WebP wählen.'),
-  style: z.enum(['business', 'modern', 'creative']).default('business'),
+  style: z.enum(['business', 'modern', 'creative']),
   prompt: z.string().optional(),
 });
 
