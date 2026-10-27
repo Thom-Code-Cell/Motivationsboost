@@ -76,3 +76,28 @@ test('app language can be changed independently of document language', async ({ 
   }
   await expect(page.getByRole('button', { name: 'Job search', exact: true })).toBeVisible();
 });
+
+test('mobile legal pages are readable and show correct contact and company relationship', async ({ page }) => {
+  for (const [slug, heading] of [
+    ['impressum', 'Impressum'],
+    ['datenschutz', 'Datenschutzhinweise'],
+    ['agb', 'Nutzungsbedingungen'],
+  ]) {
+    await page.goto('/' + slug);
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+    await expect(page.getByRole('main')).toContainText('thomas@th-analytica.com');
+    await expect(page.getByRole('link', { name: 'TH Analytica' }).first()).toHaveAttribute('href', 'https://th-analytica.com');
+    await expect(page.getByRole('main')).not.toContainText('thhullin@gmail.com');
+    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  }
+});
+test('legacy Stripe API cannot charge and Payrexx is disabled until approved', async ({ request }) => {
+  for (const path of ['/api/stripe/checkout-session', '/api/stripe/create-portal-session', '/api/stripe/webhook', '/api/payrexx/checkout']) {
+    expect((await request.post(path, { data: { plan: 'monthly', userId: 'fake', priceId: 'fake' } })).status()).toBe(503);
+  }
+  const status = await request.get('/api/payrexx/plans');
+  expect(status.status()).toBe(200);
+  const data = await status.json();
+  expect(data.enabled).toBe(false);
+  expect(data.plans).toEqual([]);
+});

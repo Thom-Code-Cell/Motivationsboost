@@ -19,14 +19,14 @@ export const LandingPage = ({ handleSignIn }: { handleSignIn: () => void }) => (
       <HeroSection className="py-20 md:py-32 lg:py-40">
         <div className="container px-4 text-center text-foreground">
             <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline">
-                Ihr intelligenter Bewerbungs-Copilot
+                Dein persönlicher Karriere- und Bewerbungsbegleiter
             </h1>
             <p className="mx-auto mt-6 max-w-[700px] text-lg md:text-xl">
-                Erstellen Sie herausragende Bewerbungsunterlagen, optimieren Sie Ihren Lebenslauf für ATS-Systeme und bereiten Sie sich mit KI-Unterstützung perfekt auf Interviews vor.
+                Erkenne deine beruflichen Stärken, bereite individuelle Bewerbungen vor und trainiere Vorstellungsgespräche. Du prüfst alle Vorschläge selbst.
             </p>
             <div className="mt-8">
                 <Button size="lg" onClick={handleSignIn}>
-                    Jetzt kostenlos starten
+                    Geschützte Anwendung öffnen
                 </Button>
             </div>
         </div>
@@ -38,11 +38,12 @@ export const LandingPage = ({ handleSignIn }: { handleSignIn: () => void }) => (
     </main>
     <footer className="border-t py-6 px-4 md:px-6 bg-muted/40">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Bewerbung leicht gemacht mit AI. Alle Rechte vorbehalten.</p>
-            <div className="flex gap-4">
+            <p>&copy; {new Date().getFullYear()} Motivationsboost. In Entwicklung.</p>
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
                 <Link href="/impressum" className="hover:text-primary transition-colors">Impressum</Link>
                 <Link href="/datenschutz" className="hover:text-primary transition-colors">Datenschutz</Link>
-                <Link href="/agb" className="hover:text-primary transition-colors">AGB</Link>
+                <Link href="/agb" className="hover:text-primary transition-colors">Nutzungsbedingungen</Link>
+                <a href="https://th-analytica.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">TH Analytica</a>
             </div>
         </div>
     </footer>

@@ -197,7 +197,7 @@ export default async function LocalizedPublicPage({ params }: { params: Promise<
         </section>
       </main>
       <footer className="border-t px-5 py-6 text-sm"><div className="mx-auto flex max-w-5xl gap-5">
-        <Link href="/impressum">Impressum</Link><Link href="/datenschutz">Datenschutz</Link>
+        <Link href="/impressum">Impressum</Link><Link href="/datenschutz">Datenschutz</Link><a href="https://th-analytica.com" target="_blank" rel="noopener noreferrer">TH Analytica</a>
       </div></footer>
     </div>
   );
