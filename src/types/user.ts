@@ -56,6 +56,7 @@ export interface UserData {
     
     // Core App Structure
     language: Language;
+    targetCountry?: string;
     features: FeatureFlags;
     admin: boolean;
     trustLevel: number;
