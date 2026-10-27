@@ -36,7 +36,7 @@ const SpeechInput = dynamic(() => import('./speech-input').then(mod => mod.Speec
 const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
   cvData: z.string().optional(),
 });
 
