@@ -42,6 +42,7 @@ const JobTracker: React.ComponentType<any> = dynamic(() => import('@/components/
 const JobFinder: React.ComponentType<any> = dynamic(() => import('@/components/job-finder').then((mod) => mod.JobFinder), { ssr: false, loading: loadingSpinner });
 const StyleProfile: React.ComponentType<any> = dynamic(() => import('@/components/style-profile').then((mod) => mod.StyleProfile), { ssr: false, loading: loadingSpinner });
 const LinkedinBooster: React.ComponentType<any> = dynamic(() => import('@/components/linkedin-booster').then((mod) => mod.LinkedinBooster), { ssr: false, loading: loadingSpinner });
+const CareerPortfolio: React.ComponentType<any> = dynamic(() => import('@/components/career-portfolio').then(mod => mod.CareerPortfolio), { ssr: false, loading: loadingSpinner });
 const CvGenerator: React.ComponentType<any> = dynamic(() => import('@/components/cv-generator').then((mod) => mod.CvGenerator), { ssr: false, loading: loadingSpinner });
 const CvGapsFiller: React.ComponentType<any> = dynamic(() => import('@/components/cv-gaps-filler').then((mod) => mod.CvGapsFiller), { ssr: false, loading: loadingSpinner });
 const ApplicationFeedback: React.ComponentType<any> = dynamic(() => import('@/components/application-feedback').then((mod) => mod.ApplicationFeedback), { ssr: false, loading: loadingSpinner });
@@ -64,7 +65,7 @@ type ActiveView =
   | 'style-profile' | 'linkedin-booster' | 'cv-generator'
   | 'cv-gaps' | 'feedback' | 'interview' | 'email'
   | 'uploads' | 'export' | 'abo' | 'trust'
-  | 'owner-dashboard' | 'salary-checker' | 'photo-studio';
+  | 'owner-dashboard' | 'salary-checker' | 'photo-studio' | 'career-profile';
 
 interface DashboardProps {
   isAdmin: boolean;
@@ -222,6 +223,8 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
         case 'linkedin-booster':
              if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <LinkedinBooster user={user} accessToken={accessToken} linkedinSummary={linkedinSummary} cvJson={cvJson} userStyleSample={userData.userStyleSample || ''} language={language} onSummaryUpdated={setLinkedinSummary} />;
+        case 'career-profile':
+            return <CareerPortfolio user={user} cvData={cvJson} accessToken={accessToken} language={language} targetCountry={userData.targetCountry} onNavigate={setActiveView} />;
         case 'cv-generator':
             return <CvGenerator user={user} accessToken={accessToken} useAutoLinkedInBooster={userData.useAutoLinkedInBooster} userStyleSample={userData.userStyleSample || ''} language={language} onCvGenerated={(cv: GenerateCvFromDocumentsOutput | null) => { setCvJson(cv); setCvTextOverride(null); }} onSummaryGenerated={setLinkedinSummary} />;
         case 'cv-gaps':
@@ -255,6 +258,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
   const navItems = [
     { id: 'start', label: 'Dashboard', icon: LayoutDashboard, group: 'Übersicht' },
     { id: 'uploads', label: 'Dokumente', icon: UploadCloud, group: 'Erstellung' },
+    { id: 'career-profile', label: 'Kompetenzpass & Zielland', icon: Briefcase, group: 'Erstellung' },
     { id: 'cv-generator', label: 'CV-Generator', icon: FilePlus2, group: 'Erstellung' },
     { id: 'generator', label: 'Generator', icon: Sparkles, group: 'Erstellung' },
 
