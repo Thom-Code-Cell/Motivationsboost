@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 
 /**
  * @fileOverview A flow that provides feedback on a cover letter and CV based on a job posting.
@@ -20,12 +21,7 @@ import {
     type GenerateApplicationFeedbackOutput
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Output language is resolved from the requested language tag.
 
 export async function generateApplicationFeedback(input: GenerateApplicationFeedbackInput): Promise<GenerateApplicationFeedbackOutput> {
   input = GenerateApplicationFeedbackInputSchema.parse(input);
@@ -69,7 +65,7 @@ const generateApplicationFeedbackFlow = ai.defineFlow(
   },
   async input => {
     const jobPostingText = await getJobPosting(input.jobUrl, input.jobText);
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName, jobPostingText});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;
