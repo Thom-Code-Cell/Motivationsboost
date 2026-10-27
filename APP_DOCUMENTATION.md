@@ -86,7 +86,7 @@ Speichert den Fortschritt der Nutzer-Meilensteine.
 | `lastUpdated` | `Timestamp`| Zeitstempel der letzten Aktualisierung. |
 
 
-## 5. KI-Flows (Genkit)
+## 5. KI-Flows (OpenAI)
 
 Alle KI-Funktionen sind als Genkit-Flows in `src/ai/flows/` implementiert. Jeder Flow ist ein Server-Side-Modul, das eine klar definierte Aufgabe erfüllt.
 
