@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 
@@ -33,7 +34,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 
 const formSchema = z.object({
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
 });
 
 interface JobFinderProps {
