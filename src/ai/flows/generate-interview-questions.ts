@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 /**
  * @fileOverview An AI agent that generates interview questions based on a job posting.
  *
@@ -19,12 +20,7 @@ import {
     type GenerateInterviewQuestionsOutput
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Output language is resolved from the requested language tag.
 
 export async function generateInterviewQuestions(input: GenerateInterviewQuestionsInput): Promise<GenerateInterviewQuestionsOutput> {
   input = GenerateInterviewQuestionsInputSchema.parse(input);
@@ -70,7 +66,7 @@ const generateInterviewQuestionsFlow = ai.defineFlow(
   },
   async input => {
     const jobPostingText = await getJobPosting(input.jobUrl, input.jobText);
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName, jobPostingText});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;
