@@ -57,7 +57,7 @@ jobs:
       - name: Prepare safe patch versions and migrate schema imports
         run: |
           set -euo pipefail
-          npm pkg set dependencies.next=15.5.28 dependencies.zod=4.6.7
+          npm pkg set dependencies.next=15.5.28 dependencies.zod=4.6.7 'dependencies.@hookform/resolvers=5.9.1'
           python3 - <<'PY'
           from pathlib import Path
           for folder in ('src', 'tests'):
