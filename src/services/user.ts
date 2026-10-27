@@ -1,6 +1,7 @@
-import { suggestedDocumentLanguage } from '@/lib/document-languages';
 
 'use client';
+import { suggestedDocumentLanguage } from '@/lib/document-languages';
+
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
