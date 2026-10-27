@@ -19,7 +19,7 @@ Die Anwendung ist ein **intelligenter Bewerbungs-Copilot**, der Nutzer durch den
 *   **Sprache:** TypeScript
 *   **Styling:** Tailwind CSS
 *   **UI-Komponenten:** shadcn/ui
-*   **KI-Integration:** Genkit (mit Google AI / Gemini-Modellen)
+*   **KI-Integration:** OpenAI Responses API (GPT), OpenAI Speech API und optionale OpenAI Image Edits mit bestehender Flow-Schnittstelle
 *   **Backend & Authentifizierung:** Firebase (Auth, Firestore)
 *   **Zahlungen:** Stripe
 *   **Dokumenten-Upload:** Google Drive API
