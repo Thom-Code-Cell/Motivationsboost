@@ -24,7 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 
 const formSchema = z.object({
   cvText: z.string().min(50, { message: "Bitte geben Sie mindestens 50 Zeichen ein." }),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
 });
 
 interface CvGapsFillerProps {
