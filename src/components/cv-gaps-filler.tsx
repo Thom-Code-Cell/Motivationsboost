@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 
@@ -22,7 +23,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 
 const formSchema = z.object({
   cvText: z.string().min(50, { message: "Bitte geben Sie mindestens 50 Zeichen ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
 });
 
 interface CvGapsFillerProps {
