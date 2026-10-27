@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 import { Textarea } from '@/components/ui/core-textarea';
@@ -24,7 +25,7 @@ const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
 });
 
 interface SalaryCheckerProps {
