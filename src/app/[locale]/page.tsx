@@ -118,7 +118,7 @@ const pages = {
 } as const;
 
 type Locale = keyof typeof pages;
-export const locales = Object.keys(pages) as Locale[];
+const locales = Object.keys(pages) as Locale[];
 
 function publicOrigin(): string | null {
   if (process.env.PUBLIC_SITE_LAUNCHED !== 'true') return null;
@@ -133,7 +133,7 @@ export function generateStaticParams() { return locales.map(locale => ({ locale 
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  if (!Object.hasOwn(pages, locale)) return { robots: { index: false } };
+  if (!Object.prototype.hasOwnProperty.call(pages, locale)) return { robots: { index: false } };
   const copy = pages[locale as Locale];
   const base = publicOrigin();
   const languages = base ? Object.fromEntries(locales.map(code => [code, base + '/' + code])) : undefined;
@@ -148,7 +148,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
 export default async function LocalizedPublicPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  if (!Object.hasOwn(pages, locale)) notFound();
+  if (!Object.prototype.hasOwnProperty.call(pages, locale)) notFound();
   const copy = pages[locale as Locale];
   const base = publicOrigin();
   const jsonLd = {
