@@ -46,7 +46,7 @@ export function Abo({ user, userData, isAuthLoading }: { user: User | null; user
       <CardDescription>Bevor wir kostenpflichtige Abonnemente anbieten, werden die Preise, Leistungsgrenzen und Kündigungsbedingungen geprüft. Für Zahlungen verwenden wir Payrexx.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-4">
-      <p className="text-sm">Aktueller Kontostatus: <strong>{userData?.plan === 'pro' ? 'Pro' : 'Basis / Test'}</strong>. Die KI-Freigabe ist davon unabhängig und kann bis zur API-Konfiguration eingeschränkt sein.</p>
+      <p className="text-sm">Aktueller Kontostatus: <strong>{userData?.plan === 'pro_month' ? 'Pro' : 'Basis / Test'}</strong>. Die KI-Freigabe ist davon unabhängig und kann bis zur API-Konfiguration eingeschränkt sein.</p>
       {!ready || !user || isAuthLoading || plans.length === 0 ? (
         <p className="rounded-lg border p-4 text-sm" role="status">
           Zahlungen sind noch nicht aktiviert. Es wird kein Betrag belastet. Die Preise folgen nach der kaufmännischen Freigabe.
