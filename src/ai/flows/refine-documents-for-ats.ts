@@ -1,6 +1,7 @@
-import { getLanguageName } from '@/lib/document-languages';
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
+
 /**
  * @fileOverview An AI agent that refines application documents for ATS compatibility.
  *
