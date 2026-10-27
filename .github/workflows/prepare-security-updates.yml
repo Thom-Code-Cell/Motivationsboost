@@ -23,7 +23,7 @@ jobs:
       - name: Pin known patched direct dependencies
         run: |
           set -euo pipefail
-          npm pkg set dependencies.next=15.5.28 dependencies.zod=4.6.7
+          npm pkg set dependencies.next=15.5.28 dependencies.zod=4.6.7 'dependencies.@hookform/resolvers=5.9.1'
           # Preserve the application's existing v3 schema API during a compatibility migration.
           python3 - <<'PY'
           from pathlib import Path
