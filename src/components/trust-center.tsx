@@ -46,7 +46,7 @@ export function TrustCenter() {
             <AccordionTrigger className="text-lg">
               <div className="flex items-center gap-3">
                 <Bot className="h-5 w-5 text-primary"/>
-                <span>Wie wird die KI (Google Gemini) genutzt?</span>
+                <span>Wie wird die KI (OpenAI GPT) genutzt?</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10 space-y-2">
