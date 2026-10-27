@@ -26,7 +26,15 @@ jobs:
       - run: npm test
       - run: npm run test:quality
       - run: npm run test:rules
-      - run: npm audit --omit=dev --audit-level=high
+      - name: Production dependency security audit
+        id: production_audit
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build
+      - name: Enforce production security gate
+        if: steps.production_audit.outcome == 'failure'
+        run: |
+          echo 'Production dependency vulnerabilities remain unresolved. Release blocked.' >&2
+          exit 1
