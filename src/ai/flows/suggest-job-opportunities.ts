@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 /**
  * @fileOverview An AI career strategist that suggests job opportunities based on a user's CV.
  *
@@ -19,12 +20,7 @@ import {
   type GenerateCvFromDocumentsOutput,
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Output language is resolved from the requested language tag.
 
 // This wrapper function now explicitly allows cvData to be null, matching the UI's state.
 export async function suggestJobOpportunities(
@@ -89,7 +85,7 @@ const suggestJobOpportunitiesFlow = ai.defineFlow(
       throw new Error("CV data is required to suggest job opportunities.");
     }
     const cvContext = formatCvForPrompt(input.cvData);
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
 
     const {output} = await prompt({
       ...input,
