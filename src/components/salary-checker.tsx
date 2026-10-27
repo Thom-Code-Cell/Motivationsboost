@@ -1,6 +1,7 @@
-import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState } from 'react';
