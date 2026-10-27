@@ -21,6 +21,8 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { getFileContentFromDrive } from "@/services/drive";
 import { useToast } from "@/hooks/use-toast";
+import { LanguageSelect } from '@/components/language-select';
+import { updateUser } from '@/services/user';
 import { getApplications, type Application } from "@/services/applications";
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarGroup, SidebarGroupLabel } from '@/components/ui/app-sidebar';
 
@@ -88,6 +90,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
   const [isAgbDialogOpen, setIsAgbDialogOpen] = useState(false);
   const [isPrivacyDialogOpen, setIsPrivacyDialogOpen] = useState(false);
   const { toast } = useToast();
+  const [isSavingLanguage, setIsSavingLanguage] = useState(false);
 
   const userProfile = [user?.displayName, cvJson?.summary].filter(Boolean).join(': ');
 
@@ -363,7 +366,8 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                  <div className="md:hidden">
                     <SidebarTrigger />
                  </div>
-                 <div className="ml-auto flex items-center gap-4">
+                 <div className="ml-auto flex flex-wrap items-center gap-3 sm:gap-4">
+                     {user && userData && !isBlocked && <div className="w-48 max-w-[45vw]" aria-label="Dokumentensprache ändern"><LanguageSelect defaultValue={language} disabled={isSavingLanguage} onValueChange={async next => { setIsSavingLanguage(true); try { await updateUser(user.uid, { language: next }); } catch { toast({ title: 'Sprache konnte nicht gespeichert werden', variant: 'destructive' }); } finally { setIsSavingLanguage(false); } }} /></div>}
                      {user && !accessToken && <Button variant="outline" onClick={handleSignIn}>Drive verbinden</Button>}
                      {isAuthLoading ? (
                         <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
