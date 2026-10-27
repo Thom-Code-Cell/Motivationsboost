@@ -70,8 +70,8 @@ export default function DatenschutzPage() {
                     <li>Stripe-Kundennummer</li>
                 </ul>
 
-                <h3>e) KI-Funktion (Google Gemini)</h3>
-                <p>Die App nutzt <strong>Google Gemini</strong> zur Analyse, Optimierung und Generierung Ihrer Bewerbungsunterlagen. Die Verarbeitung erfolgt temporär über Google-Server. Eingaben werden an Google Gemini übermittelt. Die dort geltenden Datenbedingungen hängen vom eingerichteten API-Angebot ab.</p>
+                <h3>e) KI-Funktion (OpenAI API)</h3>
+                <p>Für die angeforderte KI-Unterstützung übermitteln wir die erforderlichen Nutzereingaben, etwa Stellenbeschreibungen, Lebenslauf- und Zeugnisinhalte sowie persönliche Beispiele, serverseitig an OpenAI (GPT). Textanfragen werden mit der API-Einstellung <code>store: false</code> gestellt. Die weiteren Verarbeitungsbedingungen richten sich nach dem API-Vertrag und dem anwendbaren Datenschutzrecht. Vor der Nutzung mit echten Personendaten müssen die Datenschutzinformationen und Vertragsbedingungen geprüft werden. Die KI-Bildbearbeitung ist standardmässig ausgeschaltet.</p>
 
                 <h2>3. Ihre Rechte</h2>
                 <p>Sie haben jederzeit das Recht auf:</p>
