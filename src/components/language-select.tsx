@@ -17,13 +17,15 @@ interface LanguageSelectProps {
  */
 export function LanguageSelect({ onValueChange, defaultValue, disabled }: LanguageSelectProps) {
   const [customValue, setCustomValue] = useState(defaultValue);
+  const [customMode, setCustomMode] = useState(!POPULAR_DOCUMENT_LANGUAGES.some(([tag]) => tag === defaultValue));
   const known = POPULAR_DOCUMENT_LANGUAGES.some(([tag]) => tag === defaultValue);
   return (
     <div className="space-y-2">
       <Select
-        value={known ? defaultValue : 'other'}
+        value={customMode ? 'other' : (known ? defaultValue : 'other')}
         onValueChange={value => {
-          if (value !== 'other') onValueChange(value);
+          if (value === 'other') setCustomMode(true);
+          else { setCustomMode(false); onValueChange(value); }
         }}
         disabled={disabled}
       >
@@ -37,7 +39,7 @@ export function LanguageSelect({ onValueChange, defaultValue, disabled }: Langua
           <SelectItem value="other">Weitere Sprache (Sprachcode)</SelectItem>
         </SelectContent>
       </Select>
-      {!known && (
+      {customMode && (
         <label className="block text-sm">
           <span>BCP-47 Sprachcode (z. B. ka, is, zu oder en-IN)</span>
           <input
