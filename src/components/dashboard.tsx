@@ -27,8 +27,8 @@ import { updateUser } from '@/services/user';
 import { getApplications, type Application } from "@/services/applications";
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarGroup, SidebarGroupLabel } from '@/components/ui/app-sidebar';
 
-const CURRENT_AGB_VERSION = "1.0";
-const CURRENT_PRIVACY_VERSION = "2024-07-07";
+const CURRENT_AGB_VERSION = "2026-10-27";
+const CURRENT_PRIVACY_VERSION = "2026-10-27";
 
 const loadingSpinner = () => (
     <div className="flex items-center justify-center rounded-lg border border-dashed h-96">
