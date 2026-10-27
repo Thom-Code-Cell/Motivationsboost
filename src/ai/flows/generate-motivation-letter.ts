@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 
 /**
  * @fileOverview This file defines a Genkit flow for generating a personalized cover letter based on a job URL, a selected motivation style, and user data.
@@ -20,12 +21,7 @@ import {
     type GenerateMotivationLetterOutput
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Output language is resolved from the requested language tag.
 
 export async function generateMotivationLetter(input: GenerateMotivationLetterInput): Promise<GenerateMotivationLetterOutput> {
   input = GenerateMotivationLetterInputSchema.parse(input);
@@ -74,7 +70,7 @@ const generateMotivationLetterFlow = ai.defineFlow(
   },
   async input => {
     const jobPostingText = await getJobPosting(input.jobUrl, input.jobText);
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName, jobPostingText});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;
