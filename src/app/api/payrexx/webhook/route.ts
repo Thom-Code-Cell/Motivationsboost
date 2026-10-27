@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
+import { payrexxReferenceId } from '@/lib/payrexx-reference';
 
 export async function POST(request: NextRequest) {
   const config = payrexxConfiguration();
@@ -18,10 +19,8 @@ export async function POST(request: NextRequest) {
   try { payload = JSON.parse(body); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const reference = payload as { referenceId?: unknown; data?: { referenceId?: unknown } };
-  const referenceId = typeof reference.referenceId === 'string' ? reference.referenceId : reference.data?.referenceId;
-  if (typeof referenceId !== 'string' || !/^[0-9a-f-]{36}$/i.test(referenceId))
-    return NextResponse.json({ error: 'Unrecognized reference' }, { status: 422 });
+  const referenceId = payrexxReferenceId(payload);
+  if (!referenceId) return NextResponse.json({ error: 'Unrecognized reference' }, { status: 422 });
   const orderRef = adminDb().collection('paymentOrders').doc(referenceId);
   const order = await orderRef.get();
   if (!order.exists) return NextResponse.json({ error: 'Unknown order' }, { status: 404 });
