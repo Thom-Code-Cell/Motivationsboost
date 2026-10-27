@@ -1,6 +1,6 @@
 # Motivationsboost
 
-Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and Gemini.
+Next.js application for creating and managing application documents with Google login, Firebase, a private Google Drive folder and GPT through the OpenAI Responses API.
 
 ## Local development
 
