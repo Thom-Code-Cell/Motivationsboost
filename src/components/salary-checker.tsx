@@ -26,7 +26,7 @@ const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
 });
 
 interface SalaryCheckerProps {
