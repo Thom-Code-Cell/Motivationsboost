@@ -1,3 +1,4 @@
+import { getLanguageName } from '@/lib/document-languages';
 
 'use server';
 /**
@@ -18,12 +19,7 @@ import {
     type RefineDocumentsForATSOutput
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Language names resolve from any valid language tag, not just four fixed locales.
 
 export async function refineDocumentsForATS(input: RefineDocumentsForATSInput): Promise<RefineDocumentsForATSOutput> {
   input = RefineDocumentsForATSInputSchema.parse(input);
@@ -70,7 +66,7 @@ const refineDocumentsForATSFlow = ai.defineFlow(
     outputSchema: RefineDocumentsForATSOutputSchema,
   },
   async input => {
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;
