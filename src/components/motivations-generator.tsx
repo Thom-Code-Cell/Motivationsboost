@@ -46,7 +46,7 @@ const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL ein." }),
   stilwahl: z.string({ required_error: "Bitte wählen Sie einen Stil." }).min(1, "Bitte wählen Sie einen Stil."),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
   companyReason: z.string().trim().min(25, 'Bitte nenne einen konkreten Grund für diesen Arbeitgeber.').max(1200),
   realExample: z.string().trim().min(40, 'Beschreibe eine echte Situation, dein Handeln und das Ergebnis.').max(1800),
   contribution: z.string().trim().min(25, 'Welchen realistischen Beitrag kannst du leisten?').max(1200),
