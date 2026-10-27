@@ -74,3 +74,13 @@ P3: Final brand and domain clearance; afterwards provider API-key connection, re
 P3: Only when checks pass, decide and explicitly authorize production publication.
 
 No production release, secret use, applicant-data migration, purchase or billable AI calls are intended by this branch.
+
+## Automated verification on 27 October 2026
+
+CI run: https://github.com/Thom-Code-Cell/Motivationsboost/actions/runs/40469787075
+
+- Passed: clean npm install, strict TypeScript, Vitest unit tests (including locale tests), letter-quality tests, Firebase emulator rules, Playwright browser E2E, Next.js production build.
+- **FAILED REQUIRED RELEASE SECURITY GATE:** production npm audit reported 4 vulnerabilities (2 critical, 2 high). A deliberate continue-on-error permits E2E and build to execute, but the final workflow step fails the overall run if the audit fails. This is not a security pass.
+- Specific blocking packages: Next 15.5.27, DOMPurify <=3.4.16, undici <=7.30.0, zod v3 below 4.6.6. Avoid blind force upgrades of Zod because Genkit and React form schema integrations require compatibility review. Update lockfile and re-run all checks.
+- Tests use mocks and emulators; they **do not** prove live Firebase login, Google Drive consent, a real model invocation, translation quality in 43 languages, or successful PDF export in every script.
+- No live Vercel deployment, production merge, payment, AI credential installation or third-party notification was performed.
