@@ -69,7 +69,10 @@ test('app language can be changed independently of document language', async ({ 
   const interfacePicker = page.getByRole('combobox', { name: 'App-Sprache' });
   await expect(interfacePicker).toBeVisible();
   await interfacePicker.selectOption('en');
-  await expect(page.getByRole('button', { name: 'Job search', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Connect Drive', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Sprache des generierten Dokuments' }).first()).toBeVisible();
+  if ((page.viewportSize()?.width || 1280) < 768) {
+    await page.getByRole('button', { name: /Toggle Sidebar/i }).click();
+  }
+  await expect(page.getByRole('button', { name: 'Job search', exact: true })).toBeVisible();
 });
