@@ -1,5 +1,7 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
+
 /**
  * @fileOverview An AI agent that analyzes a user's writing style from a text sample.
  *
@@ -10,7 +12,7 @@
 
 import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import {
   AnalyzeWritingStyleInputSchema,
   AnalyzeWritingStyleOutputSchema,
@@ -18,12 +20,7 @@ import {
   type AnalyzeWritingStyleOutput,
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Language names resolve from any valid language tag, not just four fixed locales.
 
 export async function analyzeWritingStyle(input: AnalyzeWritingStyleInput): Promise<AnalyzeWritingStyleOutput> {
   input = AnalyzeWritingStyleInputSchema.parse(input);
@@ -60,7 +57,7 @@ const analyzeWritingStyleFlow = ai.defineFlow(
     outputSchema: AnalyzeWritingStyleOutputSchema,
   },
   async (input) => {
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;

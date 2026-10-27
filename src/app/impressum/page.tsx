@@ -1,44 +1,34 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { LegalContent, LEGAL_UPDATE_DATE, TH_ANALYTICA_URL } from '@/components/legal-content';
 
-export default function ImpressumPage() {
+export const metadata = {
+  title: 'Impressum | Motivationsboost',
+  description: 'Impressum und Kontaktinformationen zur KI-Karriereanwendung Motivationsboost.',
+  robots: { index: false, follow: false },
+};
+
+export default function LegalPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-       <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-        <Link href="/" className="font-headline text-xl font-bold tracking-tight text-foreground">
-            Bewerbung leicht gemacht mit AI
-        </Link>
-       </header>
-       <main className="flex-1 p-4 sm:p-6 md:p-8">
-        <Card className="w-full max-w-4xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-3xl">Impressum</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 prose prose-neutral dark:prose-invert max-w-none">
-            <p className="text-sm text-muted-foreground">Stand: 7. Juli 2024</p>
-            <h2>Angaben gemäß Art. 3 Abs. 1 lit. s UWG</h2>
-            <div>
-                <p>Thomas Hullin</p>
-                <p>Oberriedstrasse 75</p>
-                <p>3775 Lenk</p>
-                <p>Schweiz</p>
-            </div>
-            <h2>Kontakt</h2>
-            <p>
-                E-Mail: <a href="mailto:thhullin@gmail.com">thhullin@gmail.com</a>
-            </p>
-            <h2>Haftungsausschluss</h2>
-            <p>
-                Der Autor übernimmt keinerlei Gewähr hinsichtlich der inhaltlichen Richtigkeit, Genauigkeit, Aktualität, Zuverlässigkeit und Vollständigkeit der Informationen. Haftungsansprüche gegen den Autor wegen Schäden materieller oder immaterieller Art, welche aus dem Zugriff oder der Nutzung bzw. Nichtnutzung der veröffentlichten Informationen, durch Missbrauch der Verbindung oder durch technische Störungen entstanden sind, werden ausgeschlossen.
-            </p>
-             <h2>Haftung für Links</h2>
-            <p>
-                Verweise und Links auf Webseiten Dritter liegen ausserhalb unseres Verantwortungsbereichs. Es wird jegliche Verantwortung für solche Webseiten abgelehnt. Der Zugriff und die Nutzung solcher Webseiten erfolgen auf eigene Gefahr des Nutzers oder der Nutzerin.
-            </p>
-          </CardContent>
-        </Card>
+    <div className="min-h-dvh min-w-0 bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-5 gap-y-2">
+          <Link href="/" className="min-w-0 text-base font-bold leading-snug tracking-tight sm:text-lg">Motivationsboost</Link>
+          <Link href="/" className="text-sm underline underline-offset-2">Zur App</Link>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-3xl min-w-0 px-4 py-7 sm:px-6 sm:py-10">
+        <article className="min-w-0 overflow-hidden rounded-xl border bg-card p-5 shadow-sm sm:p-8">
+          <h1 className="break-words text-2xl font-bold leading-tight sm:text-3xl">Impressum</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Stand: {LEGAL_UPDATE_DATE}</p>
+          <LegalContent document="impressum" />
+        </article>
       </main>
+      <footer className="mx-auto flex max-w-3xl flex-wrap gap-4 px-4 pb-8 text-sm sm:px-6">
+        <Link href="/impressum" className="underline underline-offset-2">Impressum</Link>
+        <Link href="/datenschutz" className="underline underline-offset-2">Datenschutz</Link>
+        <Link href="/agb" className="underline underline-offset-2">Nutzungsbedingungen</Link>
+        <a href={TH_ANALYTICA_URL} rel="noopener noreferrer" target="_blank" className="underline underline-offset-2">TH Analytica</a>
+      </footer>
     </div>
   );
 }

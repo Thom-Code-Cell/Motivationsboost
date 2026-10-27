@@ -21,11 +21,14 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { getFileContentFromDrive } from "@/services/drive";
 import { useToast } from "@/hooks/use-toast";
+import { LanguageSelect } from '@/components/language-select';
+import { UI_LOCALES, isUiLocale, uiText } from '@/lib/interface-translations';
+import { updateUser } from '@/services/user';
 import { getApplications, type Application } from "@/services/applications";
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarGroup, SidebarGroupLabel } from '@/components/ui/app-sidebar';
 
-const CURRENT_AGB_VERSION = "1.0";
-const CURRENT_PRIVACY_VERSION = "2024-07-07";
+const CURRENT_AGB_VERSION = "2026-10-27";
+const CURRENT_PRIVACY_VERSION = "2026-10-27";
 
 const loadingSpinner = () => (
     <div className="flex items-center justify-center rounded-lg border border-dashed h-96">
@@ -40,6 +43,8 @@ const JobTracker: React.ComponentType<any> = dynamic(() => import('@/components/
 const JobFinder: React.ComponentType<any> = dynamic(() => import('@/components/job-finder').then((mod) => mod.JobFinder), { ssr: false, loading: loadingSpinner });
 const StyleProfile: React.ComponentType<any> = dynamic(() => import('@/components/style-profile').then((mod) => mod.StyleProfile), { ssr: false, loading: loadingSpinner });
 const LinkedinBooster: React.ComponentType<any> = dynamic(() => import('@/components/linkedin-booster').then((mod) => mod.LinkedinBooster), { ssr: false, loading: loadingSpinner });
+const ApplicantDataControl: React.ComponentType<any> = dynamic(() => import('@/components/applicant-data-control').then(mod => mod.ApplicantDataControl), { ssr: false, loading: loadingSpinner });
+const CareerPortfolio: React.ComponentType<any> = dynamic(() => import('@/components/career-portfolio').then(mod => mod.CareerPortfolio), { ssr: false, loading: loadingSpinner });
 const CvGenerator: React.ComponentType<any> = dynamic(() => import('@/components/cv-generator').then((mod) => mod.CvGenerator), { ssr: false, loading: loadingSpinner });
 const CvGapsFiller: React.ComponentType<any> = dynamic(() => import('@/components/cv-gaps-filler').then((mod) => mod.CvGapsFiller), { ssr: false, loading: loadingSpinner });
 const ApplicationFeedback: React.ComponentType<any> = dynamic(() => import('@/components/application-feedback').then((mod) => mod.ApplicationFeedback), { ssr: false, loading: loadingSpinner });
@@ -62,7 +67,7 @@ type ActiveView =
   | 'style-profile' | 'linkedin-booster' | 'cv-generator'
   | 'cv-gaps' | 'feedback' | 'interview' | 'email'
   | 'uploads' | 'export' | 'abo' | 'trust'
-  | 'owner-dashboard' | 'salary-checker' | 'photo-studio';
+  | 'owner-dashboard' | 'salary-checker' | 'photo-studio' | 'career-profile' | 'data-privacy';
 
 interface DashboardProps {
   isAdmin: boolean;
@@ -88,6 +93,8 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
   const [isAgbDialogOpen, setIsAgbDialogOpen] = useState(false);
   const [isPrivacyDialogOpen, setIsPrivacyDialogOpen] = useState(false);
   const { toast } = useToast();
+  const [isSavingLanguage, setIsSavingLanguage] = useState(false);
+  const [isSavingInterfaceLanguage, setIsSavingInterfaceLanguage] = useState(false);
 
   const userProfile = [user?.displayName, cvJson?.summary].filter(Boolean).join(': ');
 
@@ -191,6 +198,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
   const features = userData?.features;
 
   const language: Language = userData?.language || 'de';
+  const interfaceLanguage = userData?.interfaceLanguage && isUiLocale(userData.interfaceLanguage) ? userData.interfaceLanguage : 'de';
 
   const isBlocked = isAgbDialogOpen || isPrivacyDialogOpen;
 
@@ -219,6 +227,10 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
         case 'linkedin-booster':
              if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <LinkedinBooster user={user} accessToken={accessToken} linkedinSummary={linkedinSummary} cvJson={cvJson} userStyleSample={userData.userStyleSample || ''} language={language} onSummaryUpdated={setLinkedinSummary} />;
+        case 'data-privacy':
+            return <ApplicantDataControl data={{ uid: user.uid, email: user.email, displayName: user.displayName, profile: userData, applications, progress, cv: cvJson, approvedLetter: motivationLetter, linkedinSummary }} />;
+        case 'career-profile':
+            return <CareerPortfolio user={user} cvData={cvJson} accessToken={accessToken} language={language} targetCountry={userData.targetCountry} onNavigate={setActiveView} />;
         case 'cv-generator':
             return <CvGenerator user={user} accessToken={accessToken} useAutoLinkedInBooster={userData.useAutoLinkedInBooster} userStyleSample={userData.userStyleSample || ''} language={language} onCvGenerated={(cv: GenerateCvFromDocumentsOutput | null) => { setCvJson(cv); setCvTextOverride(null); }} onSummaryGenerated={setLinkedinSummary} />;
         case 'cv-gaps':
@@ -252,6 +264,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
   const navItems = [
     { id: 'start', label: 'Dashboard', icon: LayoutDashboard, group: 'Übersicht' },
     { id: 'uploads', label: 'Dokumente', icon: UploadCloud, group: 'Erstellung' },
+    { id: 'career-profile', label: 'Kompetenzpass & Zielland', icon: Briefcase, group: 'Erstellung' },
     { id: 'cv-generator', label: 'CV-Generator', icon: FilePlus2, group: 'Erstellung' },
     { id: 'generator', label: 'Generator', icon: Sparkles, group: 'Erstellung' },
 
@@ -267,6 +280,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
     { id: 'email', label: 'E-Mail-Vorlagen', icon: Mail, group: 'Verwaltung', feature: !!features?.emailLetter },
     { id: 'export', label: 'Export', icon: FileArchive, group: 'Verwaltung', feature: !!features?.exportEnabled },
 
+    { id: 'data-privacy', label: 'Datenexport & Datenschutz', icon: Shield, group: 'Konto' },
     { id: 'style-profile', label: 'Mein Stil', icon: PenSquare, group: 'Konto' },
     { id: 'abo', label: 'Abonnement', icon: CreditCard, group: 'Konto' },
     { id: 'trust', label: 'Hilfe & Datenschutz', icon: HelpCircle, group: 'Konto', feature: !!features?.showTrustTab },
@@ -285,7 +299,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <div className="flex min-h-screen w-full flex-col bg-muted/40" lang={interfaceLanguage} dir={interfaceLanguage === 'ar' ? 'rtl' : 'ltr'}>
         {user && userData && (
             <UpsellPrompt
                 open={showUpsell}
@@ -322,7 +336,7 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                 <SidebarMenu>
                     {Object.entries(groupedNavItems).map(([groupName, items]) => (
                         <SidebarGroup key={groupName}>
-                            <SidebarGroupLabel>{groupName}</SidebarGroupLabel>
+                            <SidebarGroupLabel>{uiText(interfaceLanguage, groupName)}</SidebarGroupLabel>
                             {items.map(item => (
                                 <SidebarMenuItem key={item.id}>
                                     <SidebarMenuButton
@@ -331,11 +345,11 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                                             setActiveView(item.id as ActiveView)
                                         }}
                                         isActive={activeView === item.id}
-                                        tooltip={item.label}
+                                        tooltip={uiText(interfaceLanguage, item.id, item.label)}
                                         aria-disabled={isBlocked}
                                     >
                                         <item.icon />
-                                        <span>{item.label}</span>
+                                        <span>{uiText(interfaceLanguage, item.id, item.label)}</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -363,8 +377,25 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                  <div className="md:hidden">
                     <SidebarTrigger />
                  </div>
-                 <div className="ml-auto flex items-center gap-4">
-                     {user && !accessToken && <Button variant="outline" onClick={handleSignIn}>Drive verbinden</Button>}
+                 <div className="ml-auto flex flex-wrap items-center gap-3 sm:gap-4">
+                     {user && userData && !isBlocked && (
+                       <label className="flex max-w-[44vw] flex-col text-xs">
+                         <span>{uiText(interfaceLanguage, 'chooseInterface')}</span>
+                         <select aria-label={uiText(interfaceLanguage, 'chooseInterface')} className="max-w-full rounded-md border bg-background p-2 text-sm" value={interfaceLanguage} disabled={isSavingInterfaceLanguage}
+                           onChange={async event => {
+                             const next = event.target.value;
+                             if (!isUiLocale(next)) return;
+                             setIsSavingInterfaceLanguage(true);
+                             try { await updateUser(user.uid, { interfaceLanguage: next }); }
+                             catch { toast({ title: 'Oberflächensprache konnte nicht gespeichert werden.', variant: 'destructive' }); }
+                             finally { setIsSavingInterfaceLanguage(false); }
+                           }}>
+                           {UI_LOCALES.map(([code, name]) => <option value={code} key={code}>{name}</option>)}
+                         </select>
+                       </label>
+                     )}
+                     {user && userData && !isBlocked && <div className="w-48 max-w-[45vw]" aria-label="Dokumentensprache ändern"><LanguageSelect defaultValue={language} disabled={isSavingLanguage} onValueChange={async next => { setIsSavingLanguage(true); try { await updateUser(user.uid, { language: next }); } catch { toast({ title: 'Sprache konnte nicht gespeichert werden', variant: 'destructive' }); } finally { setIsSavingLanguage(false); } }} /></div>}
+                     {user && !accessToken && <Button variant="outline" onClick={handleSignIn}>{uiText(interfaceLanguage, "reconnect")}</Button>}
                      {isAuthLoading ? (
                         <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
                      ) : user ? (
@@ -385,13 +416,13 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                                 <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={handleSignOut}>
                                     <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Abmelden</span>
+                                    <span>{uiText(interfaceLanguage, "signout")}</span>
                                 </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </>
                      ) : (
-                       <Button onClick={handleSignIn}>Anmelden</Button>
+                       <Button onClick={handleSignIn}>{uiText(interfaceLanguage, "signin")}</Button>
                      )}
                  </div>
             </header>
@@ -406,10 +437,12 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                     <Separator orientation="vertical" className="h-4 hidden sm:block" />
                     <Link href="/datenschutz" className="hover:text-primary transition-colors">Datenschutz</Link>
                     <Separator orientation="vertical" className="h-4 hidden sm:block" />
-                    <Link href="/agb" className="hover:text-primary transition-colors">AGB</Link>
+                    <Link href="/agb" className="hover:text-primary transition-colors">Nutzungsbedingungen</Link>
+                    <Separator orientation="vertical" className="h-4 hidden sm:block" />
+                    <a href="https://th-analytica.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">TH Analytica</a>
                 </div>
                 <p className="text-center text-xs text-muted-foreground/80 mt-2">
-                    Mit der Nutzung dieser Webseite akzeptieren Sie unsere <Link href="/agb" className="underline">AGB</Link> und <Link href="/datenschutz" className="underline">Datenschutzbestimmungen</Link>.
+                    Bitte beachte die <Link href="/agb" className="underline">Nutzungsbedingungen</Link> und <Link href="/datenschutz" className="underline">Datenschutzhinweise</Link>. Kontakt: <a className="break-all underline" href="mailto:thomas@th-analytica.com">thomas@th-analytica.com</a>.
                 </p>
             </footer>
         </div>

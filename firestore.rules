@@ -14,7 +14,7 @@ service cloud.firestore {
         && request.resource.data.features.optimizerEnabled == false
         && !request.resource.data.keys().hasAny(['stripeCustomerId', 'stripeSubscriptionId', 'stripePriceId', 'activeUntil']);
       allow update: if ownUser(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'language', 'userStyleSample', 'useStyleSample', 'useAutoLinkedInBooster', 'jobSearchPreferences',
+        'language', 'targetCountry', 'interfaceLanguage', 'userStyleSample', 'useStyleSample', 'useAutoLinkedInBooster', 'jobSearchPreferences',
         'agbAccepted', 'agbVersion', 'acceptedPrivacyVersion', 'lastActivity', 'trustLevel', 'progressStage',
         'migrationComplete', 'userScore', 'conversionPotential', 'upsellSuggested', 'upsellAccepted',
         'upsellType', 'variantGroup', 'aiTriggeredUpsell'

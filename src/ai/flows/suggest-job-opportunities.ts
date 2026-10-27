@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 /**
  * @fileOverview An AI career strategist that suggests job opportunities based on a user's CV.
  *
@@ -10,7 +11,7 @@
 
 import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import {
   SuggestJobOpportunitiesInputSchema,
   SuggestJobOpportunitiesOutputSchema,
@@ -19,12 +20,7 @@ import {
   type GenerateCvFromDocumentsOutput,
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Output language is resolved from the requested language tag.
 
 // This wrapper function now explicitly allows cvData to be null, matching the UI's state.
 export async function suggestJobOpportunities(
@@ -69,11 +65,11 @@ IMPORTANT: All output text (summaries, titles, company names) must be in the lan
 {{{cvContext}}}
 ---
 
-Based on this information, please generate the following:
+These are suggested job-search directions, not live vacancies. The model has no verified live job feed. Never invent a vacancy, opening date, hiring status, employer rating or salary.\n\nBased on this information, please generate the following:
 
 1.  **Strategy Summary:** A 2-3 sentence summary of the recommended job search strategy, highlighting the user's key strengths for the market.
 2.  **Suggested Job Titles:** A list of 5-7 specific and relevant job titles or search keywords. Include both common and niche titles to broaden the search.
-3.  **Suggested Companies:** A list of 5-7 potential employers in or around the user's location that are known to hire for these roles. Include a mix of large corporations and interesting smaller companies if possible.
+3.  **Suggested Companies:** A list of 5-7 potential employers in or around the user's location that are plausible employers to investigate for these roles (do not assert current vacancies, recent hiring or verified availability). Include a mix of large corporations and interesting smaller companies if possible.
 4.  **Search Links:** Create direct, pre-filled search URLs for Google Jobs and LinkedIn. Use the top 3 most relevant suggested job titles (URL-encoded) and the user's location in the query. For example: \`https://www.linkedin.com/jobs/search/?keywords=URL_ENCODED_TITLE_1%20OR%20URL_ENCODED_TITLE_2&location=URL_ENCODED_LOCATION\`
 `,
 });
@@ -89,7 +85,7 @@ const suggestJobOpportunitiesFlow = ai.defineFlow(
       throw new Error("CV data is required to suggest job opportunities.");
     }
     const cvContext = formatCvForPrompt(input.cvData);
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
 
     const {output} = await prompt({
       ...input,

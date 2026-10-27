@@ -1,10 +1,12 @@
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { generateMarketingContent } from '@/ai/flows/generate-marketing-content';
 import type { GenerateMarketingContentOutput, Language } from '@/ai/schemas';
@@ -19,7 +21,7 @@ import { LanguageSelect } from './language-select';
 const formSchema = z.object({
   topic: z.string().min(10, "Bitte beschreiben Sie das Thema mit mindestens 10 Zeichen."),
   format: z.enum(['LinkedIn Post', 'Tweet', 'Blog Article']),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema,
 });
 
 export function MarketingCopilot() {

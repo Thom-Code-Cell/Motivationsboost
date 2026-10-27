@@ -1,11 +1,13 @@
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import type { User } from 'firebase/auth';
 import type { GenerateCvFromDocumentsOutput, PredictSalaryRangeOutput, Language } from '@/ai/schemas';
 import { predictSalaryRange } from '@/ai/flows/predict-salary-range';
@@ -24,7 +26,7 @@ const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema,
 });
 
 interface SalaryCheckerProps {
@@ -101,7 +103,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>KI-Gehalts-Check</CardTitle>
-        <CardDescription>Erhalten Sie eine datengestützte Gehaltsprognose, basierend auf Ihrem Profil, der Stelle und dem Standort.</CardDescription>
+        <CardDescription>Erhalten Sie eine unverbindliche KI-Gehaltsschätzung. Ohne geprüfte Marktdaten ist dies keine belastbare Lohnstatistik.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -116,7 +118,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4">
                   <p className="text-sm text-muted-foreground">
-                    Die Frage nach dem Gehalt ist oft heikel. Dieses Tool gibt Ihnen eine realistische, KI-basierte Einschätzung, damit Sie selbstbewusst und gut vorbereitet in die Verhandlung gehen können.
+                    Die Frage nach dem Gehalt ist oft heikel. Dieses Tool liefert nur eine ungeprüfte, KI-basierte Orientierung, damit Sie selbstbewusst und gut vorbereitet in die Verhandlung gehen können.
                   </p>
                 </AccordionContent>
               </AccordionItem>
@@ -189,7 +191,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
         <CardContent className="mt-6 border-t pt-6 space-y-6">
             <Card className="text-center bg-primary/5 border-primary/20">
                 <CardHeader>
-                    <CardTitle className="text-lg text-muted-foreground">Prognostizierte jährliche Gehaltsspanne</CardTitle>
+                    <CardTitle className="text-lg text-muted-foreground">Geschätzte jährliche Gehaltsspanne (nicht verifiziert)</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-4xl md:text-5xl font-bold text-primary">
@@ -202,7 +204,7 @@ export function SalaryChecker({ user, cvJson, language }: SalaryCheckerProps) {
                 <Lightbulb className="h-4 w-4" />
                 <AlertTitle>Begründung der KI</AlertTitle>
                 <AlertDescription>
-                    {result.justification}
+                    {result.justification}\n                    <p className="mt-2 text-sm">Die Schätzung beruht nicht auf einer verifizierten, aktuellen Vergütungsdatenbank. Vor Vertragsentscheidungen unabhängige Quellen prüfen.</p>
                 </AlertDescription>
             </Alert>
         </CardContent>

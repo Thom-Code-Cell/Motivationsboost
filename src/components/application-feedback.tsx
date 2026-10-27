@@ -1,5 +1,7 @@
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 import { Textarea } from '@/components/ui/core-textarea';
 
 import { saveFileToDrive } from '@/services/drive';
@@ -7,7 +9,7 @@ import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { generateApplicationFeedback } from '@/ai/flows/generate-application-feedback';
 import { refineDocumentsForATS } from '@/ai/flows/refine-documents-for-ats';
 import { updateProgress } from '@/services/progress';
@@ -30,7 +32,7 @@ const formSchema = z.object({
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
   coverLetter: z.string().min(1, { message: "Bitte geben Sie Ihr Motivationsschreiben ein oder generieren Sie es." }),
   cv: z.string().min(1, { message: "Bitte geben Sie Ihren Lebenslauf ein oder generieren Sie ihn." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema,
 });
 
 interface ApplicationFeedbackProps {

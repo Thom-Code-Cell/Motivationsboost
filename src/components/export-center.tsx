@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { checkLetterQuality } from '@/lib/letter-quality';
 import { Button } from '@/components/ui/button';

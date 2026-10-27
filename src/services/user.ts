@@ -1,5 +1,8 @@
 
 'use client';
+import { suggestedDocumentLanguage } from '@/lib/document-languages';
+import { isUiLocale } from '@/lib/interface-translations';
+
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -46,10 +49,12 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
             const updates: {[key: string]: any} = {};
 
             if (!data.language) {
-                const lang = browserLang?.substring(0, 2);
-                updates['language'] = ['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de';
+                const lang = suggestedDocumentLanguage(browserLang);
+                updates['language'] = lang;
             }
 
+            if (data.targetCountry === undefined) updates['targetCountry'] = 'CH';
+            if (!data.interfaceLanguage) { const preference = browserLang?.split('-')[0] || 'de'; updates['interfaceLanguage'] = isUiLocale(preference) ? preference : 'en'; }
             if (data.progressStage === undefined) updates['progressStage'] = 'onboarding';
             if (data.trustLevel === undefined) updates['trustLevel'] = 0;
             if (data.lastActivity === undefined) updates['lastActivity'] = new Date().toISOString();
@@ -88,13 +93,15 @@ export async function initializeUserDocument(userId: string, browserLang?: strin
                 await setDoc(userDocRef, updates, { merge: true });
             }
         } else {
-            const lang = browserLang?.substring(0, 2);
+            const lang = suggestedDocumentLanguage(browserLang);
             const initialUserData: UserData = {
                 plan: 'free',
                 price: 0,
                 subscriptionStatus: 'free',
                 subscriptionInterval: '',
-                language: (['de', 'en', 'fr', 'it'].includes(lang || '') ? lang : 'de') as Language,
+                language: (lang) as Language,
+                targetCountry: 'CH',
+                interfaceLanguage: isUiLocale(browserLang?.split('-')[0] || '') ? browserLang!.split('-')[0] : 'en',
                 progressStage: 'onboarding',
                 features: defaultFeatures,
                 admin: false,

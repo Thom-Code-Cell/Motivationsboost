@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import type { User } from 'firebase/auth';
 import { updateUserStyleProfile } from '@/services/user';
 import { analyzeWritingStyle } from '@/ai/flows/analyze-writing-style';
@@ -25,8 +25,8 @@ import { Input } from './ui/core-input';
 
 const styleProfileSchema = z.object({
   userStyleSample: z.string().max(3000, "Der Text darf maximal 3000 Zeichen lang sein.").optional(),
-  useStyleSample: z.boolean().default(true),
-  useAutoLinkedInBooster: z.boolean().default(true),
+  useStyleSample: z.boolean(),
+  useAutoLinkedInBooster: z.boolean(),
   jobSearchPreferences: z.object({
       keywords: z.string().optional(),
       locations: z.string().optional(),

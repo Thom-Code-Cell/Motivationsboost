@@ -1,11 +1,13 @@
 
 "use client";
+import { LanguageSchema } from '@/ai/schemas';
+
 import { Textarea } from '@/components/ui/core-textarea';
 
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import dynamic from 'next/dynamic';
 import { generateInterviewQuestions } from '@/ai/flows/generate-interview-questions';
 import { analyzeInterviewAnswer } from '@/ai/flows/analyze-interview-answer';
@@ -34,7 +36,7 @@ const SpeechInput = dynamic(() => import('./speech-input').then(mod => mod.Speec
 const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema,
   cvData: z.string().optional(),
 });
 

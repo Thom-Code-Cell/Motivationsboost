@@ -1,5 +1,6 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
 /**
  * @fileOverview An AI agent that generates marketing content for various platforms.
  *
@@ -10,7 +11,7 @@
 
 import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import {
   GenerateMarketingContentInputSchema,
   GenerateMarketingContentOutputSchema,
@@ -18,12 +19,7 @@ import {
   type GenerateMarketingContentOutput,
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch'
-};
+// Output language is resolved from the requested language tag.
 
 export async function generateMarketingContent(input: GenerateMarketingContentInput): Promise<GenerateMarketingContentOutput> {
   input = GenerateMarketingContentInputSchema.parse(input);
@@ -67,7 +63,7 @@ const generateMarketingContentFlow = ai.defineFlow(
     outputSchema: GenerateMarketingContentOutputSchema,
   },
   async input => {
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
     return output;

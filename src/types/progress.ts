@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const BadgeConfig = {
   cvReady: { name: "CV-Meister", description: "Ersten Lebenslauf mit KI generiert.", iconName: 'FileText' as const },

@@ -10,7 +10,7 @@
 
 import { authorizeAI } from '@/lib/server/session';
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import {
   GenerateProfessionalPhotoInputSchema,
   GenerateProfessionalPhotoOutputSchema,

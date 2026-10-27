@@ -128,7 +128,7 @@ export function OwnerDashboard({ user }: OwnerDashboardProps) {
                             <Shield className="h-4 w-4" />
                             <AlertTitle>Hinweis zur Datengenauigkeit</AlertTitle>
                             <AlertDescription>
-                                <p>Diese Zahlen basieren auf den in Firestore gespeicherten Abonnement-Daten. Für exakte Finanzberichte und Analysen beziehen Sie sich bitte direkt auf Ihr Stripe-Dashboard.</p>
+                                <p>Diese Zahlen basieren auf den in Firestore gespeicherten Abonnement-Daten. Zahlungen sind noch deaktiviert. Nach erfolgter Payrexx-Anbindung sind bestätigte Zahlungen im Payrexx-Dashboard massgebend.</p>
                             </AlertDescription>
                         </Alert>
                     </TabsContent>

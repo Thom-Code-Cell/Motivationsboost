@@ -1,7 +1,7 @@
 // Small, schema-validated Gemini adapter. No telemetry server or development runtime
 // is included in production. The existing flow API keeps component imports stable.
 import Handlebars from 'handlebars';
-import { z, type ZodTypeAny } from 'zod';
+import { z, type ZodTypeAny } from 'zod/v3';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 type PromptPart = { text: string } | { media: { url: string } };

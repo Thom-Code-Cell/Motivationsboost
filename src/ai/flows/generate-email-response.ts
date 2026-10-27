@@ -1,5 +1,7 @@
 
 'use server';
+import { getLanguageName } from '@/lib/document-languages';
+
 /**
  * @fileOverview An AI agent that generates professional email responses for various job application scenarios.
  *
@@ -10,7 +12,7 @@
 
 import { authorizeAI } from '@/lib/server/session';
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import {
   GenerateEmailResponseInputSchema,
   GenerateEmailResponseOutputSchema,
@@ -18,12 +20,7 @@ import {
   type GenerateEmailResponseOutput,
 } from '@/ai/schemas';
 
-const languageMap: Record<string, string> = {
-  de: 'Deutsch',
-  en: 'Englisch',
-  fr: 'Französisch',
-  it: 'Italienisch',
-};
+// Language names resolve from any valid language tag, not just four fixed locales.
 
 const scenarioMap: Record<string, Record<string, string>> = {
     de: {
@@ -95,7 +92,7 @@ const generateEmailResponseFlow = ai.defineFlow(
     outputSchema: GenerateEmailResponseOutputSchema,
   },
   async input => {
-    const languageName = languageMap[input.language] || 'Deutsch';
+    const languageName = getLanguageName(input.language);
     const scenarioDescription = scenarioMap[input.language]?.[input.scenario] || scenarioMap['de'][input.scenario];
 
     const {output} = await prompt({
