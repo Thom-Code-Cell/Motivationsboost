@@ -35,7 +35,7 @@ import { Textarea } from '@/components/ui/core-textarea';
 
 const formSchema = z.object({
   location: z.string().min(3, { message: "Bitte geben Sie einen gültigen Ort ein." }),
-  language: LanguageSchema.default('de'),
+  language: LanguageSchema,
 });
 
 interface JobFinderProps {
