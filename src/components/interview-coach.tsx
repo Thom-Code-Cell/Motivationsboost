@@ -1,3 +1,4 @@
+import { LanguageSchema } from '@/ai/schemas';
 
 "use client";
 import { Textarea } from '@/components/ui/core-textarea';
@@ -34,7 +35,7 @@ const SpeechInput = dynamic(() => import('./speech-input').then(mod => mod.Speec
 const formSchema = z.object({
   jobText: z.string().max(50000).optional(),
   jobUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL zur Stellenanzeige ein." }),
-  language: z.enum(['de', 'en', 'fr', 'it']).default('de'),
+  language: LanguageSchema.default('de'),
   cvData: z.string().optional(),
 });
 
