@@ -437,10 +437,12 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
                     <Separator orientation="vertical" className="h-4 hidden sm:block" />
                     <Link href="/datenschutz" className="hover:text-primary transition-colors">Datenschutz</Link>
                     <Separator orientation="vertical" className="h-4 hidden sm:block" />
-                    <Link href="/agb" className="hover:text-primary transition-colors">AGB</Link>
+                    <Link href="/agb" className="hover:text-primary transition-colors">Nutzungsbedingungen</Link>
+                    <Separator orientation="vertical" className="h-4 hidden sm:block" />
+                    <a href="https://th-analytica.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">TH Analytica</a>
                 </div>
                 <p className="text-center text-xs text-muted-foreground/80 mt-2">
-                    Mit der Nutzung dieser Webseite akzeptieren Sie unsere <Link href="/agb" className="underline">AGB</Link> und <Link href="/datenschutz" className="underline">Datenschutzbestimmungen</Link>.
+                    Bitte beachte die <Link href="/agb" className="underline">Nutzungsbedingungen</Link> und <Link href="/datenschutz" className="underline">Datenschutzhinweise</Link>. Kontakt: <a className="break-all underline" href="mailto:thomas@th-analytica.com">thomas@th-analytica.com</a>.
                 </p>
             </footer>
         </div>
