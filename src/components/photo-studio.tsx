@@ -43,7 +43,8 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
   const fileRef = form.register("userPhoto");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
+      void fileRef.onChange(event);
+    const file = event.target.files?.[0];
       if (file) {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -148,7 +149,7 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
                   <FormItem>
                     <FormLabel>Ihr Foto</FormLabel>
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg" {...fileRef} onChange={handleFileChange} />
+                      <Input type="file" accept="image/png, image/jpeg, image/webp" {...fileRef} onChange={handleFileChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
