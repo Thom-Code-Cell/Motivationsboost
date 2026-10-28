@@ -21,7 +21,8 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 const formSchema = z.object({
   userPhoto: z.any().refine((files) => files?.length === 1, 'Bitte laden Sie ein Foto hoch.').refine(files => files?.[0]?.size <= 8 * 1024 * 1024, 'Bitte ein Foto bis 8 MB wählen.').refine(files => ['image/jpeg', 'image/png', 'image/webp'].includes(files?.[0]?.type), 'Bitte JPG, PNG oder WebP wählen.'),
   style: z.enum(['business', 'modern', 'creative']),
-  prompt: z.string().optional(),
+  mode: z.enum(['portrait','background','lighting','color','outfit','accessory','expression','studio','upscale']),
+  prompt: z.string().max(180).optional(),
 });
 
 interface PhotoStudioProps {
@@ -36,13 +37,14 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { style: 'business', prompt: '' },
+    defaultValues: { style: 'business', mode: 'portrait', prompt: '' },
   });
 
   const fileRef = form.register("userPhoto");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
+      void fileRef.onChange(event);
+    const file = event.target.files?.[0];
       if (file) {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -55,14 +57,20 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
   };
 
 
-  const readFileAsDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-  }
+  // Re-encode on the device to limit uploads and remove embedded EXIF/location metadata.
+  const readFileAsDataURL = async (file: File): Promise<string> => {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Bildverarbeitung ist auf diesem Gerät nicht verfügbar.');
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.88);
+    } finally { bitmap.close(); }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
@@ -78,25 +86,28 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
         setIsLoading(false);
         return;
       }
+      if (!window.confirm('Ich bin berechtigt, dieses Foto zu verwenden, und stimme zu, dass es für genau diese Bildbearbeitung an OpenAI übermittelt wird. Das Ergebnis kann vom Original abweichen und muss vor Verwendung geprüft werden. Fortfahren?')) return;
       const userPhotoDataUrl = await readFileAsDataURL(file);
       
       const result = await generateProfessionalPhoto({
         userPhoto: userPhotoDataUrl,
         style: values.style,
+        mode: values.mode,
         prompt: values.prompt,
+        consent: true,
       });
 
       setGeneratedPhotos([result.generatedPhoto]);
       toast({
           title: "Foto generiert!",
-          description: "Ihr professionelles Bewerbungsfoto ist fertig.",
+          description: "Bildentwurf erstellt. Bitte das Gesicht und alle Details vor der Verwendung prüfen.",
       });
 
     } catch (error) {
       console.error("Error generating photo:", error);
       toast({
         title: "Fehler bei der Foto-Generierung",
-        description: "Das Foto konnte nicht erstellt werden. Bitte versuchen Sie es mit einem anderen Bild.",
+        description: "Die Bildbearbeitung ist möglicherweise noch gesperrt oder das Kontingent ist erreicht. Es erfolgt keine automatische Wiederholung.",
         variant: "destructive",
       });
     } finally {
@@ -118,7 +129,7 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
       <Card>
         <CardHeader>
           <CardTitle>KI-Foto-Studio</CardTitle>
-          <CardDescription>Laden Sie ein Foto von sich hoch und unsere KI verwandelt es in ein professionelles Bewerbungsfoto.</CardDescription>
+          <CardDescription>Laden Sie Ihr eigenes Foto hoch und wählen Sie gezielt eine Bearbeitung. Die Bild-KI bleibt bis zur Freigabe durch den Betreiber deaktiviert.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -127,7 +138,7 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
                   <Info className="h-4 w-4" />
                   <AlertTitle>Tipps für gute Ergebnisse</AlertTitle>
                   <AlertDescription>
-                    Verwenden Sie ein klares, gut beleuchtetes Porträtfoto, auf dem Ihr Gesicht gut zu sehen ist. Ein neutraler Hintergrund ist ideal.
+                    Verwenden Sie ein klares Foto mit gut sichtbarem Gesicht. Die Aufnahme wird vor der Übermittlung lokal verkleinert und ohne EXIF-Metadaten neu gespeichert. Das KI-Ergebnis ist ein Entwurf, keine Identitätsgarantie.
                   </AlertDescription>
               </Alert>
 
@@ -138,7 +149,7 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
                   <FormItem>
                     <FormLabel>Ihr Foto</FormLabel>
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg" {...fileRef} onChange={handleFileChange} />
+                      <Input type="file" accept="image/png, image/jpeg, image/webp" {...fileRef} onChange={handleFileChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -190,6 +201,31 @@ export function PhotoStudio({ user }: PhotoStudioProps) {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="mode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Was soll verändert werden?</FormLabel>
+                    <FormControl>
+                      <select {...field} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                        <option value="portrait">Neues professionelles Bewerbungsfoto</option>
+                        <option value="background">Nur Hintergrund ändern</option>
+                        <option value="lighting">Nur Licht verbessern</option>
+                        <option value="color">Nur Farben korrigieren</option>
+                        <option value="outfit">Nur professionelle Kleidung ändern</option>
+                        <option value="accessory">Nur Accessoire ändern</option>
+                        <option value="expression">Nur Gesichtsausdruck ändern</option>
+                        <option value="studio">Studioqualität optimieren</option>
+                        <option value="upscale">Bildschärfe verbessern</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <p className="text-sm text-muted-foreground">Jeder Auftrag bearbeitet nur einen ausgewählten Bereich. Gesicht und Identität sollen möglichst erhalten bleiben, können aber trotzdem abweichen.</p>
 
               <FormField
                 control={form.control}

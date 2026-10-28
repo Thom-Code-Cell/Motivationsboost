@@ -317,9 +317,11 @@ export type FindMatchingJobsOutput = z.infer<typeof FindMatchingJobsOutputSchema
 
 // AI Photo Studio Schemas
 export const GenerateProfessionalPhotoInputSchema = z.object({
-  userPhoto: z.string().max(11_200_000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).describe("A photo of the user, as a data URI that must include a MIME type and use Base64 encoding."),
-  style: z.enum(['business', 'modern', 'creative']).describe("The desired style for the professional headshot."),
-  prompt: z.string().max(2000).optional().describe("Optional additional user instructions for the generation."),
+  userPhoto: z.string().max(11_200_000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/),
+  style: z.enum(['business','modern','creative']),
+  mode: z.enum(['portrait','background','lighting','color','outfit','accessory','expression','studio','upscale']).default('portrait'),
+  prompt: z.string().max(180).optional(),
+  consent: z.literal(true),
 });
 export type GenerateProfessionalPhotoInput = z.infer<typeof GenerateProfessionalPhotoInputSchema>;
 
