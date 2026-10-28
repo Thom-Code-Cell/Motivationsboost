@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-const auth = vi.hoisted(() => ({ authorizeAI: vi.fn().mockResolvedValue({ uid: 'alice' }) }));
+const auth = vi.hoisted(() => ({ authorizeAI: vi.fn().mockResolvedValue({ uid: 'alice' }), requireSession: vi.fn().mockResolvedValue({ uid: 'alice' }) }));
 vi.mock('@/lib/server/session', () => auth);
+vi.mock('@/lib/server/firebase-admin', () => ({ adminDb: () => ({ doc: (path: string) => ({path}), runTransaction: async (fn: any) => fn({ get: async () => ({data: () => ({})}), set: vi.fn() }) }) }));
 const cv = { personalInfo: { name: 'Thomas', email: '', phone: '', address: '' }, summary: 'Erfahrene Betriebsleitung', sections: [], skills: ['Personalführung'] };
 const context = { language: 'de', jobUrl: 'https://example.org/job', jobText: 'Wir suchen eine Betriebsleitung mit Erfahrung in Personalführung und Organisation.' };
 const flows: [string, string, object, object][] = [
@@ -79,11 +80,25 @@ describe('all structured AI functions with isolated provider responses', () => {
     const result = await generateAudioFromText({ text: 'Guten Tag', language: 'de' });
     expect(Buffer.from(result.audioDataUri.split(',')[1], 'base64').toString('ascii', 0, 4)).toBe('RIFF');
   });
-  it('passes a photo to the image provider and validates the returned media', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'AAECAw==' } }] } }] })));
-    vi.stubGlobal('fetch', fetchMock);
+  it('blocks photo editing unless separately enabled, then passes one validated image to OpenAI', async () => {
     const { generateProfessionalPhoto } = await import('@/ai/flows/generate-professional-photo');
-    expect(await generateProfessionalPhoto({ userPhoto: 'data:image/png;base64,AAECAw==', style: 'business' })).toEqual({ generatedPhoto: 'data:image/png;base64,AAECAw==' });
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].inlineData.mimeType).toBe('image/png');
+    const bytes=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(120)]);
+    const userPhoto='data:image/png;base64,'+bytes.toString('base64');
+    const input={userPhoto,style:'business' as const,mode:'background' as const,consent:true as const};
+    delete process.env.PHOTO_STUDIO_ENABLED;
+    const fetchMock=vi.fn().mockResolvedValue(Response.json({data:[{b64_json:'AAECAw=='}]}));
+    vi.stubGlobal('fetch',fetchMock);
+    await expect(generateProfessionalPhoto(input)).rejects.toThrow('nicht freigegeben');
+    expect(fetchMock).not.toHaveBeenCalled();
+    process.env.PHOTO_STUDIO_ENABLED='true';process.env.OPENAI_API_KEY='test-only-openai-key';
+    expect(await generateProfessionalPhoto(input)).toEqual({generatedPhoto:'data:image/jpeg;base64,AAECAw=='});
+    const [url,request]=fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/images/edits');
+    expect(request.body.get('model')).toBe('gpt-image-1');
+    expect(request.body.get('n')).toBe('1');
+    expect(request.body.get('prompt')).toContain('Change ONLY the background');
+    expect(auth.requireSession).toHaveBeenCalled();
+    delete process.env.PHOTO_STUDIO_ENABLED;
+    delete process.env.OPENAI_API_KEY;
   });
 });
