@@ -20,19 +20,21 @@ const flows: [string, string, object, object][] = [
   ['suggest-job-opportunities', 'suggestJobOpportunities', { cvData: cv, location: 'Zürich', language: 'de' }, { strategySummary: 'Führungsrollen suchen', suggestedJobTitles: ['Betriebsleitung'], suggestedCompanies: ['Firma'], searchLinks: [{ platform: 'LinkedIn', url: 'https://www.linkedin.com/jobs/' }] }],
   ['generate-marketing-content', 'generateMarketingContent', { topic: 'Neue Funktion', format: 'LinkedIn Post', language: 'de' }, { headline: 'Neu', content: 'Interviewtraining' }],
 ];
-beforeEach(() => { process.env.GOOGLE_API_KEY = 'test-only-key'; auth.authorizeAI.mockResolvedValue({ uid: 'alice' }); });
+beforeEach(() => { process.env.OPENAI_API_KEY = 'test-only-key'; auth.authorizeAI.mockResolvedValue({ uid: 'alice' }); });
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 describe('all structured AI functions with isolated provider responses', () => {
   it.each(flows)('%s validates inputs, sends a structured request and returns parsed results', async (path, name, input, output) => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(output) }] } }] }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(output) }] }] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const module = await import(`../../src/ai/flows/${path}.ts`);
     expect(await module[name](input)).toEqual(output);
     expect(auth.authorizeAI).toHaveBeenCalledWith(input);
     const request = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(request.generationConfig.responseMimeType).toBe('application/json');
-    expect(request.generationConfig.responseJsonSchema.type).toBe('object');
-    if ('jobText' in input) expect(request.contents[0].parts[0].text).toContain(context.jobText);
+    expect(request.text.format.type).toBe('json_schema');
+    expect(request.store).toBe(false);
+    expect(request.model).toBe('gpt-5-mini');
+    expect(request.text.format.schema.type).toBe('object');
+    if ('jobText' in input) expect(request.input[0].content[0].text).toContain(context.jobText);
   });
   it.each(flows)('%s rejects unauthenticated use before calling the provider', async (path, name, input) => {
     auth.authorizeAI.mockRejectedValue(new Error('Bitte anmelden.'));
@@ -59,31 +61,45 @@ describe('all structured AI functions with isolated provider responses', () => {
   });
 
   it('rejects a malformed model response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"atsScore":999}' }] } }] }))));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: '{"atsScore":999}' }] }] }))));
     const { generateApplicationFeedback } = await import('@/ai/flows/generate-application-feedback');
     await expect(generateApplicationFeedback({ ...context, cv: 'CV', coverLetter: 'Brief' } as any)).rejects.toThrow('Format');
   });
   it.each([429, 500])('handles provider HTTP %i', async status => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status })));
     const { generateInterviewQuestions } = await import('@/ai/flows/generate-interview-questions');
-    await expect(generateInterviewQuestions(context as any)).rejects.toThrow('KI-Dienst');
+    await expect(generateInterviewQuestions(context as any)).rejects.toThrow(status === 429 ? 'OpenAI-Limit' : 'OpenAI-Anfrage');
   });
   it('rejects a truncated answer', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{}' }] } }] }))));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'incomplete', output: [{ type: 'message', content: [{ type: 'output_text', text: '{}' }] }] }))));
     const { generateInterviewQuestions } = await import('@/ai/flows/generate-interview-questions');
-    await expect(generateInterviewQuestions(context as any)).rejects.toThrow('unvollständig');
+    await expect(generateInterviewQuestions(context as any)).rejects.toThrow('nicht abgeschlossen');
   });
-  it('converts provider PCM audio into a WAV data URI', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: 'AAECAw==' } }] } }] }))));
+  it('returns OpenAI speech as a WAV data URI', async () => {
+    const riff = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(8)]);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(riff, {status: 200}));
+    vi.stubGlobal('fetch', fetchMock);
     const { generateAudioFromText } = await import('@/ai/flows/generate-audio-from-text');
     const result = await generateAudioFromText({ text: 'Guten Tag', language: 'de' });
     expect(Buffer.from(result.audioDataUri.split(',')[1], 'base64').toString('ascii', 0, 4)).toBe('RIFF');
+    expect(fetchMock.mock.calls[0][0]).toContain('/audio/speech');
   });
-  it('passes a photo to the image provider and validates the returned media', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'AAECAw==' } }] } }] })));
+  it('protects the user from unapproved image expenses', async () => {
+    delete process.env.OPENAI_ENABLE_IMAGES;
+    vi.stubGlobal('fetch', vi.fn());
+    const { generateProfessionalPhoto } = await import('@/ai/flows/generate-professional-photo');
+    await expect(generateProfessionalPhoto({ userPhoto: 'data:image/png;base64,AAECAw==', style: 'business' })).rejects.toThrow('nicht freigeschaltet');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('passes a user photo to OpenAI image edits only after opt-in', async () => {
+    process.env.OPENAI_ENABLE_IMAGES = 'true';
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({data:[{b64_json:'AAECAw=='}]}),{status:200}));
     vi.stubGlobal('fetch', fetchMock);
     const { generateProfessionalPhoto } = await import('@/ai/flows/generate-professional-photo');
-    expect(await generateProfessionalPhoto({ userPhoto: 'data:image/png;base64,AAECAw==', style: 'business' })).toEqual({ generatedPhoto: 'data:image/png;base64,AAECAw==' });
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].inlineData.mimeType).toBe('image/png');
+    const result = await generateProfessionalPhoto({ userPhoto: 'data:image/png;base64,AAECAw==', style: 'business' });
+    expect(result).toEqual({generatedPhoto:'data:image/png;base64,AAECAw=='});
+    expect(fetchMock.mock.calls[0][0]).toContain('/images/edits');
+    expect((fetchMock.mock.calls[0][1].body as FormData).get('model')).toBe('gpt-image-1-mini');
+    delete process.env.OPENAI_ENABLE_IMAGES;
   });
 });

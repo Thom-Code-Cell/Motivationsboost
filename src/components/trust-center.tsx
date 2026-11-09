@@ -50,9 +50,9 @@ export function TrustCenter() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-base text-muted-foreground pl-10 space-y-2">
-              <p>Der konkrete KI-Anbieter wird erst vor dem Produktivstart eingerichtet und offengelegt. Bei aktivierter KI können Ihre freigegebenen Eingaben (z.B. Jobtext und Lebenslauf) zur Bearbeitung an den Anbieter übermittelt werden.</p>
+              <p>Bei aktivierter KI werden Ihre für die Funktion benötigten Eingaben (z.B. Jobtext und Lebenslauf) zur Bearbeitung an OpenAI übermittelt.</p>
               <p>Die KI analysiert diese Informationen und generiert basierend darauf die gewünschte Ausgabe (z.B. ein Motivationsschreiben oder Interviewfragen). Ihre persönlichen Stilproben helfen der KI, einen Text zu verfassen, der authentisch nach Ihnen klingt.</p>
-              <p><strong>Wichtig:</strong> Ihre Eingaben können personenbezogene Daten enthalten. Die Verarbeitung, Aufbewahrung und mögliche Modellnutzung richten sich nach dem verwendeten Google-Dienst und seinen Vertragsbedingungen. Diese Bedingungen müssen vor der Veröffentlichung für die konkrete Dienstkonfiguration geprüft werden.</p>
+              <p><strong>Wichtig:</strong> Ihre Eingaben können personenbezogene Daten enthalten. Die Verarbeitung und Aufbewahrung richten sich nach der tatsächlichen Konfiguration und den geltenden Bedingungen von OpenAI. Diese müssen vor der Veröffentlichung geprüft werden.</p>
             </AccordionContent>
           </AccordionItem>
 
