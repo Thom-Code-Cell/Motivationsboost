@@ -10,6 +10,7 @@ type ResponseMessage = { type?: string; content?: ResponseContent[] };
 type OpenAIResponse = { status?: string; output?: ResponseMessage[]; output_text?: string; error?: unknown };
 
 async function generateJson(prompt: string, name: string, schema: Record<string, unknown>): Promise<string> {
+  if (Buffer.byteLength(prompt, 'utf8') > 30000) throw new Error('Der Dokumenttext ist für die KI-Verarbeitung zu gross. Bitte kürzen.');
   const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
   if (!/^gpt-[a-z0-9.-]+$/.test(model)) throw new Error('Ungültiges OpenAI-Modell.');
   const response = await callOpenAI('/responses', {
@@ -17,7 +18,7 @@ async function generateJson(prompt: string, name: string, schema: Record<string,
     store: false,
     input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }] }],
     text: { format: { type: 'json_schema', name, schema, strict: false } },
-    max_output_tokens: 8192,
+    max_output_tokens: 2048,
   });
   const data = await response.json() as OpenAIResponse;
   if (data.status && data.status !== 'completed') throw new Error('OpenAI hat die Antwort nicht abgeschlossen.');

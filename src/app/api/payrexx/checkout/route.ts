@@ -5,7 +5,7 @@ import { getPlan, payrexxConfiguration } from '@/lib/payrexx';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { requireSession } from '@/lib/server/session';
 
-const bodySchema = z.object({ plan: z.enum(['monthly', 'yearly']) }).strict();
+const bodySchema = z.object({ plan: z.enum(['weekly', 'monthly', 'yearly']) }).strict();
 
 export async function POST(request: NextRequest) {
   const cfg = payrexxConfiguration();
@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       headers: { 'X-API-KEY': cfg.key, 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
         amount: plan.amount, currency: plan.currency,
-        purpose: 'Motivationsboost ' + (plan.id === 'monthly' ? 'Monatsabo' : 'Jahresabo'),
+        purpose: 'Motivationsboost ' + plan.label,
         referenceId,
-        subscriptionState: true, subscriptionInterval: plan.interval, subscriptionPeriod: plan.interval,
+        ...(plan.interval ? { subscriptionState: true, subscriptionInterval: plan.interval, subscriptionPeriod: plan.interval } : {}),
         successRedirectUrl: cfg.origin + '/?payment=pending',
         cancelRedirectUrl: cfg.origin + '/?payment=cancelled',
         failedRedirectUrl: cfg.origin + '/?payment=failed',

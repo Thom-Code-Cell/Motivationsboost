@@ -9,6 +9,7 @@ import {
 } from '@/ai/schemas';
 
 export async function generateAudioFromText(input: GenerateAudioFromTextInput): Promise<GenerateAudioFromTextOutput> {
+  if (process.env.OPENAI_AUDIO_BUDGET_VALIDATED !== 'true') throw new Error('Sprachausgabe ist noch nicht freigeschaltet.');
   input = GenerateAudioFromTextInputSchema.parse(input);
   await authorizeAI(input);
   return generateAudioFromTextFlow(input);

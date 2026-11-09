@@ -1,7 +1,7 @@
 import 'server-only';
 import { verifyPayrexxSignature } from './payrexx-signature';
+import { PLANS, type PlanId } from './plans';
 
-export type PlanId = 'monthly' | 'yearly';
 export function payrexxConfiguration() {
   const instance = process.env.PAYREXX_INSTANCE || '';
   const key = process.env.PAYREXX_API_KEY || '';
@@ -22,11 +22,7 @@ export function payrexxConfiguration() {
   };
 }
 export function getPlan(id: PlanId) {
-  const envName = id === 'monthly' ? 'PAYREXX_MONTHLY_CENTS' : 'PAYREXX_YEARLY_CENTS';
-  const raw = process.env[envName] ?? '';
-  if (!/^[1-9][0-9]{2,7}$/.test(raw)) return null;
-  const amount = Number(raw);
-  if (!Number.isSafeInteger(amount) || amount > 5000000) return null;
-  return { id, amount, currency: 'CHF', interval: id === 'monthly' ? 'P1M' : 'P1Y' } as const;
+  const plan = PLANS[id];
+  return { ...plan, interval: id === 'weekly' ? null : id === 'monthly' ? 'P1M' : 'P1Y' };
 }
 export const verifyPayrexxWebhook = verifyPayrexxSignature;

@@ -7,9 +7,9 @@ import { isRequestOriginAllowed } from '@/lib/security';
 beforeEach(() => {
   mocks.token = 'test-token'; mocks.count = 0;
   mocks.verify.mockResolvedValue({ uid: 'alice' });
-  mocks.read.mockImplementation(async () => ({ data: () => ({ hour: Math.floor(Date.now() / 3600000), count: mocks.count }) }));
+  mocks.read.mockImplementation(async (path: string) => ({ data: () => path.startsWith('aiEntitlements/') ? { plan: 'monthly', status: 'active', start: '2020-01-01T00:00:00Z', end: '2099-01-01T00:00:00Z' } : { hour: Math.floor(Date.now() / 3600000), count: mocks.count, period: 'monthly:2020-01-01T00:00:00.000Z/2099-01-01T00:00:00.000Z', used: mocks.count } }));
   mocks.write.mockImplementation((_ref, data) => { mocks.count = data.count; });
-  vi.stubEnv('GOOGLE_API_KEY', 'test-only-key');
+  vi.stubEnv('OPENAI_API_KEY', 'test-only-key');
 });
 afterEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); });
 describe('server session and shared AI limits', () => {
@@ -19,7 +19,7 @@ describe('server session and shared AI limits', () => {
   it('does not infer admin status from a user-controlled profile', async () => { await expect(requireAdmin()).rejects.toThrow('verweigert'); });
   it('accepts a trusted admin claim', async () => { mocks.verify.mockResolvedValueOnce({ uid: 'alice', admin: true }); expect((await requireAdmin()).uid).toBe('alice'); });
   it('uses a server-only admin allowlist', async () => { vi.stubEnv('ALLOWED_ADMIN_UIDS', 'bob, alice'); expect((await requireAdmin()).uid).toBe('alice'); });
-  it('rejects AI calls when no provider key exists', async () => { vi.stubEnv('GOOGLE_API_KEY', ''); await expect(authorizeAI({ text: 'test' })).rejects.toThrow('konfiguriert'); expect(mocks.write).not.toHaveBeenCalled(); });
+  it('rejects AI calls when no provider key exists', async () => { vi.stubEnv('OPENAI_API_KEY', ''); await expect(authorizeAI({ text: 'test' })).rejects.toThrow('konfiguriert'); expect(mocks.write).not.toHaveBeenCalled(); });
   it('enforces the shared quota on the thirty-first request', async () => { for (let i = 0; i < 30; i++) await authorizeAI({ text: 'test' }); await expect(authorizeAI({ text: 'test' })).rejects.toThrow('Limit'); expect(mocks.count).toBe(30); });
   it('accepts bounded photo payloads above the text limit', async () => { await expect(authorizeAI({ userPhoto: 'x'.repeat(3000000) }, 12_000_000)).resolves.toMatchObject({ uid: 'alice' }); });
   it('rejects oversized photo payloads', async () => await expect(authorizeAI({ userPhoto: 'x'.repeat(12000001) }, 12_000_000)).rejects.toThrow('groß'));

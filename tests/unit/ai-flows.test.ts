@@ -76,6 +76,7 @@ describe('all structured AI functions with isolated provider responses', () => {
     await expect(generateInterviewQuestions(context as any)).rejects.toThrow('nicht abgeschlossen');
   });
   it('returns OpenAI speech as a WAV data URI', async () => {
+    vi.stubEnv('OPENAI_AUDIO_BUDGET_VALIDATED', 'true');
     const riff = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE'), Buffer.alloc(8)]);
     const fetchMock = vi.fn().mockResolvedValue(new Response(riff, {status: 200}));
     vi.stubGlobal('fetch', fetchMock);

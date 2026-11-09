@@ -15,6 +15,7 @@ const styles: Record<string, string> = {
 };
 
 export async function generateProfessionalPhoto(input: GenerateProfessionalPhotoInput): Promise<GenerateProfessionalPhotoOutput> {
+  if (process.env.OPENAI_ENABLE_IMAGES !== 'true') throw new Error('KI-Fotoeditor ist noch nicht freigeschaltet.');
   input = GenerateProfessionalPhotoInputSchema.parse(input);
   await authorizeAI(input, 12_000_000);
   return generateProfessionalPhotoFlow(input);
