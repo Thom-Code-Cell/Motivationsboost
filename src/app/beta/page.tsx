@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
+import { Applications } from './applications';
 
 const auth = createAuthClient();
 const fields = [
@@ -33,6 +34,7 @@ export default function BetaPage() {
     <header><h1 className="text-3xl font-semibold">Motivationsboost</h1><p className="mt-2 text-slate-600">Deine Erfahrung. Deine Worte. Dein nächster Schritt.</p></header>
     {isPending ? <p>Deine Anmeldung wird geprüft …</p> : !session ? <section className="space-y-4 rounded-xl border p-6"><p>Melde dich an, um deinen persönlichen Entwurf zu erstellen.</p><button className="rounded-lg bg-slate-900 px-4 py-2 text-white" onClick={() => void auth.signIn.social({ provider: 'google', callbackURL: '/beta' })}>Mit Google anmelden</button></section> : <>
       <div className="flex items-center justify-between gap-4"><p>Angemeldet als {session.user.name || session.user.email}</p><button className="underline" onClick={() => void auth.signOut()}>Abmelden</button></div>
+      <Applications />
       <form onSubmit={generate} className="space-y-4">
         {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
         <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
