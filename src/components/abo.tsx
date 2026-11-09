@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-type Plan = { id: 'monthly' | 'yearly'; amount: number; currency: string; interval: string };
+type Plan = { id: 'weekly' | 'monthly' | 'yearly'; amount: number; currency: string; label: string; limit: number; period: string };
 type Response = { provider: string; enabled: boolean; plans: Plan[]; message: string };
 
 export function Abo({ user, userData, isAuthLoading }: { user: User | null; userData: UserData | null; isAuthLoading: boolean }) {
@@ -49,14 +49,15 @@ export function Abo({ user, userData, isAuthLoading }: { user: User | null; user
       <p className="text-sm">Aktueller Kontostatus: <strong>{userData?.plan === 'pro_month' ? 'Pro' : 'Basis / Test'}</strong>. Die KI-Freigabe ist davon unabhängig und kann bis zur API-Konfiguration eingeschränkt sein.</p>
       {!ready || !user || isAuthLoading || plans.length === 0 ? (
         <p className="rounded-lg border p-4 text-sm" role="status">
-          Zahlungen sind noch nicht aktiviert. Es wird kein Betrag belastet. Die Preise folgen nach der kaufmännischen Freigabe.
+          Zahlungen sind noch nicht aktiviert. Es wird kein Betrag belastet.
         </p>
       ) : <>
         <p className="text-sm">Vor dem Abschluss werden Laufzeit, wiederkehrende Zahlungen und Kündigungsbedingungen bei Payrexx angezeigt. Der Zugang wird erst nach verifizierter Zahlung aktiviert.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {plans.map(plan => <div key={plan.id} className="rounded-xl border p-4">
-            <p className="font-semibold">{plan.id === 'monthly' ? 'Monatsabo' : 'Jahresabo'}</p>
+            <p className="font-semibold">{plan.label}</p>
             <p className="mt-1 text-lg">{(plan.amount / 100).toLocaleString('de-CH', { style: 'currency', currency: plan.currency })}</p>
+            <p className="text-sm">{plan.limit} KI-Aktionen pro {plan.period}</p>
             <Button disabled={loading} className="mt-3 w-full" onClick={() => void startCheckout(plan.id)}>
               {loading ? 'Öffnet Payrexx…' : 'Zu Payrexx'}
             </Button>

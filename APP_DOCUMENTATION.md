@@ -19,7 +19,7 @@ Die Anwendung ist ein **intelligenter Bewerbungs-Copilot**, der Nutzer durch den
 *   **Sprache:** TypeScript
 *   **Styling:** Tailwind CSS
 *   **UI-Komponenten:** shadcn/ui
-*   **KI-Integration:** Genkit (mit Google AI / Gemini-Modellen)
+*   **KI-Integration:** OpenAI Responses API (GPT), OpenAI Speech API und optionale OpenAI Image Edits mit bestehender Flow-Schnittstelle
 *   **Backend & Authentifizierung:** Firebase (Auth, Firestore)
 *   **Zahlungen:** Stripe
 *   **Dokumenten-Upload:** Google Drive API
@@ -86,9 +86,9 @@ Speichert den Fortschritt der Nutzer-Meilensteine.
 | `lastUpdated` | `Timestamp`| Zeitstempel der letzten Aktualisierung. |
 
 
-## 5. KI-Flows (Genkit)
+## 5. KI-Flows (OpenAI)
 
-Alle KI-Funktionen sind als Genkit-Flows in `src/ai/flows/` implementiert. Jeder Flow ist ein Server-Side-Modul, das eine klar definierte Aufgabe erfüllt.
+Die KI-Funktionen nutzen weiterhin die Flow-Schnittstelle in `src/ai/flows/`, mit OpenAI als Modellanbieter. Jeder Flow ist ein Server-Side-Modul, das eine klar definierte Aufgabe erfüllt.
 
 *   **`autofill-cv-gaps.ts`**: Identifiziert Lücken im Lebenslauf und schlägt diplomatische Formulierungen vor, um diese zu füllen.
 *   **`extract-job-keywords.ts`**: Extrahiert Schlüsselkompetenzen, Soft Skills und eine Zusammenfassung aus einer Stellenanzeigen-URL.

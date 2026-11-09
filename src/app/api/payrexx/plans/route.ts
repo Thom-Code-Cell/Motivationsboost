@@ -6,7 +6,7 @@ export async function GET() {
   return NextResponse.json({
     provider: 'Payrexx',
     enabled: Boolean(available),
-    plans: available ? (['monthly', 'yearly'] as const).map(id => getPlan(id)).filter(Boolean) : [],
+    plans: (['weekly', 'monthly', 'yearly'] as const).map(id => getPlan(id)),
     message: available ? 'Checkout technically configured; final business acceptance is required.' : 'Checkout ist noch nicht freigeschaltet.',
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
