@@ -2,35 +2,38 @@
 import { useCallback, useEffect, useState } from 'react';
 type Item = { id: string; jobTitle: string; company: string; status: string; jobUrl: string };
 const statuses = ['Entwurf', 'Gesendet', 'Antwort erhalten', 'Interview', 'Absage', 'Zusage'];
-export function Applications() {
+export function Applications({ userId }: { userId: string }) {
+  const key = `motivationsboost.applications.v1.${userId}`;
   const [items, setItems] = useState<Item[]>([]);
   const [form, setForm] = useState({ jobTitle: '', company: '', jobUrl: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => {
-    const response = await fetch('/api/v2/applications', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Bewerbungen konnten nicht geladen werden.');
-    const data = await response.json() as { applications: Item[] };
-    setItems(data.applications);
-  }, []);
-  useEffect(() => { void load().catch(() => setError('Bewerbungen konnten nicht geladen werden.')); }, [load]);
-  async function create(event: React.FormEvent) {
+  const load = useCallback(() => {
+    const raw = localStorage.getItem(key);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) throw new Error('Gespeicherte Daten sind ungültig.');
+    setItems(parsed as Item[]);
+  }, [key]);
+  useEffect(() => { try { load(); } catch { setError('Lokale Bewerbungen konnten nicht geladen werden.'); } }, [load]);
+  function save(next: Item[]) {
+    localStorage.setItem(key, JSON.stringify(next));
+    setItems(next);
+  }
+  function create(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
     try {
-      const response = await fetch('/api/v2/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      if (!response.ok) throw new Error('Bewerbung konnte nicht gespeichert werden.');
-      setForm({ jobTitle: '', company: '', jobUrl: '' }); await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Bitte später erneut versuchen.'); } finally { setBusy(false); }
+      const url = new URL(form.jobUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Bitte einen gültigen Link eingeben.');
+      save([...items, { ...form, id: crypto.randomUUID(), status: 'Entwurf' }]);
+      setForm({ jobTitle: '', company: '', jobUrl: '' });
+    } catch { setError('Bewerbung konnte auf diesem Gerät nicht gespeichert werden.'); } finally { setBusy(false); }
   }
-  async function change(id: string, method: 'PATCH' | 'DELETE', status?: string) {
+  function change(id: string, method: 'PATCH' | 'DELETE', status?: string) {
     setBusy(true); setError('');
-    try {
-      const response = await fetch(`/api/v2/applications/${id}`, { method, ...(status ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) } : {}) });
-      if (!response.ok) throw new Error('Änderung konnte nicht gespeichert werden.');
-      await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Bitte später erneut versuchen.'); } finally { setBusy(false); }
+    try { save(method === 'DELETE' ? items.filter(item => item.id !== id) : items.map(item => item.id === id && status && statuses.includes(status) ? { ...item, status } : item)); }
+    catch { setError('Änderung konnte auf diesem Gerät nicht gespeichert werden.'); } finally { setBusy(false); }
   }
-  return <section className="space-y-4 rounded-xl border p-5"><h2 className="text-xl font-semibold">Meine Bewerbungen</h2>
+  return <section className="space-y-4 rounded-xl border p-5"><h2 className="text-xl font-semibold">Meine Bewerbungen</h2><p className="text-sm">Diese Übersicht wird in diesem Browser auf deinem Gerät gespeichert. Andere Personen mit Zugriff auf das Gerät können sie möglicherweise lesen. Beim Löschen der Browserdaten kann sie verloren gehen.</p>
     <form onSubmit={create} className="grid gap-3">
       <label>Stelle<input required maxLength={200} className="block w-full rounded border p-2" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} /></label>
       <label>Unternehmen<input required maxLength={200} className="block w-full rounded border p-2" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} /></label>
