@@ -19,6 +19,12 @@ export default function BetaPage() {
   const [letter, setLetter] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  function downloadLetter() {
+    const url = URL.createObjectURL(new Blob([letter], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'motivationsschreiben.txt'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   async function generate(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setMessage(''); setLetter('');
     try {
@@ -40,7 +46,7 @@ export default function BetaPage() {
         <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
       </form>
       {message && <p role="status">{message}</p>}
-      {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} /></section>}
+      {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} /><button type="button" onClick={downloadLetter} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button></section>}
     </>}
   </main>;
 }
