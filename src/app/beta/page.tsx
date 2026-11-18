@@ -53,7 +53,7 @@ function AuthenticatedBetaPage() {
         if (mode === 'reset') {
           const response = await fetch('/api/auth/request-password-reset', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/` }),
+            body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/reset-password` }),
           });
           if (!response.ok) throw new Error('Die Anfrage konnte momentan nicht verarbeitet werden.');
           setNotice('Wenn ein Konto zu dieser Adresse besteht, wird ein Link zum Zurücksetzen gesendet.');
