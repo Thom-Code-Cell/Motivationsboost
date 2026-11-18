@@ -10,8 +10,8 @@
 ## Billing decision: Payrexx ONLY
 - Old Stripe endpoints return HTTP 503 and never charge anyone, independently of historic Stripe secrets.
 - Payrexx Gateway API scaffold, monthly/yearly plan display and signed webhook receiver exist. Direct API signing uses server-only X-API-KEY. Hosted Payrexx payment pages keep credit card data off our site.
-- Payrexx is **OFF by default**. Both `PAYREXX_PAYMENTS_ENABLED` and `PAYREXX_BILLING_VALIDATED` must be true *after* approved payment tests and fulfillment logic. No environment secrets in Git. No prices invented.
-- **Critical incomplete part:** signed webhook receipts are stored idempotently, but user premium entitlements are deliberately **not** automatically granted. It would be unsafe to charge users now. Validate current gateway and subscription payload shapes using real Payrexx test events, map order reference to owner safely, reconcile success/failure/refunds/retries, implement transparent self-service cancellation, and verify tax/legal disclosures before enabling payment.
+- Payrexx checkout is **OFF by default**. Both `PAYREXX_PAYMENTS_ENABLED` and `PAYREXX_BILLING_VALIDATED` must be true *after* approved payment tests and fulfillment logic. A webhook can be enabled separately with `PAYREXX_WEBHOOK_ENABLED`; it verifies signatures and stores only minimal event metadata in PostgreSQL, but deliberately never grants entitlements. No environment secrets in Git. No prices invented.
+- **Critical incomplete part:** user premium entitlements are deliberately **not** automatically granted. It would be unsafe to charge users now. Validate current gateway and subscription payload shapes using real Payrexx test events, map order reference to owner safely, reconcile success/failure/refunds/retries, implement transparent self-service cancellation, and verify tax/legal disclosures before enabling payment.
 - Official docs: https://developers.payrexx.com/reference/create-a-gateway and https://docs.payrexx.com/developer/guides/webhook
 
 ## Legal & privacy

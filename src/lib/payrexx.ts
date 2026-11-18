@@ -15,6 +15,8 @@ export function payrexxConfiguration() {
   return {
     // Mandatory second switch: do not accept real money until webhook-to-entitlement reconciliation and refund/cancel flows are live-tested.
     enabled: process.env.PAYREXX_PAYMENTS_ENABLED === 'true' && process.env.PAYREXX_BILLING_VALIDATED === 'true',
+    // Webhook receipt is configured independently; it never enables checkout or grants entitlements.
+    webhookEnabled: process.env.PAYREXX_WEBHOOK_ENABLED === 'true',
     instance: /^[a-z0-9][a-z0-9-]{1,62}$/i.test(instance) ? instance : '',
     key,
     signingKey,
