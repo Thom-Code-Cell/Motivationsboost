@@ -32,7 +32,7 @@ describe('all structured AI functions with isolated provider responses', () => {
     const request = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(request.text.format.type).toBe('json_schema');
     expect(request.store).toBe(false);
-    expect(request.model).toBe('gpt-5-mini');
+    expect(request.model).toBe('gpt-6.1-terra');
     expect(request.text.format.schema.type).toBe('object');
     if ('jobText' in input) expect(request.input[0].content[0].text).toContain(context.jobText);
   });

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 const pages = {
   de: {
@@ -133,22 +133,21 @@ export function generateStaticParams() { return locales.map(locale => ({ locale 
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  if (!Object.prototype.hasOwnProperty.call(pages, locale)) return { robots: { index: false } };
-  const copy = pages[locale as Locale];
-  const base = publicOrigin();
-  const languages = base ? Object.fromEntries(locales.map(code => [code, base + '/' + code])) : undefined;
+  if (!Object.prototype.hasOwnProperty.call(pages, locale)) return { robots: { index: false, follow: false } };
   return {
-    title: copy.title + ' | Motivationsboost',
-    description: copy.description,
-    robots: { index: Boolean(base), follow: Boolean(base) },
-    alternates: base ? { canonical: base + '/' + locale, languages } : undefined,
-    openGraph: { title: copy.title, description: copy.description, type: 'website', locale },
+    title: 'Motivationsboost | Vorbereitungsphase',
+    description: 'Die mehrsprachigen Produktseiten werden nach Prüfung des verfügbaren Funktionsumfangs freigeschaltet.',
+    robots: { index: false, follow: false },
+    openGraph: { title: 'Motivationsboost | Vorbereitungsphase', type: 'website', locale },
   };
 }
 
 export default async function LocalizedPublicPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!Object.prototype.hasOwnProperty.call(pages, locale)) notFound();
+  // The previous translated marketing pages describe features the active app
+  // does not ship yet. Keep them out of production until that copy is reviewed.
+  redirect('/');
   const copy = pages[locale as Locale];
   const base = publicOrigin();
   const jsonLd = {

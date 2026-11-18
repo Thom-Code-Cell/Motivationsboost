@@ -3,6 +3,10 @@
 const API_ROOT = 'https://api.openai.com/v1';
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+export function getTextModel(): string {
+  return process.env.OPENAI_MODEL?.trim() || 'gpt-6.1-terra';
+}
+
 export function getOpenAIKey(): string {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error('OpenAI ist noch nicht konfiguriert. OPENAI_API_KEY fehlt auf dem Server.');

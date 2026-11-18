@@ -1,30 +1,42 @@
-# Motivationsboost release preparation
+# Motivationsboost release checklist
 
-## Required live configuration
+The current Preview app is designed to run without Google or Firebase. Production remains separate and must not be enabled solely because Preview builds successfully. This checklist is a release gate, not a claim that a production deployment has happened.
 
-Configure these directly in the preview project's environment settings. Do not send private keys through chat or commit them.
+## Gate status checked 18 November 2026
 
-1. Use the intended Firebase project. Register a web app and set its public config variables from `.env.example`. Enable Google authentication. Add the actual preview hostname to Firebase Authentication's authorized domains.
-2. Configure server-only Firebase Admin credentials for that same project, or its workload identity/ADC. Confirm token verification, Firestore access and account isolation. Set admin identities only via `ALLOWED_ADMIN_UIDS` or trusted Firebase custom claims.
-3. Deploy `firestore.rules` and `firestore.indexes.json` to that exact project after identifying it. Changes have only been tested against the local demo project; no live rules were changed.
-4. Enable Google Drive API and Google Picker API in the associated Cloud project. Set a browser-restricted public Picker API key and project number. The OAuth flow requests only `drive.file`; existing documents must be selected explicitly via Picker before import.
-5. Configure a server-only `GOOGLE_API_KEY` with the intended billing/quota and data processing terms. Verify the configured text, image and speech models with fabricated documents before using personal data.
-6. Keep `STRIPE_PAYMENTS_ENABLED=false`. Payments and Payrexx are outside this release stage. No existing entitlement was granted, no payment was made, and PR #1 was not merged.
+- **Vercel:** Only `motivationsboost-preview` exists for this app. It is not live, has Vercel Authentication enabled, and has no app-specific production domain. The connected Vercel API cannot list environment variables or Marketplace integrations (403); the Vercel CLI is not installed. No Production secrets were written.
+- **Neon:** Only `motivationsboost-preview-db` exists in Frankfurt, in a Vercel-managed organization. Its Preview branch has the app schema. The default `main` branch currently has only `payrexx_webhook_events`; do not treat it as a ready production database. Direct project creation was rejected because the organization is managed by Vercel.
+- **Email:** No production Resend sender has been verified. Production sender identity, DNS records and delivery/retention remain unverified.
+- **OpenAI:** No production API key is configured. Use a dedicated project key only after enforcing a project hard-spend limit with enough CHF/USD exchange-rate margin. OpenAI says hard-limit enforcement is not instantaneous and recorded spend can slightly exceed the configured cap ([spend limits](https://developers.openai.com/api/docs/guides/spend-limits)).
+- **Payments:** Payrexx checkout is disabled. Do not switch the existing merchant provider from Live to Test. Payrexx recommends a separate account when tests must run while live payments continue ([testing guidance](https://docs.payrexx.com/merchant/english/payment/testing)). No end-to-end Payrexx sandbox transaction is verified, and entitlement fulfillment/cancellation remains unimplemented.
+- **Privacy/legal:** Existing pages name the responsible person and describe current data uses and providers. They do not yet state actual production recipient countries, transfer safeguards or provider-specific retention periods because Production services are not configured. The EDÖB requires privacy information to reflect actual processing and identify relevant recipients, destination countries and duration ([information duty](https://www.edoeb.admin.ch/de/informationspflicht), [online privacy statements](https://www.edoeb.admin.ch/de/datenschutzerklaerungen-im-internet)). Obtain a Swiss privacy/legal review after the final provider configuration.
+- **Dependency audit:** `npm audit` reports 21 issues (14 moderate, 7 high); `npm audit --omit=dev` reports 5 high in the Vite/Vitest build/test dependency tree. The current Next.js server file traces contain none of Firebase, Google Cloud, Vite, Vitest or those transitive packages. Resolve or formally risk-accept the findings before release.
 
-## Live acceptance with a test Google account
+This assessment records the state of connected tools and repository files; it is not legal advice or a production approval.
 
-- Google login, rejection/cancellation and logout; reload must preserve the account session. Logout must clear the server cookie. After a reload, reconnect Drive explicitly; OAuth access tokens are kept only in memory.
-- Read and accept both consent dialogs on a phone. Refresh and confirm consent remains saved.
-- Upload a PDF, DOCX, TXT and photograph. Import an existing Drive document through Picker. Verify copies are listed in the app folder and originals are unchanged. Reject an unsupported file and a file over 8 MB.
-- Create a CV from an employment certificate. Check that missing contact details remain empty and facts are not invented. Reload, reconnect Drive and verify saved CV is restored.
-- Generate a motivation letter from a real accessible advert, then from pasted advert text. Review, edit and save the letter. Check generated keywords match the actual advert.
-- Run ATS analysis and refinement. Review changes, explicitly save the reviewed documents, then verify that export and subsequent AI actions use the revised texts. The ATS percentage is a model estimate, not a guaranteed employer score.
-- Generate interview questions and analyze a written answer. Test optional speech recognition and audio playback on the intended physical Android device; lack of browser speech support must leave typing available.
-- Test LinkedIn summary, writing-style analysis, email templates, CV gap review, salary estimate, job search suggestions, photo creation and required-document checks. Salary/company suggestions are estimates, not live verified offers.
-- Create an application, update status, reload and delete it. A different account must be unable to access it or modify privileges.
-- Export a multi-page PDF and a Word document from a legitimately provisioned Pro test account. Check page breaks, accents and complete content. Free accounts must not produce a fake successful empty Word ZIP.
-- Check 360px, 390px and tablet layouts, all navigation items, error states, network loss and expired Drive authorization.
+## Before accepting real user data
 
-## Release gate
+- Create and isolate a Production Neon database. Apply migrations `000`, `001`, `005`; add `002` only for webhook event storage and `004` only while preparing disabled Payrexx checkout.
+- Configure a canonical HTTPS `APP_URL`/`BETTER_AUTH_URL`, a unique >=32-byte `BETTER_AUTH_SECRET`, verified Resend credentials (`RESEND_API_KEY`, `EMAIL_FROM`), `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true` and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true` in Production only.
+- Verify email verification, password reset, deletion confirmation, data export, retention/deletion behavior, and Neon cascades.
+- Confirm accurate privacy, terms, processor agreements, actual data regions and retention for Neon, Vercel, Resend and (if enabled) OpenAI.
+- Test registration, duplicate email, wrong password, session expiry, logout, email verification, password recovery, export, deletion and cross-account isolation.
+- Test application create, list, status update, reload, delete and export using fabricated accounts.
+- Review the guided letter against fabricated CV and job text. When OpenAI is enabled, confirm the configured model, data terms, CHF 10 monthly cost limit and failure behavior before use.
+- Check phone and tablet layouts, keyboard navigation, validation, error messages and network failure.
+- Keep Payrexx and Stripe disabled until isolated sandbox payment, signed webhook, entitlement, cancellation and refund flows pass.
 
-Production remains blocked until the live configuration, Google authorization and provider tests above are verified and documented for the release commit. After those pass, obtain Thomas's final publication approval. Do not merge or deploy production merely because the preview build is READY.
+## Current Preview configuration
+
+- Vercel Preview URL is protected by Vercel Authentication.
+- Better Auth uses a Preview-only secret and E-Mail/Passwort login.
+- Neon Preview contains the Better Auth and application tables.
+- OpenAI is not configured; the template generator is used, with no provider cost.
+- Preview mail delivery is not configured; verification and password-reset email flows can only be accepted after a verified test sender is configured. Preview account deletion instead requires password confirmation and deletes immediately.
+- Payrexx checkout remains disabled.
+
+Firebase and Google OAuth, Google Drive, Google Fonts and Google APIs are not part of the current Preview app. Firebase and Google Preview environment entries have been removed from Vercel as well.
+
+## Production gate
+
+Do not point Production at the Preview database or credentials. Prepare Production credentials and database separately, apply reviewed migrations to that dedicated database, complete the acceptance checklist above, and keep Production unchanged until the release has been explicitly approved. `/api/health` returns `503` if required tables, canonical HTTPS auth URL, or production email configuration is missing. It does not verify provider contracts, mail deliverability, AI budget, payment behavior, legal compliance or backups.

@@ -1,30 +1,34 @@
 # Motivationsboost
 
-Next.js application for creating and managing application documents with optional Google login, Firebase, a private Google Drive integration and a future, owner-selected AI provider.
+Motivationsboost is a Google-free application for drafting motivation letters and tracking applications. The primary route `/` provides the same app as `/beta`.
 
-## Local development
+## Local internal simulator
 
-Use Node.js 22 or 24. Copy `.env.example` to `.env.local` and configure the app's own Firebase project and server credentials. Enable Google sign-in in Firebase and add the development/deployment host to authorized domains. Never commit credentials.
+The internal simulator runs only on loopback, uses a fake test account, stores applications in the current browser and generates a clearly labelled sample draft. It makes no Google, Firebase, database, payment or AI-provider calls. Use fabricated data only.
 
 ```sh
 npm ci
-npm run dev
+npm run dev:internal
 ```
 
-## Checks
+Open `http://127.0.0.1:3000/`. See [`docs/INTERNAL-TEST-GUIDE.md`](docs/INTERNAL-TEST-GUIDE.md).
 
-```sh
-npm run typecheck
-npm test
-npm run test:rules
-npx playwright install chromium
-npm run test:e2e
-npm run build
-npm audit --omit=dev
-```
+## Connected application
 
-The rules and browser tests use the demo project `demo-motivationsboost`, isolated Firebase emulators, and fabricated users. Java 21+ is required for Firebase CLI 15. CI provisions Temurin 21 explicitly. AI and Drive unit tests use controlled provider responses. Passing those tests does not verify real Google OAuth, Google Drive permissions, Gemini availability or deployed Firebase rules.
+The connected app uses Neon/PostgreSQL and Better Auth with email/password accounts. It supports application tracking and editable/downloadable motivation letter drafts. When `OPENAI_API_KEY` is configured it can request a letter from OpenAI; when absent it creates a clearly labelled guided template instead. Payrexx stays disabled until sandbox acceptance.
 
-## Release
+Configure `DATABASE_URL`, a unique `BETTER_AUTH_SECRET` (at least 32 random bytes), and the canonical production `APP_URL` or `BETTER_AUTH_URL`. Production also requires `RESEND_API_KEY`, a verified `EMAIL_FROM` sender, `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true`, and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true`. Never reuse Preview credentials or its Neon branch in Production. Apply migrations to the dedicated Motivationsboost database in this order:
 
-Read `docs/RELEASE-CHECKLIST.md` and `docs/IMPLEMENTATION-STATUS.md`. Only preview deployment is authorized. Main is unchanged. Stripe checkout/portal/webhook endpoints are permanently disabled (HTTP 503). Payrexx is the only planned payment provider. Payrexx API keys, gateway, verified webhook handling and entitlement fulfillment require isolated sandbox acceptance. Do not turn on either `PAYREXX_PAYMENTS_ENABLED` or `PAYREXX_BILLING_VALIDATED` before end-to-end tests. Names, final HTTPS domain and provider AI key remain undecided.
+1. `migrations/000_better_auth.sql`
+2. `migrations/001_app_data.sql`
+3. `migrations/002_payrexx_webhook_events.sql` only if webhook storage is needed
+4. `migrations/004_payrexx_orders.sql` only if preparing the disabled checkout
+5. `migrations/005_better_auth_rate_limit.sql`
+
+The account flow supports email verification, password reset, deletion confirmation, and database-backed auth throttling. Production remains blocked until the separate production database and all required credentials are provisioned and the email sender is verified. The health endpoint checks required tables, canonical HTTPS auth origin, and production email configuration without disclosing credentials.
+
+## Scope
+
+The Google/Firebase dashboard has been removed from the primary app route. The active application does not require Google sign-in, Google Drive, Google Fonts or Firebase. The previous rich dashboard modules remain in the repository as inactive legacy code and are not reachable from the primary route.
+
+See `docs/RELEASE-CHECKLIST.md` before any public launch. A successful build does not establish live database, email, AI-provider, privacy or payment acceptance. Production was not deployed or modified as part of this preparation.

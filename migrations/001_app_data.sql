@@ -1,5 +1,4 @@
--- Apply only to a dedicated, empty Motivationsboost database after the
--- Better Auth schema has been generated and applied. Never apply to another app.
+-- Apply to the dedicated Motivationsboost database after 000_better_auth.sql.
 BEGIN;
 CREATE TABLE IF NOT EXISTS applicant_profiles (
   user_id text PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,

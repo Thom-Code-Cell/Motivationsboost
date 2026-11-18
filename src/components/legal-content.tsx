@@ -34,34 +34,35 @@ export function LegalContent({ document }: { document: 'impressum' | 'datenschut
 
   if (document === 'datenschutz') {
     return <>
-      <p className={p}>Diese Hinweise erläutern die aktuelle technische Vorbereitung der Bewerbungsanwendung. Vor einer öffentlichen Veröffentlichung müssen die tatsächlich konfigurierten Dienstleister, Speicherorte, Aufbewahrungsfristen und vertraglichen Datenschutzbedingungen abschliessend geprüft und hier konkretisiert werden.</p>
+      <p className={p}>Motivationsboost befindet sich in der Produktionsvorbereitung. Die Produktionsdatenbank, der E-Mail-Versand und die KI sind derzeit nicht für öffentliche Konten freigeschaltet. Diese Hinweise beschreiben die aktuelle Anwendung und die Bedingungen, die vor der Freischaltung der jeweiligen Dienste gelten.</p>
       <h2 className={h2}>1. Verantwortliche Stelle</h2>
       <p className={p}>Thomas Hullin, Oberriedstrasse 75, 3775 Lenk im Simmental, Schweiz. Kontakt: <ContactEmail />.</p>
       <h2 className={h2}>2. Welche Informationen verarbeitet die Anwendung?</h2>
       <ul className={ul}>
-        <li><strong>Anmeldung:</strong> Google-/Firebase-Kennung, Name, E-Mail-Adresse sowie sicherheitsbezogene Sitzungsinformationen.</li>
-        <li><strong>App-Daten:</strong> Firebase Firestore kann Profildaten, Spracheinstellungen, Bewerbungsstatus, gespeicherte Bewerbungen, Fortschritt sowie Verwaltungs- und Abrechnungsstatus enthalten – nicht nur technische Metadaten.</li>
-        <li><strong>Dokumente:</strong> Mit Ihrer Berechtigung werden Dokumente aus Google Drive gelesen oder dort gespeichert. Für KI-Funktionen können Inhalte vorübergehend auf dem Server verarbeitet werden.</li>
-        <li><strong>KI:</strong> Eingegebene Informationen und freigegebene Dokumentauszüge können bei aktivierter KI an den konfigurierten Anbieter übertragen werden. Der endgültige Anbieter und dessen Datenbedingungen werden vor dem Livebetrieb ergänzt.</li>
-        <li><strong>Zahlungen:</strong> Vorgesehen ist Payrexx. Der Checkout ist bis zur gesonderten technischen und vertraglichen Freigabe deaktiviert. Nach einer Aktivierung können Zahlstatus und Abonnementinformationen verarbeitet werden; Zahlungsdaten werden beim Zahlungsanbieter eingegeben.</li>
+        <li><strong>Konto:</strong> Name, E-Mail-Adresse, Passwort-Hash, Verifizierungsstatus sowie Sitzungsdaten. Passwörter werden nicht im Klartext gespeichert.</li>
+        <li><strong>Bewerbungen:</strong> Stellenbezeichnung, Unternehmen, Link, Status und optionale Notizen, die Sie selbst speichern.</li>
+        <li><strong>Entwürfe:</strong> Lebenslaufangaben, Stellenanzeige und persönliche Angaben werden zur Erzeugung eines Motivationsschreibens an den Server gesendet. Der geführte Vorlagenmodus speichert diese Texte nicht dauerhaft.</li>
+        <li><strong>Optionale KI:</strong> Nur wenn ein KI-Anbieter für die Umgebung aktiviert ist, werden die für die konkrete Anfrage eingegebenen Texte an OpenAI übertragen. Die Anfrage verwendet die Option gegen Speicherung durch die API. Die Datenbedingungen und der Produktionsvertrag müssen vor Aktivierung geprüft werden.</li>
+        <li><strong>Technische Anbieter:</strong> Die Anwendung verwendet Vercel für Hosting, Neon PostgreSQL für Konten und gespeicherte Bewerbungen sowie – nach Einrichtung – Resend für Verifizierungs-, Passwort- und Löschungs-E-Mails. Für Produktion sind Region, Auftragsbearbeitung und Aufbewahrung der jeweiligen Konten vor dem Start zu bestätigen.</li>
+        <li><strong>Zahlungen:</strong> Payrexx ist vorgesehen, der Checkout ist deaktiviert. Payrexx und Stripe verarbeiten in der aktuellen Anwendung keine Checkout-Daten.</li>
       </ul>
       <h2 className={h2}>3. Zweck</h2>
-      <p className={p}>Die Informationen werden für Kontoverwaltung, die gewählten Bewerbungsfunktionen, sichere Datenverarbeitung, Support und – erst nach Aktivierung – die Abwicklung von Zahlungen genutzt. Eine Nutzung Ihrer Dokumente für Werbung oder Modelltraining wird damit nicht pauschal erlaubt.</p>
+      <p className={p}>Die Angaben dienen der Anmeldung, den von Ihnen gewählten Bewerbungsfunktionen, dem Kontoschutz und der angeforderten E-Mail-Kommunikation. Motivationsboost verwendet sie nicht für eigene Werbung oder eigenes Modelltraining. Für KI-Anfragen gelten zusätzlich die Bedingungen des aktivierten Anbieters.</p>
       <h2 className={h2}>4. Ihre Möglichkeiten</h2>
-      <p className={p}>Sie können die in der Anwendung geladenen Profildaten und Bewerbungen als JSON exportieren. Der Export umfasst nicht automatisch Google-Drive-Dateien und alle Datensätze bei Dienstleistern. Auskunfts-, Berichtigungs-, Löschungs- und weitere Datenschutzanliegen richten Sie bitte an <ContactEmail />. Die vollautomatische, dienstübergreifende Kontolöschung ist noch nicht freigeschaltet.</p>
+      <p className={p}>Im Konto können Sie Ihre gespeicherten Kontodaten und Bewerbungen als JSON exportieren. In Produktion wird die Kontolöschung per E-Mail bestätigt; dabei werden die mit dem Konto verknüpften App-Daten gelöscht. Gesetzliche Aufbewahrungspflichten und Sicherungskopien bei Dienstleistern können eine zeitversetzte Entfernung erfordern. Für Auskunfts-, Berichtigungs- und weitere Anliegen: <ContactEmail />.</p>
       <h2 className={h2}>5. Cookies, Zugriffe und Empfänger</h2>
-      <p className={p}>Für die Anmeldung werden technisch notwendige Sitzungsmechanismen eingesetzt. Firebase, Google Drive, das Hosting sowie bei Nutzung der KI-Funktionen OpenAI und gegebenenfalls ein Zahlungsanbieter können Daten verarbeiten. Details zu Standorten und Auftragsverarbeitung werden vor einem öffentlichen Start verifiziert.</p>
+      <p className={p}>Für die Anmeldung werden technisch notwendige Sitzungscookies verwendet. Die aktuelle Anwendung benötigt weder ein Google-Konto noch Firebase oder Google Drive. Es gibt keine Analyse- oder Werbe-Cookies. Die Produktionsregionen und Verträge der Hosting-, Datenbank- und E-Mail-Anbieter werden vor der öffentlichen Freischaltung geprüft.</p>
       <h2 className={h2}>6. Weitere Informationen</h2>
       <p className={p}>Informationen zu Leistungsumfang und Nutzung finden Sie in den <Link href="/agb" className="underline underline-offset-2">Nutzungsbedingungen</Link>. Die Entwicklungs- und Unternehmenswebsite ist <a href={TH_ANALYTICA_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">TH Analytica</a>.</p>
     </>;
   }
 
   return <>
-    <p className={p}>Diese Nutzungsbedingungen beschreiben den vorgesehenen Funktionsumfang von Motivationsboost, einem noch nicht öffentlich freigegebenen Karriere- und Bewerbungsassistenten. Vor dem kommerziellen Start werden Vertragsbedingungen, Preise und gesetzliche Anforderungen abschliessend überprüft.</p>
+    <p className={p}>Motivationsboost ist noch nicht öffentlich freigegeben. Der derzeitige Anwendungskern umfasst ein Benutzerkonto, eine Bewerbungsübersicht und einen bearbeitbaren Entwurf für ein Motivationsschreiben. Weitere Funktionen und ein kommerzielles Angebot werden erst nach separater Freigabe aktiviert.</p>
     <h2 className={h2}>1. Anbieter und Kontakt</h2>
     <p className={p}>Thomas Hullin, Oberriedstrasse 75, 3775 Lenk im Simmental, Schweiz. E-Mail: <ContactEmail />.</p>
     <h2 className={h2}>2. Leistungen</h2>
-    <p className={p}>Die Anwendung unterstützt nach Freigabe bei der Auswertung beruflicher Angaben, bei Entwürfen für Lebensläufe und Motivationsschreiben, der Interviewvorbereitung sowie bei der Organisation von Bewerbungen. Einzelne Funktionen setzen freigegebene Dokumente, kompatible externe Dienste oder eine separat aktivierte KI voraus.</p>
+    <p className={p}>Die Anwendung unterstützt beim Erfassen von Bewerbungen und beim Erstellen sowie Bearbeiten eines Motivationsschreiben-Entwurfs. Ohne aktivierten KI-Anbieter erstellt sie eine geführte Vorlage aus den eingegebenen Angaben. Optionale KI-Funktionen dürfen nur nach gesonderter Aktivierung verwendet werden. Ein Lebenslauf- oder Interview-Coaching ist nicht Bestandteil des aktuell freigegebenen Anwendungskerns.</p>
     <h2 className={h2}>3. Registrierung und Verantwortung</h2>
     <p className={p}>Für personalisierte Funktionen ist eine Anmeldung erforderlich. KI-Ergebnisse sind Vorschläge und müssen vor der Weitergabe an Arbeitgeber auf Richtigkeit und Eignung geprüft werden. Die Anwendung garantiert weder eine Einladung noch eine Einstellung.</p>
     <h2 className={h2}>4. Preise, Payrexx und Abonnemente</h2>

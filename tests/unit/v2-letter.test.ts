@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({ session: vi.fn(), reserve: vi.fn(), key: vi.fn(), openai: vi.fn() }));
 vi.mock('@/lib/server/app-session', () => ({ requireAppSession: mocks.session }));
 vi.mock('@/lib/server/ai-quota-store', () => ({ reserveAiAction: mocks.reserve }));
-vi.mock('@/lib/server/openai-client', () => ({ getOpenAIKey: mocks.key, callOpenAI: mocks.openai }));
+vi.mock('@/lib/server/openai-client', () => ({ getOpenAIKey: mocks.key, getTextModel: () => 'gpt-6.1-terra', callOpenAI: mocks.openai }));
 import { POST } from '@/app/api/v2/letter/route';
 const body = { cv: 'Erfahrung '.repeat(8), job: 'Stellenanzeige '.repeat(8), motivation: 'Ich arbeite gerne mit Menschen.', example: 'Ich führte ein Team und unterstützte es.', contribution: 'Ich helfe dem Team im Alltag.' };
 const request = (data: unknown) => new NextRequest('https://example.com/api/v2/letter', { method: 'POST', headers: { origin: 'https://example.com', host: 'example.com' }, body: JSON.stringify(data) });
@@ -16,9 +16,11 @@ describe('authenticated letter generation', () => {
     expect(mocks.reserve).toHaveBeenCalledWith('alice');
     expect(await response.json()).toMatchObject({ letter: 'Guten Tag', quota: { used: 1, limit: 3 } });
   });
-  it('does not consume a quota when the key is missing', async () => {
+  it('returns a clearly labelled guided draft without consuming AI quota when the key is missing', async () => {
     mocks.key.mockImplementation(() => { throw new Error('missing'); });
-    expect((await POST(request(body))).status).toBe(503);
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ mode: 'guided-template' });
     expect(mocks.reserve).not.toHaveBeenCalled();
   });
   it('does not invoke the provider when quota is exhausted', async () => {
