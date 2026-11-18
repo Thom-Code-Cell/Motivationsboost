@@ -17,7 +17,7 @@ Updated 18 November 2026 on branch `codex/internal-test-readiness-20261118`.
 - `npm run typecheck` passed.
 - `npm run build` passed locally before the final health-check adjustment; a subsequent Vercel Preview build reached READY for commit `4cb0dfd317bf3f733e0e156b42d34d458bc5cfc4`.
 - The deployed Preview `/api/health` returned HTTP 200 with PostgreSQL and email/password auth configured. The Better Auth session endpoint returned HTTP 200 with no active session.
-- The root page returned HTTP 200. Account creation, application create/update/delete, mobile layout and letter review have not yet been exercised through an interactive signed-in session.
+- The root page returned HTTP 200. Synthetic account registration and password login both succeeded through the deployed Preview API; the temporary test accounts were deleted. The unauthenticated application endpoint returned HTTP 401. Application create/update/delete, mobile layout and letter review have not yet been exercised through an interactive signed-in session.
 
 ## Remaining before public launch
 
