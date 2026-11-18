@@ -24,13 +24,10 @@ export async function POST(request: NextRequest) {
   let parsed: z.SafeParseReturnType<unknown, z.infer<typeof inputSchema>>;
   try { parsed = inputSchema.safeParse(JSON.parse(raw)); } catch { return NextResponse.json({ error: 'Ungültige Eingabe.' }, { status: 400 }); }
   if (!parsed.success) return NextResponse.json({ error: 'Bitte Lebenslauf, Stellenanzeige und persönliche Angaben vollständig ausfüllen.' }, { status: 400 });
-  let quota: Awaited<ReturnType<typeof reserveAiAction>>;
-  try { quota = await reserveAiAction(uid); }
-  catch (error) {
-    const limited = error instanceof Error && error.message.includes('KI-Limit');
-    return NextResponse.json({ error: limited ? 'Das KI-Limit für diesen Zeitraum ist erreicht.' : 'KI-Kontingent derzeit nicht verfügbar.' }, { status: limited ? 429 : 503 });
-  }
   if (isInternalTestMode()) {
+    let quota: Awaited<ReturnType<typeof reserveAiAction>>;
+    try { quota = await reserveAiAction(uid); }
+    catch { return NextResponse.json({ error: 'Testkontingent derzeit nicht verfügbar.' }, { status: 503 }); }
     const { motivation, example, contribution } = parsed.data;
     const letter = [
       'Sehr geehrte Damen und Herren,',
@@ -60,7 +57,13 @@ export async function POST(request: NextRequest) {
       'Mein Lebenslauf und Ihre Stellenanzeige bilden die Grundlage für die weitere Anpassung dieses Entwurfs. Bitte ergänze Anrede, Unternehmen und konkrete Bezüge zur Stelle und prüfe alle Aussagen.', '',
       'Freundliche Grüsse', '[Name ergänzen]',
     ].join('\n');
-    return NextResponse.json({ letter, quota, mode: 'guided-template' }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ letter, mode: 'guided-template' }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+  let quota: Awaited<ReturnType<typeof reserveAiAction>>;
+  try { quota = await reserveAiAction(uid); }
+  catch (error) {
+    const limited = error instanceof Error && error.message.includes('KI-Limit');
+    return NextResponse.json({ error: limited ? 'Das KI-Limit für diesen Zeitraum ist erreicht.' : 'KI-Kontingent derzeit nicht verfügbar.' }, { status: limited ? 429 : 503 });
   }
   try {
     const response = await callOpenAI('/responses', {

@@ -17,17 +17,18 @@ Open `http://127.0.0.1:3000/`. See [`docs/INTERNAL-TEST-GUIDE.md`](docs/INTERNAL
 
 The connected app uses Neon/PostgreSQL and Better Auth with email/password accounts. It supports application tracking and editable/downloadable motivation letter drafts. When `OPENAI_API_KEY` is configured it can request a letter from OpenAI; when absent it creates a clearly labelled guided template instead. Payrexx stays disabled until sandbox acceptance.
 
-Configure `DATABASE_URL`, a unique `BETTER_AUTH_SECRET` (at least 32 random bytes), `BETTER_AUTH_URL`, and optionally `OPENAI_API_KEY`. The production URL must match the deployed HTTPS origin. Apply migrations to the dedicated Motivationsboost database in this order:
+Configure `DATABASE_URL`, a unique `BETTER_AUTH_SECRET` (at least 32 random bytes), and the canonical production `APP_URL` or `BETTER_AUTH_URL`. Production also requires `RESEND_API_KEY`, a verified `EMAIL_FROM` sender, `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true`, and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true`. Never reuse Preview credentials or its Neon branch in Production. Apply migrations to the dedicated Motivationsboost database in this order:
 
 1. `migrations/000_better_auth.sql`
 2. `migrations/001_app_data.sql`
 3. `migrations/002_payrexx_webhook_events.sql` only if webhook storage is needed
 4. `migrations/004_payrexx_orders.sql` only if preparing the disabled checkout
+5. `migrations/005_better_auth_rate_limit.sql`
 
-Email verification and password-reset email delivery are not configured yet. Do not use this account system for sensitive production data until an email provider, verification and recovery flow are added.
+The account flow supports email verification, password reset, deletion confirmation, and database-backed auth throttling. Production remains blocked until the separate production database and all required credentials are provisioned and the email sender is verified. The health endpoint checks required tables, canonical HTTPS auth origin, and production email configuration without disclosing credentials.
 
 ## Scope
 
 The Google/Firebase dashboard has been removed from the primary app route. The active application does not require Google sign-in, Google Drive, Google Fonts or Firebase. The previous rich dashboard modules remain in the repository as inactive legacy code and are not reachable from the primary route.
 
-See `docs/RELEASE-CHECKLIST.md` before any public launch. A successful build does not establish live database, email, AI-provider, privacy or payment acceptance.
+See `docs/RELEASE-CHECKLIST.md` before any public launch. A successful build does not establish live database, email, AI-provider, privacy or payment acceptance. Production was not deployed or modified as part of this preparation.

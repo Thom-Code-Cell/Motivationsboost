@@ -16,9 +16,11 @@ describe('authenticated letter generation', () => {
     expect(mocks.reserve).toHaveBeenCalledWith('alice');
     expect(await response.json()).toMatchObject({ letter: 'Guten Tag', quota: { used: 1, limit: 3 } });
   });
-  it('does not consume a quota when the key is missing', async () => {
+  it('returns a clearly labelled guided draft without consuming AI quota when the key is missing', async () => {
     mocks.key.mockImplementation(() => { throw new Error('missing'); });
-    expect((await POST(request(body))).status).toBe(503);
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ mode: 'guided-template' });
     expect(mocks.reserve).not.toHaveBeenCalled();
   });
   it('does not invoke the provider when quota is exhausted', async () => {
