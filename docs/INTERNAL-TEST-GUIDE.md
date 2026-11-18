@@ -13,7 +13,7 @@ npm run dev:internal
 
 ## Geschützte Preview-App
 
-Die Preview-App ist unter [Motivationsboost Preview](https://motivationsboost-preview-1z0q7yc1n-thomas-hullins-projects.vercel.app/) erreichbar und durch Vercel Authentication geschützt.
+Die Preview-App ist unter [Motivationsboost Preview](https://motivationsboost-preview-lvo1nzor4-thomas-hullins-projects.vercel.app/) erreichbar und durch Vercel Authentication geschützt.
 
 1. Registriere ein Testkonto mit einer Adresse, auf die du Zugriff hast. E-Mail-Verifizierung ist derzeit noch nicht eingerichtet.
 2. Trage einen Test-Lebenslauf, eine Stellenanzeige und belegte Motivation, Beispiel und Beitrag ein.
