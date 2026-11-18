@@ -1,6 +1,10 @@
 # Motivationsboost implementation and verification
 
-Date: 2026-10-11. Branch: `fix/platform-reliability`. Production remains unchanged.
+> Historical snapshot from 2026-10-11 on `fix/platform-reliability`; it is not a complete description of the later PR-13 branch.
+>
+> Current local work (2026-11-18): branch `codex/internal-test-readiness-20261118` adds a loopback-only local beta simulator. Its setup is in [`INTERNAL-TEST-GUIDE.md`](INTERNAL-TEST-GUIDE.md). It does not make the remote preview, OAuth, database, real AI, Drive, or payment paths production-ready.
+
+Production remains unchanged.
 
 ## Implemented
 

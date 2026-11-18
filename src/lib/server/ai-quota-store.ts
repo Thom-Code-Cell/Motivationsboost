@@ -1,10 +1,22 @@
 import 'server-only';
 import { databasePool } from './postgres';
 import { quotaFor } from '@/lib/ai-quota';
+import { isInternalTestMode } from './internal-test';
+
+const internalUsage = new Map<string, { period: string; used: number }>();
 
 // Reserve before making a request. Failed provider requests still count, which
 // prevents repeated failing calls from bypassing the quota.
 export async function reserveAiAction(userId: string, now = new Date()) {
+  if (isInternalTestMode()) {
+    const period = `internal:${now.toISOString().slice(0, 10)}`;
+    const current = internalUsage.get(userId);
+    const used = current?.period === period ? current.used : 0;
+    if (used >= 10) throw new Error('KI-Limit für diesen Zeitraum erreicht.');
+    const next = used + 1;
+    internalUsage.set(userId, { period, used: next });
+    return { used: next, limit: 10 };
+  }
   const database = databasePool();
   const entitlement = await database.query(
     'SELECT plan, status, starts_at AS start, ends_at AS "end" FROM ai_entitlements WHERE user_id = $1', [userId]);
