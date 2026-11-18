@@ -1,42 +1,33 @@
-# Motivationsboost implementation and verification
+# Motivationsboost implementation status
 
-> Historical snapshot from 2026-10-11 on `fix/platform-reliability`; it is not a complete description of the later PR-13 branch.
->
-> Current local work (2026-11-18): branch `codex/internal-test-readiness-20261118` adds a loopback-only local beta simulator. Its setup is in [`INTERNAL-TEST-GUIDE.md`](INTERNAL-TEST-GUIDE.md). It does not make the remote preview, OAuth, database, real AI, Drive, or payment paths production-ready.
+Updated 18 November 2026 on branch `codex/internal-test-readiness-20261118`.
 
-Production remains unchanged.
+## Current Preview app
 
-## Implemented
+- The primary route `/` and `/beta` use the same application flow.
+- Account registration and login use Better Auth email/password with Neon PostgreSQL. No Google or Firebase account is needed.
+- Application records persist in Neon and are scoped to the signed-in user.
+- A motivation letter can be generated from the submitted details, edited and downloaded. Without an OpenAI key, the app returns a clearly labelled guided template. OpenAI is not configured in Preview, so the generator makes no AI-provider calls and incurs no AI cost.
+- Preview database tables for Better Auth, applicant profiles, applications and AI quotas exist on the Neon branch `preview/codex/internal-test-readiness-20261118`.
+- Preview uses a separate Better Auth secret and a branch-scoped PostgreSQL connection. The deployment is protected by Vercel Authentication.
+- Payrexx remains disabled. No live charges are enabled.
 
-| Area | Change | Verification boundary |
-| --- | --- | --- |
-| Installation/build | Repaired lockfile, explicit dependencies, current Next.js/security patches, Tailwind 4, reproducible checks | Local typecheck and production build pass |
-| Google login | Removed mock user/tokens; Firebase identity observer, real Google popup, logout, in-memory Drive token, reconnect control | Browser test uses an actual Firebase Auth emulator and simulated Google identity; real OAuth authorization is pending |
-| Server authorization | HTTP-only Firebase ID-token cookie with expiry/revocation checks, same-site Origin/Host verification, trusted admin claims/allowlist | Unit tests and browser/API denial checks |
-| Firebase data | User/application/progress calls use authenticated client SDK; owner isolation, protected admin/subscription fields; query index provided | 12 Firestore-emulator rules tests; live rules/indexes not deployed |
-| AI | All 17 entry points authenticated; shared transaction-based 30/hour quota; actual advert text, paste fallback, schema-validated Gemini requests/results; missing/truncated/invalid output handled | All entry points tested with controlled provider responses; no live Gemini calls |
-| CV data quality | Removed fictional contact details, hardcoded applicant profile and invented gap explanations; existing documents preserved on generation failures | Schema/prompt request tests; human review of generated facts remains required |
-| Drive | Identity-bound access; app folder, pagination, Picker copies, direct PDF/DOCX/TXT/photo uploads; save errors propagated; no folder creation during read-only lookups | Isolated ownership/import/persistence tests; live Drive/Picker authorization pending |
-| Parsing/export | Current PDF parser, Gemini OCR fallback for scanned PDFs without a text layer; bounded Word XML extraction; genuine multi-page PDF and DOCX extraction roundtrips; Word entitlement guard; bounded 8 MB photo input and 12 MB media request allowance | Unit tests prove first/last lines and actual DOCX text survive |
-| Reviewed revisions | CV editor and ATS review explicitly save revised text; export and other AI actions use saved revisions | Typecheck/build and flow coverage; live save/reload/export acceptance pending |
-| Usability | Fixed consent scrolling, sequential consent dialogs, mobile-sized dialog content, actionable data errors, missing-CV states, export navigation, accessible account control | All four desktop/mobile browser and API tests pass |
-| CI | PR checks for clean install, typecheck, unit/rules/browser tests, production-dependency audit and build | Initial GitHub run verified installation, types, unit/rules tests and runtime audit; final run also verifies Firebase CLI 15 with Java 21 |
+## Verification performed
 
-## Local evidence
+- `npm run typecheck` passed.
+- `npm run build` passed locally before the final health-check adjustment; a subsequent Vercel Preview build reached READY for commit `4cb0dfd317bf3f733e0e156b42d34d458bc5cfc4`.
+- The deployed Preview `/api/health` returned HTTP 200 with PostgreSQL and email/password auth configured. The Better Auth session endpoint returned HTTP 200 with no active session.
+- The root page returned HTTP 200. Account creation, application create/update/delete, mobile layout and letter review have not yet been exercised through an interactive signed-in session.
 
-- 88 unit tests passed, including controlled responses for all structured AI functions, audio and image handling, rejected authorization, model errors, URL/private-network protection, Drive identity checks, quotas and export parsing.
-- 12 Firestore rules tests passed against `demo-motivationsboost`, including owner application create/query/update/delete and rejected cross-account operations.
-- Four Playwright browser/API tests passed on desktop and a 360px mobile viewport: consent, authenticated session, saved application after reload, six core views without horizontal overflow, logout and security rejections. Mobile navigation now supplies accessible dialog title/description. The local runner used an installed Chromium headless shell; CI installs its matching browser.
-- Production build and strict TypeScript validation passed. No type/build error suppression is enabled.
-- `npm audit --omit=dev --audit-level=high`: **0 vulnerabilities** after dependency repair.
-- Full development-tool audit still reports **7 findings: 4 moderate and 3 high**, confined to Firebase CLI 15's dependency chain. Upgrading the CLI removed five findings. Remaining upstream dependencies have no fully clean compatible update; forced API-incompatible overrides were not retained. CI provisions Java 21 to verify the new CLI; the local runtime has Java 17, so local emulator/browser evidence is from CLI 14 before the upgrade. This is a documented residual, not a claim that every development dependency is clean. The CLI is not imported by the application runtime.
+## Remaining before public launch
 
-## PR #1 review
+- Add email verification and password reset delivery. Until then, users who lose their password cannot recover it by email.
+- Exercise signup, login/logout, user-isolated application CRUD and guided letter flow with synthetic accounts on Preview.
+- Complete privacy disclosures and retention/deletion controls before entering personal CV or job-application data.
+- Configure an AI provider only after confirming account access, data terms and the CHF 10 monthly ceiling. Until then the guided template is the working fallback.
+- Keep payment checkout disabled until Payrexx sandbox transactions, signed events, cancellations and refunds are verified.
+- Keep Production unchanged until these checks pass and a release is explicitly approved.
 
-PR #1 is an unmerged draft. Its canonical checkout redirect fix is useful but does not address the portal's Origin-derived URL, caller-supplied user IDs or server-side authorization. The repository baseline also did not typecheck or install cleanly, and the PR itself explicitly had no build evidence. It was not merged. Legacy Stripe endpoints are disabled by default in this branch, with only configuration/nullability guards added. No Stripe features or Payrexx integration were developed.
+## Legacy code
 
-## Preview and live blockers
-
-A separate protected Vercel project, `motivationsboost-preview`, has been created. Preview `dpl_Fm6xBjJvBxChHdyKJPoQJgaL2NZF` reached READY for commit `59e634500e53dc86d1848e009ced7779d78a53e8`. The root returned HTTP 200 with the preparation screen; `/api/health` returned HTTP 503 and all configuration checks false. The first request unexpectedly classified the explicit preview target as production; it was canceled while BUILDING and never reached READY. The replacement correctly has a null preview target. It has no completed production deployment and is not linked for automatic main-branch publication. Preview is built from the reviewed feature branch. The project currently has no Firebase/AI configuration. Therefore a successful preview build verifies deployability and the preparation screen, not a functioning live Google account or live AI provider.
-
-The exact Firebase project, its authorized preview domain, Admin credentials, deployed rules/index, Google Drive/Picker API setup and Gemini billing/data terms must be configured before live acceptance. See `RELEASE-CHECKLIST.md`. Credentials must be entered directly in service settings, never committed or disclosed in chat. Production publication requires the live evidence and Thomas's final approval.
+The former Firebase/Google dashboard and its services remain as inactive legacy source files. They are not imported by `/` or `/beta`; the new Preview app does not need Firebase, Google OAuth, Drive or Google Fonts. The old dashboard should be removed or migrated before it is exposed as a product route again.
