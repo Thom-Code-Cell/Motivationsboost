@@ -21,7 +21,7 @@ The current Preview app is designed to run without Google or Firebase. Productio
 - OpenAI is not configured; the template generator is used, with no provider cost.
 - Payrexx checkout remains disabled.
 
-Firebase and Google OAuth, Google Drive, Google Fonts and Google APIs are not part of the current Preview app. Unused Firebase environment entries may remain in Vercel settings; the app does not read them.
+Firebase and Google OAuth, Google Drive, Google Fonts and Google APIs are not part of the current Preview app. Firebase and Google Preview environment entries have been removed from Vercel as well.
 
 ## Production gate
 
