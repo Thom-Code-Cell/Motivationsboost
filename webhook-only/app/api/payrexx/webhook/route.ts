@@ -15,7 +15,6 @@ function databasePool() {
     connectionString,
     max: 2,
     connectionTimeoutMillis: 5000,
-    idleTimeoutMillis: 10000,
   });
   return globalWithPool.payrexxWebhookPool;
 }

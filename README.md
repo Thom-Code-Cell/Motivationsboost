@@ -1,36 +1,33 @@
 # Motivationsboost
 
-Next.js application for creating and managing application documents. The current beta path is `/beta`; most of the wider legacy dashboard still needs separately configured Google/Firebase, Drive, provider and production acceptance.
+Motivationsboost is a Google-free application for drafting motivation letters and tracking applications. The primary route `/` provides the same app as `/beta`.
 
-## Local internal test
+## Local internal simulator
 
-Use Node.js 22 or 24. This path needs no `.env.local`, OAuth client, database, Payrexx account, or API key. It only runs on loopback and uses a deterministic local letter response. Enter fabricated applicant and job data.
+The internal simulator runs only on loopback, uses a fake test account, stores applications in the current browser and generates a clearly labelled sample draft. It makes no Google, Firebase, database, payment or AI-provider calls. Use fabricated data only.
 
 ```sh
 npm ci
 npm run dev:internal
 ```
 
-Open `http://127.0.0.1:3000/beta`. See [`docs/INTERNAL-TEST-GUIDE.md`](docs/INTERNAL-TEST-GUIDE.md) for scope and limits.
+Open `http://127.0.0.1:3000/`. See [`docs/INTERNAL-TEST-GUIDE.md`](docs/INTERNAL-TEST-GUIDE.md).
 
-## Connected development services
+## Connected application
 
-The normal `npm run dev` and deployment paths do not enable the local test mode. The wider dashboard still needs its relevant Google/Firebase, Drive, PostgreSQL/Better Auth and AI credentials configured for the specific environment. Use `.env.example` as a variable-name guide only; never commit credentials or use real applicant data in the local simulator.
+The connected app uses Neon/PostgreSQL and Better Auth with email/password accounts. It supports application tracking and editable/downloadable motivation letter drafts. When `OPENAI_API_KEY` is configured it can request a letter from OpenAI; when absent it creates a clearly labelled guided template instead. Payrexx stays disabled until sandbox acceptance.
 
-## Checks
+Configure `DATABASE_URL`, a unique `BETTER_AUTH_SECRET` (at least 32 random bytes), `BETTER_AUTH_URL`, and optionally `OPENAI_API_KEY`. The production URL must match the deployed HTTPS origin. Apply migrations to the dedicated Motivationsboost database in this order:
 
-```sh
-npm run typecheck
-npm test
-npm run test:rules
-npx playwright install chromium
-npm run test:e2e
-npm run build
-npm audit --omit=dev
-```
+1. `migrations/000_better_auth.sql`
+2. `migrations/001_app_data.sql`
+3. `migrations/002_payrexx_webhook_events.sql` only if webhook storage is needed
+4. `migrations/004_payrexx_orders.sql` only if preparing the disabled checkout
 
-The rules and browser tests use the demo project `demo-motivationsboost`, isolated Firebase emulators, and fabricated users. Java 21+ is required for Firebase CLI 15. CI provisions Temurin 21 explicitly. AI and Drive unit tests use controlled provider responses. Passing those tests does not verify real Google OAuth, Google Drive permissions, OpenAI model access or deployed Firebase rules.
+Email verification and password-reset email delivery are not configured yet. Do not use this account system for sensitive production data until an email provider, verification and recovery flow are added.
 
-## Release
+## Scope
 
-Read `docs/RELEASE-CHECKLIST.md` and `docs/IMPLEMENTATION-STATUS.md`. The simulator can run locally or on one SSO-protected Vercel preview branch; it is not a production release. Stripe checkout/portal/webhook endpoints are permanently disabled (HTTP 503). Payrexx API credentials, signed webhook handling and entitlement fulfilment require isolated sandbox acceptance. Keep both `PAYREXX_PAYMENTS_ENABLED` and `PAYREXX_BILLING_VALIDATED` false until end-to-end tests pass. Never use real payment credentials or customer charges for internal testing.
+The Google/Firebase dashboard has been removed from the primary app route. The active application does not require Google sign-in, Google Drive, Google Fonts or Firebase. The previous rich dashboard modules remain in the repository as inactive legacy code and are not reachable from the primary route.
+
+See `docs/RELEASE-CHECKLIST.md` before any public launch. A successful build does not establish live database, email, AI-provider, privacy or payment acceptance.

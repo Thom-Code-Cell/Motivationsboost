@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
 import { getPlan, payrexxConfiguration } from '@/lib/payrexx';
-import { adminDb } from '@/lib/server/firebase-admin';
-import { requireSession } from '@/lib/server/session';
+import { databasePool } from '@/lib/server/postgres';
+import { requireAppSession } from '@/lib/server/app-session';
 
 const bodySchema = z.object({ plan: z.enum(['weekly', 'monthly', 'yearly']) }).strict();
 
@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
   const cfg = payrexxConfiguration();
   if (!cfg.enabled || !cfg.instance || !cfg.key || !cfg.signingKey || !cfg.origin)
     return NextResponse.json({ error: 'Payrexx-Zahlungen sind noch nicht freigeschaltet.' }, { status: 503 });
-  let session: Awaited<ReturnType<typeof requireSession>>;
-  try { session = await requireSession(); }
+  let userId: string;
+  try { userId = (await requireAppSession()).user.id; }
   catch { return NextResponse.json({ error: 'Bitte anmelden.' }, { status: 401 }); }
   const data = bodySchema.safeParse(await request.json().catch(() => null));
   if (!data.success) return NextResponse.json({ error: 'Unbekannter Plan.' }, { status: 400 });
@@ -21,11 +21,9 @@ export async function POST(request: NextRequest) {
 
   const referenceId = randomUUID();
   // No user-supplied amounts, prices, redirects, currencies or customer IDs.
-  const order = adminDb().collection('paymentOrders').doc(referenceId);
-  await order.create({
-    uid: session.uid, plan: plan.id, amount: plan.amount, currency: plan.currency,
-    provider: 'Payrexx', status: 'pending', createdAt: new Date().toISOString(),
-  });
+  const database = databasePool();
+  await database.query('INSERT INTO payment_orders (reference_id, user_id, plan, amount, currency, status) VALUES ($1, $2, $3, $4, $5, $6)',
+    [referenceId, userId, plan.id, plan.amount, plan.currency, 'pending']);
   const endpoint = `https://api.payrexx.com/v1.18/Gateway/?instance=${encodeURIComponent(cfg.instance)}`;
   try {
     const response = await fetch(endpoint, {
@@ -50,10 +48,10 @@ export async function POST(request: NextRequest) {
     const linkUrl = new URL(link || '');
     if (linkUrl.protocol !== 'https:' || !linkUrl.hostname.endsWith('.payrexx.com'))
       throw new Error('Unexpected gateway URL');
-    await order.update({ status: 'gateway-created' });
+    await database.query('UPDATE payment_orders SET status = $1, updated_at = now() WHERE reference_id = $2', ['gateway-created', referenceId]);
     return NextResponse.json({ url: linkUrl.toString() }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
-    await order.update({ status: 'gateway-error' });
+    await database.query('UPDATE payment_orders SET status = $1, updated_at = now() WHERE reference_id = $2', ['gateway-error', referenceId]).catch(() => undefined);
     return NextResponse.json({ error: 'Payrexx-Verbindung konnte nicht hergestellt werden.' }, { status: 502 });
   }
 }

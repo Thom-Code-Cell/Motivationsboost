@@ -24,9 +24,6 @@ export async function POST(request: NextRequest) {
   let parsed: z.SafeParseReturnType<unknown, z.infer<typeof inputSchema>>;
   try { parsed = inputSchema.safeParse(JSON.parse(raw)); } catch { return NextResponse.json({ error: 'Ungültige Eingabe.' }, { status: 400 }); }
   if (!parsed.success) return NextResponse.json({ error: 'Bitte Lebenslauf, Stellenanzeige und persönliche Angaben vollständig ausfüllen.' }, { status: 400 });
-  if (!isInternalTestMode()) {
-    try { getOpenAIKey(); } catch { return NextResponse.json({ error: 'KI noch nicht eingerichtet.' }, { status: 503 }); }
-  }
   let quota: Awaited<ReturnType<typeof reserveAiAction>>;
   try { quota = await reserveAiAction(uid); }
   catch (error) {
@@ -50,6 +47,20 @@ export async function POST(request: NextRequest) {
       '[Name ergänzen]',
     ].join('\n');
     return NextResponse.json({ letter, quota, mode: 'internal-test' }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+  let hasAiProvider = false;
+  try { getOpenAIKey(); hasAiProvider = true; } catch { /* the application still supports a clearly-labelled guided draft */ }
+  if (!hasAiProvider) {
+    const { motivation, example, contribution } = parsed.data;
+    const letter = [
+      'Sehr geehrte Damen und Herren,', '',
+      `Ihre ausgeschriebene Stelle interessiert mich, weil ${motivation.replace(/[.!?]+$/, '')}.`, '',
+      `Ein konkretes Beispiel aus meiner Erfahrung: ${example.replace(/[.!?]+$/, '')}.`, '',
+      `In Ihrem Unternehmen möchte ich Folgendes beitragen: ${contribution.replace(/[.!?]+$/, '')}.`, '',
+      'Mein Lebenslauf und Ihre Stellenanzeige bilden die Grundlage für die weitere Anpassung dieses Entwurfs. Bitte ergänze Anrede, Unternehmen und konkrete Bezüge zur Stelle und prüfe alle Aussagen.', '',
+      'Freundliche Grüsse', '[Name ergänzen]',
+    ].join('\n');
+    return NextResponse.json({ letter, quota, mode: 'guided-template' }, { headers: { 'Cache-Control': 'no-store' } });
   }
   try {
     const response = await callOpenAI('/responses', {

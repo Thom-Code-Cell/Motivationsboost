@@ -37,10 +37,33 @@ function InternalBetaPage() {
 
 function AuthenticatedBetaPage() {
   const { data: session, isPending } = auth.useSession();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   if (isPending) return <main className="mx-auto max-w-3xl px-5 py-10"><p>Deine Anmeldung wird geprüft …</p></main>;
   if (!session) return <main className="mx-auto max-w-3xl space-y-6 px-5 py-10">
     <Header />
-    <section className="space-y-4 rounded-xl border p-6"><p>Melde dich an, um deinen persönlichen Entwurf zu erstellen.</p><button className="rounded-lg bg-slate-900 px-4 py-2 text-white" onClick={() => void auth.signIn.social({ provider: 'google', callbackURL: '/beta' })}>Mit Google anmelden</button></section>
+    <form className="space-y-4 rounded-xl border p-6" onSubmit={async event => {
+      event.preventDefault(); setBusy(true); setError('');
+      try {
+        const result = mode === 'signup'
+          ? await auth.signUp.email({ name: name.trim(), email: email.trim(), password })
+          : await auth.signIn.email({ email: email.trim(), password });
+        if (result.error) throw new Error(result.error.message || 'Anmeldung fehlgeschlagen.');
+      } catch (cause) { setError(cause instanceof Error ? cause.message : 'Anmeldung fehlgeschlagen.'); }
+      finally { setBusy(false); }
+    }}>
+      <p>Erstelle ein Konto oder melde dich mit E-Mail und Passwort an.</p>
+      {mode === 'signup' && <label className="block space-y-1"><span>Name</span><input required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>}
+      <label className="block space-y-1"><span>E-Mail</span><input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>
+      <label className="block space-y-1"><span>Passwort {mode === 'signup' && '(mindestens 12 Zeichen)'}</span><input required minLength={mode === 'signup' ? 12 : 1} maxLength={128} type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>
+      {error && <p role="alert" className="text-red-700">{error}</p>}
+      <button disabled={busy} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">{busy ? 'Bitte warten …' : mode === 'signup' ? 'Konto erstellen' : 'Anmelden'}</button>
+      <button type="button" className="ml-3 underline" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(''); }}>{mode === 'signup' ? 'Ich habe bereits ein Konto' : 'Neues Konto erstellen'}</button>
+    </form>
   </main>;
   return <BetaWorkspace
     user={session.user}
@@ -73,10 +96,11 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     event.preventDefault(); setBusy(true); setMessage(''); setLetter('');
     try {
       const res = await fetch('/api/v2/letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
-      const data = await res.json() as { error?: string; letter?: string; quota?: { used: number; limit: number } };
+      const data = await res.json() as { error?: string; letter?: string; mode?: string; quota?: { used: number; limit: number } };
       if (!res.ok || !data.letter) throw new Error(data.error || 'Der Entwurf konnte nicht erstellt werden.');
       setLetter(data.letter);
-      if (data.quota) setMessage(`${data.quota.used} von ${data.quota.limit} KI-Aktionen genutzt.${internal ? ' (simuliert)' : ''}`);
+      if (data.mode === 'guided-template') setMessage('Vorlagenentwurf erstellt. Der KI-Dienst ist derzeit nicht verbunden; überarbeite den Entwurf anhand der Stellenanzeige.');
+      else if (data.quota) setMessage(`${data.quota.used} von ${data.quota.limit} Aktionen genutzt.${internal ? ' (simuliert)' : ''}`);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Bitte später erneut versuchen.'); }
     finally { setBusy(false); }
   }
@@ -84,7 +108,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     <Header />
     {internal && <InternalNotice />}
     <div className="flex items-center justify-between gap-4"><p>Angemeldet als {user.name || user.email}</p><button className="underline" onClick={onSignOut}>Abmelden</button></div>
-    <Applications userId={user.id} />
+    <Applications userId={user.id} internal={internal} />
     <form onSubmit={generate} className="space-y-4">
       {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>

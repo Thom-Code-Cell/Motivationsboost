@@ -5,14 +5,14 @@ import { databasePool } from './postgres';
 
 function createAuth() {
   const secret = process.env.BETTER_AUTH_SECRET;
-  const baseURL = process.env.BETTER_AUTH_URL;
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!secret || !baseURL || !clientId || !clientSecret) throw new Error('Anmeldung ist noch nicht konfiguriert.');
+  const deploymentOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
+  const baseURL = process.env.BETTER_AUTH_URL || process.env.APP_URL || deploymentOrigin;
+  if (!secret || !baseURL) throw new Error('Anmeldung ist noch nicht konfiguriert.');
   return betterAuth({
     database: databasePool(), secret, baseURL,
-    socialProviders: { google: { clientId, clientSecret } },
+    emailAndPassword: { enabled: true, requireEmailVerification: false, minPasswordLength: 12, maxPasswordLength: 128 },
     plugins: [nextCookies()],
+    trustedOrigins: [baseURL],
   });
 }
 let instance: ReturnType<typeof createAuth> | undefined;
