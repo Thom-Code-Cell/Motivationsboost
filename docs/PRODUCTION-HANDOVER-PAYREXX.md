@@ -1,29 +1,36 @@
-# Release handover · Motivationsboost · 27 October 2026
+# Payrexx Production Handover · 18 November 2026
 
-## Branding and operator
-- Internal name remains Motivationsboost until trademark and domain clearance.
-- Public legal support email is `thomas@th-analytica.com`.
-- Development relationship with https://th-analytica.com is disclosed without asserting a separate legal entity.
-- Reciprocal link lives on TH Analytica /referenzen under 'Eigene Entwicklung · geschützte Beta' and the shared site footer.
-- A restricted Vercel preview is **not** an indexed public consumer product.
+## Current decision
 
-## Billing decision: Payrexx ONLY
-- Old Stripe endpoints return HTTP 503 and never charge anyone, independently of historic Stripe secrets.
-- Payrexx Gateway API scaffold, monthly/yearly plan display and signed webhook receiver exist. Direct API signing uses server-only X-API-KEY. Hosted Payrexx payment pages keep credit card data off our site.
-- Payrexx checkout is **OFF by default**. Both `PAYREXX_PAYMENTS_ENABLED` and `PAYREXX_BILLING_VALIDATED` must be true *after* approved payment tests and fulfillment logic. A webhook can be enabled separately with `PAYREXX_WEBHOOK_ENABLED`; it verifies signatures and stores only minimal event metadata in PostgreSQL, but deliberately never grants entitlements. No environment secrets in Git. No prices invented.
-- **Critical incomplete part:** user premium entitlements are deliberately **not** automatically granted. It would be unsafe to charge users now. Validate current gateway and subscription payload shapes using real Payrexx test events, map order reference to owner safely, reconcile success/failure/refunds/retries, implement transparent self-service cancellation, and verify tax/legal disclosures before enabling payment.
-- Official docs: https://developers.payrexx.com/reference/create-a-gateway and https://docs.payrexx.com/developer/guides/webhook
+- Payrexx is the intended payment provider. Payrexx and Stripe checkout remain disabled.
+- Do not enable checkout by setting environment flags until a separate test account has passed the complete acceptance flow.
+- The current verified webhook receiver rejects missing/invalid signatures, limits request size, hashes the raw event, persists only minimal event metadata, and returns `premiumGranted: false`. It does not grant or revoke an entitlement.
+- The checkout route returns HTTP 503 while billing is not approved. No real customer charge is enabled by this code.
 
-## Legal & privacy
-- Mobile-optimized imprint, privacy and terms use identical reusable content in public pages and mandatory consent dialogs; update date and consent versions aligned.
-- Statements about Stripe charging, CHF 39, configured Gemini, zero cookies and 'only technical metadata in Firestore' were removed because they were misleading or premature.
-- Professional legal review remains required before international launch, especially GDPR/FADP, account deletion, data processors and retention schedules.
+## Test-account requirement
 
-## Technical gates
-- Code uses Next.js/Firebase; secure App Router pages and eight localized marketing routes are behind noindex until final brand/domain release.
-- Need real Firebase OAuth, Google Drive, data deletion, PDF/DOCX multi-script, billing and AI-provider acceptance tests, not just mocks/emulators.
-- Do not transfer applicant documents or billing credentials during beta.
-- Clear all GitHub CI steps including npm security audit, desktop/mobile browser tests, and live preview smoke tests before any production merge.
-- Secure the final public domain and activate indexability only after legal, privacy, availability and customer support acceptance.
+Payrexx's current merchant documentation describes a provider-level switch between Live and Test. It also recommends creating a second Payrexx account when testing while continuing to accept live payments. Keep the existing TH Analytica merchant account in Live mode; never switch its provider mode for Motivationsboost testing.
 
-This branch does not purchase domains, publish production, configure keys or activate payments.
+Before sandbox acceptance, create or connect a separate Payrexx test account and separate test API credentials. Register only the protected Preview webhook URL. Do not place Live credentials or test credentials in Git, logs, client code or the other environment.
+
+## Required sandbox acceptance
+
+1. Verify both a successful and declined test transaction.
+2. Verify a missing, invalid and replayed webhook signature; duplicate events must remain idempotent.
+3. Verify the Payrexx reference maps to exactly one internal order and account, with no client-controlled entitlement assignment.
+4. Implement and verify payment success, failure, cancellation, refund, retry and subscription-state transitions.
+5. Test self-service cancellation, account deletion while subscribed, entitlement expiry, reconciliation and provider downtime.
+6. Confirm checkout content shows the final price, currency, renewal interval, cancellation process, taxes and applicable consumer terms before payment.
+7. Keep checkout off until tests pass and the application is explicitly approved.
+
+## Not complete
+
+- No Payrexx sandbox account/credentials or end-to-end test transaction has been verified for this release candidate.
+- Premium entitlement fulfillment and cancellation are intentionally not implemented.
+- Webhook registration at Payrexx and secure Production delivery still depend on Vercel project access and production secrets.
+
+## Official reference
+
+- [Payrexx Testing](https://docs.payrexx.com/merchant/english/payment/testing): describes test mode and recommends a separate test account when testing while accepting live payments.
+- [Payrexx webhook guide](https://docs.payrexx.com/developer/guides/webhook)
+- [Payrexx Gateway API reference](https://developers.payrexx.com/reference/create-a-gateway)

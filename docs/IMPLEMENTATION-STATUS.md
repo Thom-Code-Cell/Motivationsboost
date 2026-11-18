@@ -39,3 +39,10 @@ Updated 18 November 2026 on branch `codex/internal-test-readiness-20261118`.
 ## Legacy code
 
 The former Firebase/Google dashboard and its services remain as inactive legacy source files. They are not imported by `/` or `/beta`; the new Preview app does not need Firebase, Google OAuth, Drive or Google Fonts. The old dashboard should be removed or migrated before it is exposed as a product route again.
+
+## Production setup check · 18 November 2026
+
+- Vercel has only the protected project `motivationsboost-preview`; project metadata reports `live: false`, SSO protection enabled, and no custom production domain.
+- The Vercel integration returned HTTP 403 for environment-variable and Marketplace configuration reads. The mapped Vercel CLI fallback is unavailable in this environment. No Production environment variable was created or read.
+- Neon lists only `motivationsboost-preview-db` in a Vercel-managed organization. Direct creation of a second Neon project was rejected by the organization policy. The default branch contains only `payrexx_webhook_events`; the app tables are in the separate Preview branch. Do not connect the default branch to the app as Production until the Vercel integration and target environment are verified.
+- Consequently no distinct Production database/credential set, verified Resend sender, OpenAI project hard-spend cap, Payrexx sandbox transaction or legal sign-off is claimed. Details and source-backed release gates are in `docs/RELEASE-CHECKLIST.md` and `docs/PRODUCTION-HANDOVER-PAYREXX.md`.

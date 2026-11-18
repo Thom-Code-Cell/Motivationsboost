@@ -2,6 +2,18 @@
 
 The current Preview app is designed to run without Google or Firebase. Production remains separate and must not be enabled solely because Preview builds successfully. This checklist is a release gate, not a claim that a production deployment has happened.
 
+## Gate status checked 18 November 2026
+
+- **Vercel:** Only `motivationsboost-preview` exists for this app. It is not live, has Vercel Authentication enabled, and has no app-specific production domain. The connected Vercel API cannot list environment variables or Marketplace integrations (403); the Vercel CLI is not installed. No Production secrets were written.
+- **Neon:** Only `motivationsboost-preview-db` exists in Frankfurt, in a Vercel-managed organization. Its Preview branch has the app schema. The default `main` branch currently has only `payrexx_webhook_events`; do not treat it as a ready production database. Direct project creation was rejected because the organization is managed by Vercel.
+- **Email:** No production Resend sender has been verified. Production sender identity, DNS records and delivery/retention remain unverified.
+- **OpenAI:** No production API key is configured. Use a dedicated project key only after enforcing a project hard-spend limit with enough CHF/USD exchange-rate margin. OpenAI says hard-limit enforcement is not instantaneous and recorded spend can slightly exceed the configured cap ([spend limits](https://developers.openai.com/api/docs/guides/spend-limits)).
+- **Payments:** Payrexx checkout is disabled. Do not switch the existing merchant provider from Live to Test. Payrexx recommends a separate account when tests must run while live payments continue ([testing guidance](https://docs.payrexx.com/merchant/english/payment/testing)). No end-to-end Payrexx sandbox transaction is verified, and entitlement fulfillment/cancellation remains unimplemented.
+- **Privacy/legal:** Existing pages name the responsible person and describe current data uses and providers. They do not yet state actual production recipient countries, transfer safeguards or provider-specific retention periods because Production services are not configured. The EDÖB requires privacy information to reflect actual processing and identify relevant recipients, destination countries and duration ([information duty](https://www.edoeb.admin.ch/de/informationspflicht), [online privacy statements](https://www.edoeb.admin.ch/de/datenschutzerklaerungen-im-internet)). Obtain a Swiss privacy/legal review after the final provider configuration.
+- **Dependency audit:** `npm audit` reports 21 issues (14 moderate, 7 high); `npm audit --omit=dev` reports 5 high in the Vite/Vitest build/test dependency tree. The current Next.js server file traces contain none of Firebase, Google Cloud, Vite, Vitest or those transitive packages. Resolve or formally risk-accept the findings before release.
+
+This assessment records the state of connected tools and repository files; it is not legal advice or a production approval.
+
 ## Before accepting real user data
 
 - Create and isolate a Production Neon database. Apply migrations `000`, `001`, `005`; add `002` only for webhook event storage and `004` only while preparing disabled Payrexx checkout.
