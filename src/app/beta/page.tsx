@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
+import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
 
 const auth = createAuthClient();
 const fields = [
@@ -101,12 +102,15 @@ function InternalNotice() {
 function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; onSignOut: () => void; internal?: boolean }) {
   const [values, setValues] = useState<Record<Field, string>>({ cv: '', job: '', motivation: '', example: '', contribution: '' });
   const [letter, setLetter] = useState('');
+  const [includePrivacyNotice, setIncludePrivacyNotice] = useState(false);
+  const [noticeLanguage, setNoticeLanguage] = useState<PrivacyNoticeLanguage>('de');
+  const finalLetter = appendApplicationPrivacyNotice(letter, includePrivacyNotice, noticeLanguage);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   function downloadLetter() {
-    const url = URL.createObjectURL(new Blob([letter], { type: 'text/plain;charset=utf-8' }));
+    const url = URL.createObjectURL(new Blob([finalLetter], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
-    link.href = url; link.download = 'motivationsschreiben-test.txt'; link.click();
+    link.href = url; link.download = 'motivationsschreiben.txt'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async function generate(event: React.FormEvent) {
@@ -142,7 +146,15 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
     </form>
     {message && <p role="status">{message}</p>}
-    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} /><button type="button" onClick={downloadLetter} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button></section>}
+    <section className="space-y-3 rounded-xl border p-5">
+      <h2 className="text-xl font-semibold">Datenschutzhinweis für deine Bewerbung</h2>
+      <p className="text-sm text-slate-600">Entscheide freiwillig, ob du einer KI-Auswertung durch den Empfänger widersprechen und eine persönliche Beurteilung verlangen möchtest. Die KI-Hilfe in Motivationsboost ist davon getrennt.</p>
+      <label className="block space-y-1"><span>Sprache des Datenschutzhinweises</span><select className="w-full rounded-lg border p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option></select></label>
+      <textarea aria-label="Datenschutzhinweis zum Kopieren" className="w-full rounded-lg border p-3 text-sm text-slate-900" rows={5} readOnly value={applicationPrivacyNotices[noticeLanguage]} />
+      <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={includePrivacyNotice} onChange={event => setIncludePrivacyNotice(event.target.checked)} /><span>Datenschutzhinweis beim Herunterladen meines Motivationsschreibens anhängen</span></label>
+      <p className="text-xs text-slate-600">Du kannst den Hinweis auch in deinen Lebenslauf kopieren. Er verhindert eine KI-Verarbeitung nicht technisch und garantiert keine menschliche Prüfung. Deine Auswahl bleibt in dieser Ansicht und wird nicht an den KI-Dienst gesendet.</p>
+    </section>
+    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">Vorschau des angehängten Hinweises</p><p className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}<button type="button" onClick={downloadLetter} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button></section>}
     <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
   </main>;
 }
