@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { createTextPdf } from '@/lib/export-documents';
+import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
 import type { UserData } from '@/types/user';
 import { type GenerateCvFromDocumentsOutput, type AnalyzeRequiredDocumentsOutput } from '@/ai/schemas';
@@ -66,7 +67,7 @@ const generateCvTextForPdf = (cv: GenerateCvFromDocumentsOutput): string => {
 };
 
 // Helper for DOCX CV generation
-const generateCvDocx = (cv: GenerateCvFromDocumentsOutput): Document => {
+const generateCvDocx = (cv: GenerateCvFromDocumentsOutput, privacyNotice: string = ''): Document => {
      const formatDescription = (desc: string) => {
        return desc.split('\n').filter(d => d.trim() !== '').map(line => new Paragraph({ text: line.replace(/^- /, ''), bullet: { level: 0 } }))
     }
@@ -108,6 +109,7 @@ const generateCvDocx = (cv: GenerateCvFromDocumentsOutput): Document => {
 
                 new Paragraph({ text: "Kenntnisse", heading: HeadingLevel.HEADING_1, border: { bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 6 } } }),
                 new Paragraph(cv.skills.join(' • ')),
+                ...(privacyNotice ? [new Paragraph(''), ...privacyNotice.split('\n').map(text => new Paragraph(text))] : []),
             ],
         }],
     });
@@ -119,6 +121,9 @@ export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, li
     const [includeLetter, setIncludeLetter] = useState(true);
     const [includeLinkedin, setIncludeLinkedin] = useState(true);
     const [exportConfirmed, setExportConfirmed] = useState(false);
+    const [includePrivacyNotice, setIncludePrivacyNotice] = useState(false);
+    const [noticeLanguage, setNoticeLanguage] = useState<PrivacyNoticeLanguage>('de');
+    const withNotice = (text: string) => appendApplicationPrivacyNotice(text, includePrivacyNotice, noticeLanguage);
     const [format, setFormat] = useState<'pdf' | 'docx'>('pdf');
     const [isLoading, setIsLoading] = useState(false);
     const [isCheckingDocs, setIsCheckingDocs] = useState(false);
@@ -140,7 +145,7 @@ export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, li
     }, [accessToken]);
 
 
-    useEffect(() => { setExportConfirmed(false); }, [cvJson, cvTextOverride, motivationLetter, linkedinSummary, includeCv, includeLetter, includeLinkedin]);
+    useEffect(() => { setExportConfirmed(false); }, [cvJson, cvTextOverride, motivationLetter, linkedinSummary, includeCv, includeLetter, includeLinkedin, includePrivacyNotice, noticeLanguage]);
 
     const handleExport = async () => {
         if (!exportConfirmed) {
@@ -158,10 +163,10 @@ export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, li
             // --- CV Generation ---
             if (includeCv && (cvJson || cvTextOverride)) {
                 if (format === 'pdf') {
-                    const doc = createTextPdf(cvTextOverride || generateCvTextForPdf(cvJson!));
+                    const doc = createTextPdf(withNotice(cvTextOverride || generateCvTextForPdf(cvJson!)));
                     zip.file("Lebenslauf.pdf", doc.output('blob'));
                 } else if (format === 'docx' && isPro) {
-                    const doc = cvTextOverride ? new Document({ sections: [{ children: cvTextOverride.split('\n').map(text => new Paragraph(text)) }] }) : generateCvDocx(cvJson!);
+                    const doc = cvTextOverride ? new Document({ sections: [{ children: withNotice(cvTextOverride).split('\n').map(text => new Paragraph(text)) }] }) : generateCvDocx(cvJson!, includePrivacyNotice ? applicationPrivacyNotices[noticeLanguage] : '');
                     const blob = await Packer.toBlob(doc);
                     zip.file("Lebenslauf.docx", blob);
                 }
@@ -171,10 +176,10 @@ export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, li
             // --- Letter Generation ---
             if (includeLetter && motivationLetter) {
                  if (format === 'pdf') {
-                    const doc = createTextPdf(motivationLetter);
+                    const doc = createTextPdf(withNotice(motivationLetter));
                     zip.file("Motivationsschreiben.pdf", doc.output('blob'));
                 } else if (format === 'docx' && isPro) {
-                    const doc = new Document({ sections: [{ children: motivationLetter.split('\n').map(t => new Paragraph(t)) }] });
+                    const doc = new Document({ sections: [{ children: withNotice(motivationLetter).split('\n').map(t => new Paragraph(t)) }] });
                     const blob = await Packer.toBlob(doc);
                     zip.file("Motivationsschreiben.docx", blob);
                 }
@@ -298,6 +303,18 @@ export function ExportCenter({ cvTextOverride, userData, accessToken, cvJson, li
                         </SelectContent>
                     </Select>
                      {!isPro && <p className="text-xs text-muted-foreground">Der DOCX-Export ist eine Pro-Funktion.</p>}
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-3">
+                    <p className="font-medium">Datenschutzhinweis zur KI-Verarbeitung</p>
+                    <label className="flex items-start gap-3 text-sm">
+                        <Checkbox checked={includePrivacyNotice} onCheckedChange={checked => setIncludePrivacyNotice(checked === true)} />
+                        <span>Den Hinweis an die ausgewählten Bewerbungsunterlagen (Lebenslauf und Motivationsschreiben) anhängen.</span>
+                    </label>
+                    <Label htmlFor="privacy-notice-language">Sprache des Datenschutzhinweises</Label>
+                    <select id="privacy-notice-language" className="w-full rounded-md border bg-background p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option></select>
+                    <Textarea aria-label="Datenschutzhinweis zum Kopieren" readOnly value={applicationPrivacyNotices[noticeLanguage]} rows={5} />
+                    <p className="text-xs text-muted-foreground">Freiwillig. Die Auswahl bleibt lokal in dieser Ansicht. Der Hinweis betrifft den Empfänger, nicht die gewünschte KI-Hilfe in Motivationsboost, und garantiert keine menschliche Prüfung.</p>
                 </div>
 
                 <div className="rounded-lg border p-4 space-y-3">
