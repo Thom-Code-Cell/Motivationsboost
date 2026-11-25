@@ -13,7 +13,7 @@ export default function LegalPage() {
       <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-5 gap-y-2">
           <Link href="/" className="min-w-0 text-base font-bold leading-snug tracking-tight sm:text-lg">Motivationsboost</Link>
-          <Link href="/" className="text-sm underline underline-offset-2">Zur App</Link>
+          <Link href="/app" className="text-sm underline underline-offset-2">Zur App</Link>
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl min-w-0 px-4 py-7 sm:px-6 sm:py-10">

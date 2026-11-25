@@ -14,7 +14,7 @@ test.beforeEach(async () => {
 });
 
 async function createAccount(page: Page) {
-  await page.goto('/');
+  await page.goto('/app');
   await page.getByRole('button', { name: 'Neues Konto erstellen' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Synthetisches Konto');
   const email = `e2e-${randomUUID()}@example.test`;
@@ -25,7 +25,7 @@ async function createAccount(page: Page) {
   return email;
 }
 
-test('account session persists and exposes only its own application data', async ({ page, browser, baseURL }) => {
+test('account session persists and exposes only its own application data', async ({ page, browser, baseURL }, testInfo) => {
   const email = await createAccount(page);
   await page.getByLabel('Stelle', { exact: true }).fill('Betriebsleitung');
   await page.getByLabel('Unternehmen', { exact: true }).fill('Test AG');
@@ -34,6 +34,13 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
   await page.reload();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetischer-lebenslauf.txt', mimeType: 'text/plain',
+    buffer: Buffer.from('Reiner Testinhalt für die lokale Ablage.'),
+  });
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
   const legacyBefore = await page.request.get('/api/v2/applications');
   expect((await legacyBefore.json()).applications).toEqual([]);
   expect((await page.request.post('/api/v2/applications', {
@@ -55,23 +62,48 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('Erhaltene Notiz')).toBeVisible();
   await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
   await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(1);
+  const passphrase = randomUUID();
+  await page.getByLabel('Sicherungs-Passphrase, optional').fill(passphrase);
+  const exportedWorkspace = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Arbeitsplatz sichern', exact: true }).click();
+  const backup = await exportedWorkspace;
+  expect(backup.suggestedFilename()).toBe('motivationsboost-arbeitsplatz.mbbackup');
+  if (testInfo.project.name === 'desktop' && process.env.MOTIVATIONS_LANDING_SCREENSHOT) {
+    await page.getByRole('heading', { name: 'Meine Bewerbungen' }).locator('..').screenshot({
+      path: process.env.MOTIVATIONS_LANDING_SCREENSHOT,
+      animations: 'disabled',
+    });
+  }
   const other = await browser.newContext({ baseURL });
   try {
     const otherPage = await other.newPage();
     await createAccount(otherPage);
     await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await expect(otherPage.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toHaveCount(0);
     const exported = await otherPage.request.get('/api/v2/account/export');
     expect(exported.ok()).toBe(true);
     expect((await exported.json()).applications).toEqual([]);
     await otherPage.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
     await expect(otherPage.getByRole('status')).toContainText('Vorhandene Serverdaten wurden');
     await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill(randomUUID());
+    await otherPage.getByLabel('Arbeitsplatz wiederherstellen').setInputFiles((await backup.path())!);
+    await expect(otherPage.getByText('Sicherung konnte nicht gelesen werden. Prüfe Datei und Passphrase.')).toBeVisible();
+    await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill(passphrase);
+    otherPage.once('dialog', dialog => void dialog.accept());
+    await otherPage.getByLabel('Arbeitsplatz wiederherstellen').setInputFiles((await backup.path())!);
+    await expect(otherPage.getByText('Betriebsleitung · Test AG')).toBeVisible();
+    await expect(otherPage.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
   } finally {
     await other.close();
   }
   await page.getByRole('button', { name: 'Abmelden' }).click();
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
   expect((await page.request.get('/api/v2/account/export')).status()).toBe(401);
+  await createAccount(page);
+  await expect(page.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toHaveCount(0);
 });
 
 test('blocks anonymous access and cross-site application writes', async ({ request }) => {
@@ -85,6 +117,10 @@ test('blocks anonymous access and cross-site application writes', async ({ reque
 
 test('guided draft and optional translated notice are separate', async ({ page }) => {
   await createAccount(page);
+  const externalRequests: string[] = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
+  });
   await page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen').fill('Ich habe mehrere Jahre ein kleines Team koordiniert und Arbeitsabläufe dokumentiert.');
   await page.getByLabel('Text der Stellenanzeige').fill('Gesucht wird eine verantwortungsvolle Person für die Koordination des Betriebs.');
   await page.getByLabel('Warum interessiert dich diese Stelle?').fill('ich die praktische Teamarbeit unterstütze');
@@ -92,6 +128,7 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await page.getByLabel('Was möchtest du zum Unternehmen beitragen?').fill('Die Abläufe gemeinsam mit dem Team verbessern');
   await page.getByRole('button', { name: 'Motivationsschreiben erstellen' }).click();
   await expect(page.getByText(/Vorlagenentwurf erstellt/)).toBeVisible();
+  expect(externalRequests).toEqual([]);
   const draft = page.getByLabel('Motivationsschreiben bearbeiten');
   await expect(draft).toHaveValue(/Schichtplanung/);
   const originalDraft = await draft.inputValue();
@@ -103,9 +140,22 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ }).check();
   await expect(page.getByText('Vorschau des angehängten Hinweises')).toBeVisible();
   await expect(draft).toHaveValue(originalDraft);
+  await page.reload();
+  await expect(page.getByLabel('Motivationsschreiben bearbeiten')).toHaveValue(originalDraft);
+  await expect(page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ })).not.toBeChecked();
 });
 
 test('legal pages render without horizontal overflow', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Dein nächster Schritt.');
+  await expect(page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' })).toHaveAttribute('href', '/app');
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  const productImages = page.getByRole('main').getByRole('img');
+  for (const productImage of await productImages.all()) {
+    await productImage.scrollIntoViewIfNeeded();
+    await expect.poll(() => productImage.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  }
   for (const [slug, heading] of [['impressum', 'Impressum'], ['datenschutz', 'Datenschutzhinweise'], ['agb', 'Nutzungsbedingungen']]) {
     await page.goto('/' + slug);
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
@@ -113,6 +163,23 @@ test('legal pages render without horizontal overflow', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'TH Analytica' }).first()).toHaveAttribute('href', 'https://th-analytica.com');
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   }
+  await page.goto('/about');
+  await expect(page.getByRole('heading', { name: 'Über Motivationsboost' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'TH Analytica' })).toHaveAttribute('href', 'https://th-analytica.com');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  expect(await page.locator('script[type="application/ld+json"]').textContent()).toContain('SoftwareApplication');
+  expect((await page.request.get('/llms.txt')).status()).toBe(404);
+  expect(await (await page.request.get('/robots.txt')).text()).toContain('Disallow: /');
+});
+
+test('landing page fits a landscape tablet and its application link opens the auth route', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Separate tablet viewport in the desktop browser.');
+  await page.setViewportSize({ width: 820, height: 1050 });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
 });
 
 test('checkout is disabled even when all three proposed plans are visible', async ({ request }) => {

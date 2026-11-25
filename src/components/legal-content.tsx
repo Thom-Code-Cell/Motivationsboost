@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export const CONTACT_EMAIL = 'thomas@th-analytica.com';
 export const TH_ANALYTICA_URL = 'https://th-analytica.com';
-export const LEGAL_UPDATE_DATE = '27. Oktober 2026';
+export const LEGAL_UPDATE_DATE = '25. November 2026';
 
 const h2 = 'mt-7 break-words text-xl font-semibold leading-tight sm:text-2xl';
 const p = 'mt-3 text-base leading-relaxed break-words text-foreground/85';
@@ -41,8 +41,8 @@ export function LegalContent({ document }: { document: 'impressum' | 'datenschut
       <ul className={ul}>
         <li><strong>Konto:</strong> Name, E-Mail-Adresse, Passwort-Hash, Verifizierungsstatus sowie Sitzungsdaten. Passwörter werden nicht im Klartext gespeichert.</li>
         <li><strong>Bewerbungen:</strong> Stellenbezeichnung, Unternehmen, Link, Status und optionale Notizen bleiben bei neuen Einträgen in Ihrem Browser. Frühere Serverdaten bleiben für den Kontodatenexport und die von Ihnen ausgelöste lokale Übernahme verfügbar.</li>
-        <li><strong>Entwürfe:</strong> Lebenslaufangaben, Stellenanzeige und persönliche Angaben werden zur Erzeugung eines Motivationsschreibens an den Server gesendet. Der geführte Vorlagenmodus speichert diese Texte nicht dauerhaft.</li>
-        <li><strong>Optionale KI:</strong> Nur wenn ein KI-Anbieter für die Umgebung aktiviert ist, werden die für die konkrete Anfrage eingegebenen Texte an OpenAI übertragen. Die Anfrage verwendet die Option gegen Speicherung durch die API. Die Datenbedingungen und der Produktionsvertrag müssen vor Aktivierung geprüft werden.</li>
+        <li><strong>Unterlagen und Entwürfe:</strong> Lokal abgelegte Dateien, Eingaben und der bearbeitbare Entwurf verbleiben im Browser. Die geführte Vorlage verarbeitet die Eingaben direkt dort. Lokal gespeicherte Daten können im jeweiligen Bereich gelöscht werden. Personen mit Zugriff auf dasselbe Browserprofil könnten auf die lokale Ablage zugreifen.</li>
+        <li><strong>Optionale KI:</strong> Für jede externe Anfrage wählen Sie die Übertragung ausdrücklich. Häufige Kontaktangaben und beschriftete sensible Felder werden vorab entfernt. Prüfen Sie ihren Text auf weitere persönliche Angaben. Die aufbereiteten Texte werden über den Vercel-Server an OpenAI weitergegeben, wenn der Dienst für die Umgebung freigeschaltet ist. Die Responses-API erhält <code>store: false</code>. Das verhindert das reguläre Speichern des Antwortobjekts. Je nach Konto können getrennte Sicherheits- und Missbrauchsprotokolle bei OpenAI bis zu 30 Tage oder in Ausnahmefällen länger bestehen. Die tatsächlichen Kontoeinstellungen, Verarbeitungsländer und Verträge werden vor Aktivierung geprüft. <a className="underline" href="https://developers.openai.com/api/docs/guides/your-data">OpenAI-Datenbedingungen</a></li>
         <li><strong>Technische Anbieter:</strong> Die Anwendung verwendet Vercel für Hosting, Neon PostgreSQL für Konten, technische Betriebsdaten und frühere serverseitige Bewerbungen sowie – nach Einrichtung – Resend für Verifizierungs-, Passwort- und Löschungs-E-Mails. Für Produktion sind Region, Auftragsbearbeitung und Aufbewahrung der jeweiligen Konten vor dem Start zu bestätigen.</li>
         <li><strong>Zahlungen:</strong> Payrexx ist vorgesehen, der Checkout ist deaktiviert. Payrexx und Stripe verarbeiten in der aktuellen Anwendung keine Checkout-Daten.</li>
       </ul>
@@ -51,7 +51,7 @@ export function LegalContent({ document }: { document: 'impressum' | 'datenschut
       <h2 className={h2}>4. Ihre Möglichkeiten</h2>
       <p className={p}>Im Konto können Sie die Serverdaten als JSON exportieren. Die Bewerbungsübersicht bietet eine separate lokale Sicherung, Wiederherstellung und Löschung. Löschen Sie lokale Kopien auf den betroffenen Geräten und entfernen Sie nicht mehr benötigte Sicherungsdateien. Beim Löschen von Browserdaten können ungesicherte Einträge verloren gehen. In Produktion wird die Kontolöschung per E-Mail bestätigt. Gesetzliche Aufbewahrungspflichten und Sicherungskopien bei Dienstleistern können eine zeitversetzte Entfernung von Serverdaten erfordern. Für Auskunfts-, Berichtigungs- und weitere Anliegen: <ContactEmail />.</p>
       <h2 className={h2}>5. Cookies, Zugriffe und Empfänger</h2>
-      <p className={p}>Für die Anmeldung werden technisch notwendige Sitzungscookies verwendet. Die aktuelle Anwendung benötigt weder ein Google-Konto noch Firebase oder Google Drive. Es gibt keine Analyse- oder Werbe-Cookies. Die Produktionsregionen und Verträge der Hosting-, Datenbank- und E-Mail-Anbieter werden vor der öffentlichen Freischaltung geprüft.</p>
+      <p className={p}>Für die Anmeldung werden technisch notwendige Sitzungscookies verwendet. IndexedDB speichert die persönliche Ablage auf dem Gerät. Die geprüfte Kandidatenversion setzt keine Werbe-Cookies. Produktionsregionen, Auftragsbearbeitung und Aufbewahrungsfristen werden vor der öffentlichen Freischaltung geprüft.</p>
       <h2 className={h2}>6. Weitere Informationen</h2>
       <p className={p}>Informationen zu Leistungsumfang und Nutzung finden Sie in den <Link href="/agb" className="underline underline-offset-2">Nutzungsbedingungen</Link>. Die Entwicklungs- und Unternehmenswebsite ist <a href={TH_ANALYTICA_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">TH Analytica</a>.</p>
     </>;

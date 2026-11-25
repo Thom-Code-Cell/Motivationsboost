@@ -1,5 +1,6 @@
 import { z } from 'zod/v3';
 import { applicationInput, applicationUpdate } from './application-input';
+import { readLocalRecord, updateLocalRecord } from './local-workspace';
 
 const application = applicationInput.extend({
   id: z.string().uuid(),
@@ -17,17 +18,25 @@ const backup = z.object({
 
 export type BrowserApplication = z.infer<typeof application>;
 
-export function readBrowserApplications(key: string) {
+function readLegacyApplications(key: string) {
   const stored = localStorage.getItem(key);
   return stored === null ? [] : records.parse(JSON.parse(stored));
 }
 
-export function writeBrowserApplications(
+export async function readBrowserApplications(key: string) {
+  const stored = await readLocalRecord(key);
+  if (stored !== undefined) return records.parse(stored);
+  return writeBrowserApplications(key, current => current);
+}
+
+export async function writeBrowserApplications(
   key: string,
   update: (current: BrowserApplication[]) => BrowserApplication[],
 ) {
-  const next = records.parse(update(readBrowserApplications(key)));
-  localStorage.setItem(key, JSON.stringify(next));
+  const next = await updateLocalRecord(key, stored => records.parse(update(
+    stored === undefined ? readLegacyApplications(key) : records.parse(stored),
+  )));
+  try { localStorage.removeItem(key); } catch { /* IndexedDB already holds the verified copy. */ }
   return next;
 }
 

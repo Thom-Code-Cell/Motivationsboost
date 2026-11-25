@@ -1,0 +1,94 @@
+.site {
+  --ink: #142c30;
+  --deep: #10292d;
+  --paper: #fbf8f1;
+  --muted: #4d605e;
+  --sand: #edc49d;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.55;
+}
+
+.site :focus-visible { outline: 3px solid #aa6034; outline-offset: 5px; }
+.site h1, .site h2 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; line-height: 1.07; }
+.site h2 { font-size: clamp(2.05rem, 4.1vw, 4rem); }
+.site h3 { font-size: 1.08rem; font-weight: 700; line-height: 1.35; }
+.site p { overflow-wrap: anywhere; }
+.skipLink { position: absolute; left: 1rem; top: -5rem; z-index: 4; background: var(--paper); padding: .6rem 1rem; }
+.skipLink:focus { top: 1rem; }
+.header, .hero, .closing { background: var(--deep); color: var(--paper); }
+.header { border-bottom: 1px solid #ffffff22; }
+.nav, .heroInner, .section, .previewInner, .footer { width: min(100% - 3rem, 1180px); margin-inline: auto; }
+.nav, .navLinks, .heroActions, .footer nav { display: flex; align-items: center; gap: 1.6rem; }
+.nav { min-height: 75px; justify-content: space-between; }
+.brand { font-family: Georgia, serif; font-size: 1.55rem; font-weight: 700; letter-spacing: -.06em; white-space: nowrap; }
+.brand span { color: var(--sand); }
+.navLinks, .navCta { font-size: .91rem; font-weight: 600; }
+.navCta, .primaryButton, .heroLink, .privacy a { display: inline-flex; align-items: center; gap: .6rem; }
+.navCta { border: 1px solid #f4eee568; padding: .6rem .9rem; border-radius: 5px; }
+.navCta:hover, .navLinks a:hover, .heroLink:hover { color: var(--sand); }
+.heroInner { display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(2rem, 6vw, 6.4rem); align-items: center; min-height: min(720px, 75vw); padding-block: clamp(2.8rem, 6vw, 5.1rem); }
+.kicker { color: var(--sand); margin-bottom: 1.25rem; font-size: .8rem; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+.hero h1 { font-size: clamp(3.15rem, 6.45vw, 6.7rem); }
+.hero h1 em { color: var(--sand); }
+.heroText { max-width: 33rem; color: #dce8e2; font-size: clamp(1rem, 1.65vw, 1.26rem); margin-top: 1.35rem; }
+.heroActions { flex-wrap: wrap; margin-top: 1.9rem; gap: 1rem 1.5rem; }
+.primaryButton { min-height: 47px; padding: .65rem 1.15rem; color: #182c2b; background: var(--sand); border-radius: 5px; font-weight: 700; }
+.primaryButton:hover { background: #f8d8b7; }
+.heroLink { color: #edf1e9; font-size: .9rem; }
+.heroImage { height: clamp(355px, 45vw, 565px); position: relative; isolation: isolate; }
+.heroImage::before { position: absolute; content: ''; inset: 14px -12px -12px 14px; border: 1px solid #edc49d80; border-radius: 6px; z-index: -1; }
+.heroImage img { display: block; width: 100%; height: 100%; border-radius: 6px; object-fit: cover; object-position: center; background: #29464a; }
+.section { padding-block: clamp(3.1rem, 7vw, 6.3rem); }
+.sectionIntro { max-width: 700px; margin-bottom: 2rem; }
+.sectionIntro p, .feature p, .price p, .privacy p, .faq p, .steps span { color: var(--muted); }
+.sectionIntro p { max-width: 45rem; margin-top: .7rem; font-size: 1.05rem; }
+.featureGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.feature, .price { padding: clamp(1.15rem, 2.5vw, 2.1rem); border: 1px solid #ddd8cb; border-radius: 7px; background: #fffdf7; }
+.feature svg { color: #8b502f; margin-bottom: .95rem; }
+.feature p, .price p { margin-top: .5rem; }
+.preview { background: #e4ebe3; }
+.previewInner { display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: clamp(1.5rem, 5vw, 5rem); padding-block: clamp(3rem, 7vw, 6rem); }
+.steps { display: grid; gap: .95rem; margin-top: 1.3rem; counter-reset: step; }
+.steps li { display: grid; grid-template-columns: 1.75rem 1fr; column-gap: .35rem; }
+.steps li::before { counter-increment: step; content: counter(step, decimal-leading-zero); grid-row: span 2; color: #8b502f; font-size: .81rem; font-weight: 700; margin-top: .21rem; }
+.steps span { grid-column: 2; }
+.appFigure { min-width: 0; border-radius: 8px; padding: .75rem; background: #fcfdf9; box-shadow: 0 15px 45px #112b2b1f; }
+.appFigure img { display: block; width: 100%; height: auto; border: 1px solid #e8e8e1; border-radius: 5px; }
+.appFigure figcaption { padding: .6rem .2rem .1rem; color: var(--muted); font-size: .8rem; }
+.privacy { max-width: 800px; margin-inline: auto; text-align: center; }
+.privacy > svg { display: block; margin: 0 auto 1rem; color: #8b502f; }
+.privacy p { margin-block: 1.1rem; }
+.privacy a { font-weight: 700; text-decoration: underline; text-underline-offset: .25rem; }
+.clay { background: #f0e4d5; }
+.price .amount { color: var(--ink); font-family: Georgia, serif; font-size: clamp(1.55rem, 3vw, 2.55rem); }
+.faq { display: grid; grid-template-columns: minmax(170px, .65fr) 1.35fr; gap: 1.5rem 3rem; }
+.faq details { border-bottom: 1px solid #dcd6c7; padding: .95rem 0; }
+.faq summary { cursor: pointer; font-weight: 700; }
+.faq p { padding-block: .65rem .1rem; }
+.closing .section { text-align: center; }
+.closing h2 { margin-inline: auto; max-width: 850px; }
+.closing a { margin-top: 1.45rem; }
+.footer { padding-block: 2rem; display: flex; gap: 1.55rem; align-items: center; justify-content: space-between; font-size: .91rem; }
+.footer a { text-decoration: underline; text-underline-offset: .2rem; }
+.footer nav { align-items: flex-start; flex-wrap: wrap; gap: .55rem 1rem; }
+
+@media (max-width: 840px) {
+  .navLinks { gap: .85rem; }
+  .hero h1 { font-size: clamp(2.65rem, 6.4vw, 4.6rem); }
+}
+
+@media (max-width: 690px) {
+  .nav, .heroInner, .section, .previewInner, .footer { width: calc(100% - 2.1rem); }
+  .nav { min-height: 63px; gap: .55rem; }
+  .navLinks { display: none; }
+  .brand { font-size: 1.35rem; }
+  .navCta { font-size: .74rem; padding: .4rem .5rem; }
+  .heroInner, .previewInner, .faq { grid-template-columns: 1fr; }
+  .hero h1 { font-size: clamp(2.66rem, 10vw, 4.2rem); }
+  .heroImage { height: min(104vw, 470px); }
+  .heroImage::before { inset: 8px -6px -6px 8px; }
+  .featureGrid { grid-template-columns: 1fr; }
+  .footer { flex-direction: column; align-items: flex-start; }
+}

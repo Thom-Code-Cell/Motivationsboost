@@ -47,14 +47,14 @@ describe('Drive ownership, import and persistence', () => {
     const form = new FormData(); form.set('file', new File(['run'], 'malware.exe', { type: 'application/octet-stream' }));
     await expect(uploadDocument('token', form)).rejects.toThrow('Unterstützt');
   });
-  it('transcribes a scanned PDF with no text layer through bounded GPT PDF input', async () => {
+  it('keeps legacy scanned PDF OCR off until the flow has a monetary reservation', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key');
     const bytes = new jsPDF().output('arraybuffer');
-    const fetch = vi.fn().mockResolvedValueOnce(json({ id: 'google-alice' })).mockResolvedValueOnce(json({ mimeType: 'application/pdf', size: bytes.byteLength })).mockResolvedValueOnce(new Response(bytes)).mockResolvedValueOnce(json({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'Arbeitszeugnis: Alice arbeitete als Betriebsleiterin.' }] }] }));
+    const fetch = vi.fn().mockResolvedValueOnce(json({ id: 'google-alice' })).mockResolvedValueOnce(json({ mimeType: 'application/pdf', size: bytes.byteLength })).mockResolvedValueOnce(new Response(bytes));
     vi.stubGlobal('fetch', fetch);
-    expect(await extractTextFromDriveFile('scan', 'token')).toContain('Betriebsleiterin');
+    await expect(extractTextFromDriveFile('scan', 'token')).rejects.toThrow('keine Kostenreservierung');
     expect(guard.authorizeAI).toHaveBeenCalledWith({ documentId: 'scan' });
-    expect(JSON.parse(fetch.mock.calls[3][1].body).input[0].content[1].file_data.split(';')[0].replace('data:', '')).toBe('application/pdf');
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
   it('extracts a PDF text layer without spending an OCR request', async () => {
     const pdf = new jsPDF(); pdf.text('Arbeitszeugnis mit echtem Text', 20, 20); const bytes = pdf.output('arraybuffer');
