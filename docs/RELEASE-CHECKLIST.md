@@ -1,6 +1,6 @@
 # Motivationsboost release checklist
 
-The current Preview app is designed to run without Google or Firebase. Production remains separate and must not be enabled solely because Preview builds successfully. This checklist is a release gate, not a claim that a production deployment has happened.
+Production stays separate from the protected Preview. A successful Preview build establishes only the environment and flows actually tested.
 
 ## Gate status checked 18 November 2026
 
@@ -17,9 +17,9 @@ This assessment records the state of connected tools and repository files; it is
 ## Before accepting real user data
 
 - Create and isolate a Production Neon database. Apply migrations `000`, `001`, `005`; add `002` only for webhook event storage and `004` only while preparing disabled Payrexx checkout.
-- Configure a canonical HTTPS `APP_URL`/`BETTER_AUTH_URL`, a unique >=32-byte `BETTER_AUTH_SECRET`, verified Resend credentials (`RESEND_API_KEY`, `EMAIL_FROM`), `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true` and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true` in Production only.
+- Configure a canonical HTTPS `APP_URL`/`BETTER_AUTH_URL`, a unique >=32-byte `BETTER_AUTH_SECRET`, the separate [Gmail API production transport](../scripts/google-workspace-mail/README.md), `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true` and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true` in Production only.
 - Verify email verification, password reset, deletion confirmation, data export, retention/deletion behavior, and Neon cascades.
-- Confirm accurate privacy, terms, processor agreements, actual data regions and retention for Neon, Vercel, Resend and (if enabled) OpenAI.
+- Confirm privacy disclosures, terms, processor agreements, actual processing countries and retention for Neon, Vercel, Google Workspace and any activated OpenAI and Payrexx paths.
 - Test registration, duplicate email, wrong password, session expiry, logout, email verification, password recovery, export, deletion and cross-account isolation.
 - Test application create, list, status update, reload, delete and export using fabricated accounts.
 - Review the guided letter against fabricated CV and job text. When OpenAI is enabled, confirm the configured model, data terms, CHF 10 monthly cost limit and failure behavior before use.
@@ -31,11 +31,11 @@ This assessment records the state of connected tools and repository files; it is
 - Vercel Preview URL is protected by Vercel Authentication.
 - Better Auth uses a Preview-only secret and E-Mail/Passwort login.
 - Neon Preview contains the Better Auth and application tables.
-- OpenAI is not configured; the template generator is used, with no provider cost.
-- Preview mail delivery is not configured; verification and password-reset email flows can only be accepted after a verified test sender is configured. Preview account deletion instead requires password confirmation and deletes immediately.
-- Payrexx checkout remains disabled.
+- Preview OpenAI acceptance requires its separately approved, capped test environment.
+- Preview email delivery for registration, password reset and deletion confirmation passed through Google Workspace on 25 November 2026. The email and reply path passed. See the [Google Workspace test record](../scripts/google-workspace-mail/README.md).
+- The Payrexx weekly Vorkasse simulation activated an isolated test entitlement through status reconciliation and triggered a verified email. The supported isolated path for the remaining instruments, renewal, failure, refunds and chargebacks is awaiting Payrexx support ticket 1030301.
 
-Firebase and Google OAuth, Google Drive, Google Fonts and Google APIs are not part of the current Preview app. Firebase and Google Preview environment entries have been removed from Vercel as well.
+Google Workspace is used for transactional email. Login is handled by Better Auth.
 
 ## Production gate
 

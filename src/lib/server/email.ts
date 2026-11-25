@@ -1,9 +1,11 @@
 import 'server-only';
 import { createHash, createHmac } from 'node:crypto';
+import { productionGmailConfiguration, sendProductionGmail } from './gmail-api-mail';
 
-type OutboundEmail = { to: string; subject: string; text: string; idempotencyKey?: string };
+export type OutboundEmail = { to: string; subject: string; text: string; idempotencyKey?: string };
 
 function googleMailer() {
+  if (process.env.VERCEL_ENV !== 'preview') return null;
   const secret = process.env.GOOGLE_APPS_SCRIPT_MAIL_SECRET;
   const endpoint = process.env.GOOGLE_APPS_SCRIPT_MAIL_URL;
   if (!endpoint || !secret || !/^[a-f0-9]{64}$/i.test(secret)) return null;
@@ -17,6 +19,7 @@ function googleMailer() {
 
 export function emailDeliveryConfigured() {
   if (process.env.EMAIL_TRANSPORT === 'google-workspace') return Boolean(googleMailer());
+  if (process.env.EMAIL_TRANSPORT === 'gmail-api') return Boolean(productionGmailConfiguration());
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 }
 
@@ -48,6 +51,7 @@ async function sendGoogleEmail(message: OutboundEmail) {
 
 export async function sendTransactionalEmail(message: OutboundEmail) {
   if (process.env.EMAIL_TRANSPORT === 'google-workspace') return sendGoogleEmail(message);
+  if (process.env.EMAIL_TRANSPORT === 'gmail-api') return sendProductionGmail(message);
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   const replyTo = process.env.EMAIL_REPLY_TO;

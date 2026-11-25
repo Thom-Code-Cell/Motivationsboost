@@ -24,6 +24,7 @@ it('localizes account messages and preserves the account link in the message bod
 });
 
 beforeEach(() => {
+  vi.stubEnv('VERCEL_ENV', 'preview');
   vi.stubEnv('EMAIL_TRANSPORT', 'google-workspace');
   vi.stubEnv('GOOGLE_APPS_SCRIPT_MAIL_URL', endpoint);
   vi.stubEnv('GOOGLE_APPS_SCRIPT_MAIL_SECRET', secret);

@@ -18,7 +18,8 @@ export async function GET() {
       to_regclass('ai_entitlements') IS NOT NULL AS ai_entitlements,
       to_regclass('ai_credit_usage') IS NOT NULL AS credit_usage,
       to_regclass('ai_product_spend') IS NOT NULL AS product_spend,
-      to_regclass('product_economic_postings') IS NOT NULL AS economics`);
+      (NOT $1::boolean OR to_regclass('transactional_email_attempts') IS NOT NULL) AS mail_attempts,
+      to_regclass('product_economic_postings') IS NOT NULL AS economics`, [process.env.EMAIL_TRANSPORT === 'gmail-api']);
     database = true;
     schema = Object.values(result.rows[0] as Record<string, boolean>).every(Boolean);
   } catch { /* report status without leaking connection details */ }
