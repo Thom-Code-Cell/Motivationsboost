@@ -9,6 +9,19 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: motivationsboost_e2e
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 55453:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -31,14 +44,35 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:quality
-      - run: npm run test:rules
+      - name: Verify legacy Firestore rules with the pinned loopback emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar="$RUNNER_TEMP/cloud-firestore-emulator-v1.22.0.jar"
+          curl --fail --silent --show-error --location --proto '=https' \
+            https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-firestore-emulator-v1.22.0.jar -o "$jar"
+          echo "9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c  $jar" | sha256sum --check -
+          java -jar "$jar" --host 127.0.0.1 --port 8080 --project_id demo-motivationsboost >"$RUNNER_TEMP/firestore-e2e.log" 2>&1 &
+          emulator_pid=$!
+          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then break; fi
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then cat "$RUNNER_TEMP/firestore-e2e.log"; exit 1; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8080/ >/dev/null
+          npm run test:rules
       - name: Production dependency security audit
         id: production_audit
         run: npm audit --omit=dev --audit-level=moderate
         continue-on-error: true
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          MOTIVATIONS_E2E_DATABASE_URL: postgresql://postgres@127.0.0.1:55453/motivationsboost_e2e
       - run: npm run build
+      - name: Audit the complete dependency tree
+        run: npm audit --audit-level=moderate
       - name: Enforce production security gate
         if: steps.production_audit.outcome == 'failure'
         run: |

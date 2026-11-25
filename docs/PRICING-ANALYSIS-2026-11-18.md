@@ -37,4 +37,16 @@ Der offene Vorschlag CHF 8.90 pro Woche, CHF 17.90 monatlich und CHF 119 jährli
 
 ## Entscheidung für einen kontrollierten Markttest
 
+### Nachprüfung der 80-Prozent-Zielmarge vom 25. November 2026
+
+Die aktuellen Vorschläge im Code sind CHF 8.90 für 40 Wochenaktionen, CHF 17.90 für 100 Monatsaktionen und CHF 119.00 für 75 Aktionen pro Monat im Jahresabo. Die Rechnung nimmt volle Ausschöpfung, 1 CHF je USD sowie GPT-6.1 Terra Standard zu USD 1.00 für Eingabe und USD 5.00 für Ausgabe pro Million Token an. Modellkosten sind jeweils gerundet. [Aktuelle Modellpreise](https://developers.openai.com/api/docs/models/gpt-6.1-terra)
+
+| Tarif | 9’000 Eingabe- und 2’048 Ausgabetokens je Aktion | Rest bis zur 80-Prozent-Marge | Stressfall mit 40’000 Eingabe- und 2’048 Ausgabetokens |
+| --- | ---: | ---: | ---: |
+| Wochenpass | CHF 0.77 | CHF 1.01 | CHF 2.01 Modellkosten, 77.4 % Marge |
+| Monat | CHF 1.92 | CHF 1.66 | CHF 5.02 Modellkosten, 71.9 % Marge |
+| Jahr | CHF 17.32 | CHF 6.48 | CHF 45.22 Modellkosten, 62.0 % Marge |
+
+Der Stressfall rechnet bewusst mit vielen Tokens. Die Eingabegrenze des Servers ist in Bytes und begründet keine identische Tokenobergrenze. In den Restbetrag fallen Payrexx-Gebühren, Steuern, Infrastruktur, Support und Rückerstattungen. Für reale Poweruser fehlt die gemessene Tokenverteilung. Vor Verkaufsfreigabe braucht es belastbare Verbrauchs- und Gebührenwerte. Die Tarifwerte bleiben Vorschläge.
+
 Zuerst sollte ein kostenloser Test mit synthetischen und danach ausdrücklich freigegebenen Pilotdaten messen: abgeschlossene Briefe, manuelle Überarbeitungen, Wiederholungsnutzung, Zeitersparnis, Ausfälle, Supportfälle und Zahlungsbereitschaft. Anschliessend CHF 4.90 pro Bewerbungs-Paket und CHF 12.90 monatlich gegeneinander testen. Keine Payrexx-Live-Preise veröffentlichen oder Zahlungen einschalten, bevor Tarif, Verlängerung, Kündigung, Rückerstattung und Gebühren bestätigt und Ende zu Ende geprüft sind.
