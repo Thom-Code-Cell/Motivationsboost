@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
-import { applyWeeklySandboxEvent, weeklySandboxEnabled } from '@/lib/server/payrexx-weekly';
+import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -25,14 +26,16 @@ function recordFields(payload: unknown) {
 
 export async function POST(request: NextRequest) {
   const config = payrexxConfiguration();
-  if (!config.webhookEnabled || !config.signingKey || !process.env.DATABASE_URL)
+  const sandbox = weeklyCheckoutConfiguration();
+  const signingKey = sandbox?.signingKey ?? config.signingKey;
+  if (!config.webhookEnabled || !signingKey || !process.env.DATABASE_URL)
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });
   if (Number(request.headers.get('content-length') || '0') > 131072)
     return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
   const body = await request.text();
   if (Buffer.byteLength(body, 'utf8') > 131072) return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
   const signature = request.headers.get('x-webhook-signature') || '';
-  if (!verifyPayrexxWebhook(body, signature, config.signingKey))
+  if (!verifyPayrexxWebhook(body, signature, signingKey))
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   let payload: unknown;
   try { payload = JSON.parse(body); } catch {
@@ -43,14 +46,14 @@ export async function POST(request: NextRequest) {
   const fields = recordFields(payload);
   let connection;
   try {
-    if (!weeklySandboxEnabled()) {
+    if (!sandbox) {
       const result = await recordEvent(databasePool());
       return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
     }
     connection = await databasePool().connect();
     await connection.query('BEGIN');
     const result = await recordEvent(connection);
-    const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload);
+    const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload, sandbox);
     await connection.query('COMMIT');
     return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted });
   } catch {

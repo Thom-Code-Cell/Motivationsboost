@@ -1,67 +1,124 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
-import { getPlan, payrexxConfiguration } from '@/lib/payrexx';
+import { getPlan } from '@/lib/payrexx';
 import { databasePool } from '@/lib/server/postgres';
 import { requireAppSession } from '@/lib/server/app-session';
 import { isRequestOriginAllowed } from '@/lib/security';
+import { termsVersion, weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { latestSandboxOrder, resumableSandboxGateway, trustedSandboxGateway } from '@/lib/server/payrexx-checkout-order';
 
-const termsVersion = z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/);
-const bodySchema = z.object({ plan: z.enum(['weekly', 'monthly', 'yearly']), termsVersion, acceptTerms: z.literal(true) }).strict();
+const bodySchema = z.object({ plan: z.literal('weekly'), termsVersion, acceptTerms: z.literal(true) }).strict();
+const gatewayValidityMinutes = 25;
 
-export async function POST(request: NextRequest) {
-  const cfg = payrexxConfiguration();
-  if (!cfg.enabled || !cfg.instance || !cfg.key || !cfg.signingKey || !cfg.origin)
-    return NextResponse.json({ error: 'Payrexx-Zahlungen sind noch nicht freigeschaltet.' }, { status: 503 });
-  const approvedTerms = termsVersion.safeParse(process.env.PAYREXX_APPROVED_TERMS_VERSION);
-  if (!approvedTerms.success) return NextResponse.json({ error: 'Die Vertragsbedingungen für den Checkout sind noch nicht freigegeben.' }, { status: 503 });
-  if (!isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), process.env.NODE_ENV === 'production'))
-    return NextResponse.json({ error: 'Ungültiger Ursprung.' }, { status: 403 });
+function reply(body: object, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+export async function GET() {
+  const config = weeklyCheckoutConfiguration();
+  if (!config) return reply({ enabled: false });
   let userId: string;
   try { userId = (await requireAppSession()).user.id; }
-  catch { return NextResponse.json({ error: 'Bitte anmelden.' }, { status: 401 }); }
-  const data = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!data.success || data.data.termsVersion !== approvedTerms.data)
-    return NextResponse.json({ error: 'Bitte bestätige die gültigen Vertragsbedingungen und wähle einen verfügbaren Tarif.' }, { status: 400 });
-  const plan = getPlan(data.data.plan);
-  if (!plan) return NextResponse.json({ error: 'Preis nicht konfiguriert.' }, { status: 503 });
+  catch { return reply({ error: 'Bitte anmelden.' }, 401); }
 
-  const referenceId = randomUUID();
-  // No user-supplied amounts, prices, redirects, currencies or customer IDs.
-  const database = databasePool();
-  await database.query(
-    `INSERT INTO payment_orders (reference_id, user_id, plan, amount, currency, status, accepted_terms_version, accepted_terms_at)
-     VALUES ($1, $2, $3, $4, $5, 'pending', $6, now())`,
-    [referenceId, userId, plan.id, plan.amount, plan.currency, approvedTerms.data],
-  );
-  const endpoint = `https://api.payrexx.com/v1.18/Gateway/?instance=${encodeURIComponent(cfg.instance)}`;
   try {
+    const order = await latestSandboxOrder(userId);
+    const url = resumableSandboxGateway(order, config);
+    const active = await databasePool().query(
+      "SELECT 1 FROM ai_entitlements WHERE user_id = $1 AND status = 'active' AND ends_at > now()", [userId],
+    );
+    return reply({ enabled: true, termsVersion: config.termsVersion, orderStatus: order?.status,
+      active: Boolean(active.rowCount), canResume: Boolean(url) });
+  } catch {
+    return reply({ error: 'Zahlungsstatus derzeit nicht verfügbar.' }, 503);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const config = weeklyCheckoutConfiguration();
+  if (!config) return reply({ error: 'Payrexx-Zahlungen sind noch nicht freigeschaltet.' }, 503);
+  if (!isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), process.env.NODE_ENV === 'production'))
+    return reply({ error: 'Ungültiger Ursprung.' }, 403);
+
+  let userId: string;
+  try { userId = (await requireAppSession()).user.id; }
+  catch { return reply({ error: 'Bitte anmelden.' }, 401); }
+
+  const data = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!data.success || data.data.termsVersion !== config.termsVersion)
+    return reply({ error: 'Bitte bestätige die gültigen Testbedingungen und wähle den Wochenpass.' }, 400);
+
+  const previous = await latestSandboxOrder(userId).catch(() => null);
+  if (previous === null) return reply({ error: 'Zahlungsstatus derzeit nicht verfügbar.' }, 503);
+  const previousUrl = resumableSandboxGateway(previous, config);
+  if (previousUrl) return reply({ url: previousUrl });
+
+  const plan = getPlan('weekly');
+  const referenceId = randomUUID();
+  const database = databasePool();
+  const started = await database.connect().catch(() => null);
+  if (!started) return reply({ error: 'Bestellung derzeit nicht verfügbar.' }, 503);
+  try {
+    await started.query('BEGIN');
+    const owner = await started.query('SELECT id FROM "user" WHERE id = $1 FOR UPDATE', [userId]);
+    if (!owner.rowCount) throw new Error('Order owner unavailable');
+    const active = await started.query(
+      "SELECT 1 FROM ai_entitlements WHERE user_id = $1 AND status = 'active' AND ends_at > now()", [userId],
+    );
+    if (active.rowCount) {
+      await started.query('ROLLBACK');
+      return reply({ error: 'Du hast bereits einen aktiven Zugang.' }, 409);
+    }
+    const inserted = await started.query(
+      `INSERT INTO payment_orders (reference_id, user_id, plan, amount, currency, status, accepted_terms_version, accepted_terms_at, sandbox, sandbox_psp_id)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, now(), true, $7)
+       ON CONFLICT DO NOTHING RETURNING reference_id`,
+      [referenceId, userId, plan.id, plan.amount, plan.currency, config.termsVersion, config.pspId],
+    );
+    await started.query('COMMIT');
+    if (!inserted.rowCount) return reply({ error: 'Eine Testbestellung ist bereits offen. Bitte aktualisiere den Zahlungsstatus.' }, 409);
+  } catch {
+    await started.query('ROLLBACK').catch(() => {});
+    return reply({ error: 'Bestellung derzeit nicht verfügbar.' }, 503);
+  } finally {
+    started.release();
+  }
+
+  try {
+    const endpoint = `https://api.payrexx.com/v1.19/Gateway/?instance=${encodeURIComponent(config.instance)}`;
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'X-API-KEY': cfg.key, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: { 'X-API-KEY': config.key, 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
-        amount: plan.amount, currency: plan.currency,
-        purpose: 'Motivationsboost ' + plan.label,
-        referenceId,
-        ...(plan.interval ? { subscriptionState: true, subscriptionInterval: plan.interval, subscriptionPeriod: plan.interval } : {}),
-        successRedirectUrl: cfg.origin + '/app?payment=pending',
-        cancelRedirectUrl: cfg.origin + '/app?payment=cancelled',
-        failedRedirectUrl: cfg.origin + '/app?payment=failed',
+        amount: plan.amount, currency: plan.currency, referenceId, validity: gatewayValidityMinutes,
+        psp: [config.pspId],
+        purpose: 'Motivationsboost Wochenpass (Test)',
+        successRedirectUrl: config.origin + '/app?payment=pending',
+        cancelRedirectUrl: config.origin + '/app?payment=cancelled',
+        failedRedirectUrl: config.origin + '/app?payment=failed',
       }),
       signal: AbortSignal.timeout(10000),
       cache: 'no-store',
     });
-    if (!response.ok) throw new Error('Payment gateway rejected request');
-    const result: unknown = await response.json();
-    const record = result as { data?: Array<{ link?: string }> | { link?: string } };
-    const link = Array.isArray(record.data) ? record.data[0]?.link : record.data?.link;
-    const linkUrl = new URL(link || '');
-    if (linkUrl.protocol !== 'https:' || !linkUrl.hostname.endsWith('.payrexx.com'))
-      throw new Error('Unexpected gateway URL');
-    await database.query('UPDATE payment_orders SET status = $1, updated_at = now() WHERE reference_id = $2', ['gateway-created', referenceId]);
-    return NextResponse.json({ url: linkUrl.toString() }, { headers: { 'Cache-Control': 'no-store' } });
+    if ([400, 401, 403, 404, 422].includes(response.status)) {
+      await database.query("UPDATE payment_orders SET status = 'gateway-error', updated_at = now() WHERE reference_id = $1 AND status = 'pending'", [referenceId]);
+      return reply({ error: 'Payrexx hat die Testbestellung abgelehnt.' }, 502);
+    }
+    if (!response.ok) throw new Error('Unconfirmed gateway result');
+    const result = await response.json() as { data?: Array<{ link?: string }> | { link?: string } };
+    const link = Array.isArray(result.data) ? result.data[0]?.link : result.data?.link;
+    const url = trustedSandboxGateway(link ?? '', config.instance);
+    const saved = await database.query(
+      `UPDATE payment_orders SET status = 'gateway-created', gateway_url = $2,
+       gateway_expires_at = created_at + ($3 * interval '1 minute'), updated_at = now()
+       WHERE reference_id = $1 AND status = 'pending' RETURNING reference_id`,
+      [referenceId, url.toString(), gatewayValidityMinutes],
+    );
+    if (!saved.rowCount) throw new Error('Gateway was not saved');
+    return reply({ url: url.toString() });
   } catch {
-    await database.query('UPDATE payment_orders SET status = $1, updated_at = now() WHERE reference_id = $2', ['gateway-error', referenceId]).catch(() => undefined);
-    return NextResponse.json({ error: 'Payrexx-Verbindung konnte nicht hergestellt werden.' }, { status: 502 });
+    // A timeout or invalid response does not prove Payrexx failed to create the gateway.
+    return reply({ error: 'Payrexx hat den Auftrag noch nicht eindeutig bestätigt. Bitte wende dich an den Support.' }, 502);
   }
 }

@@ -1,6 +1,5 @@
 import { lookup } from 'node:dns/promises';
 import https from 'node:https';
-import http from 'node:http';
 import { isIP } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { load } from 'cheerio';
@@ -14,16 +13,18 @@ export function isPublicAddress(address: string): boolean {
 }
 async function download(value: string, redirects = 0): Promise<string> {
   const url = new URL(safeWebUrl(value));
-  if (!['', '443', '80'].includes(url.port)) throw new Error('Diese Webadresse wird nicht unterstützt.');
+  if (url.protocol !== 'https:' || (url.port && url.port !== '443')) throw new Error('Diese Webadresse wird nicht unterstützt.');
   const hostname = url.hostname.replace(/^\[|\]$/g, '');
   const addresses = isIP(hostname) ? [{ address: hostname, family: isIP(hostname) }] : await lookup(hostname, { all: true });
   if (!addresses.length || addresses.some(item => !isPublicAddress(item.address))) throw new Error('Interne Webadressen sind nicht erlaubt.');
-  const address = addresses[0];
+  const pinned = addresses[0];
   // Pin the validated address to the connection, preventing DNS rebinding.
   const response = await new Promise<{ status: number; location?: string; body: string }>((resolve, reject) => {
-    const transport = url.protocol === 'https:' ? https : http;
-    const request = transport.get(url, {
-      lookup: (_hostname, _options, callback) => callback(null, address.address, address.family),
+    const request = https.get(url, {
+      family: pinned.family,
+      agent: false,
+      lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
+      signal: AbortSignal.timeout(10000),
       headers: { 'User-Agent': 'Motivationsboost/1.0', Accept: 'text/html,text/plain' },
       timeout: 10000,
     }, res => {
@@ -45,8 +46,35 @@ export async function getJobPosting(value: string, suppliedText?: string): Promi
     return suppliedText.trim();
   }
   const html = await download(value);
-  const $ = load(html); $('script,style,nav,footer,header,noscript').remove();
+  const $ = load(html);
+  for (const node of $('script[type="application/ld+json"]').toArray()) {
+    const description = jobDescription($(node).text());
+    if (description) return description;
+  }
+  $('script,style,nav,footer,header,noscript').remove();
   const text = ($('main').length ? $('main').text() : $('body').text()).replace(/\s+/g, ' ').trim().slice(0, 50000);
   if (text.length < 50) throw new Error('Kein lesbarer Anzeigentext gefunden. Bitte den Text direkt einfügen.');
   return text;
+}
+
+function jobDescription(json: string): string | undefined {
+  let value: unknown;
+  try { value = JSON.parse(json); } catch { return undefined; }
+  const candidates = Array.isArray(value) ? [...value] : [value];
+  for (let index = 0; index < Math.min(candidates.length, 60); index++) {
+    const candidate: unknown = candidates[index];
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+    const data = candidate as Record<string, unknown>;
+    const types = Array.isArray(data['@type']) ? data['@type'] : [data['@type']];
+    if (types.includes('JobPosting') && typeof data.description === 'string') {
+      const $ = load(data.description);
+      $('script,style,noscript').remove();
+      const description = $('body').text().replace(/\s+/g, ' ').trim();
+      if (description.length >= 50) {
+        return [data.title, description].filter(part => typeof part === 'string').join('\n\n').slice(0, 50000);
+      }
+    }
+    if (Array.isArray(data['@graph'])) candidates.push(...data['@graph'].slice(0, 60));
+  }
+  return undefined;
 }

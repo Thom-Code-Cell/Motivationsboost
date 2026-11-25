@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getPlan, payrexxConfiguration } from '@/lib/payrexx';
+import { getPlan } from '@/lib/payrexx';
+import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
 export async function GET() {
-  const cfg = payrexxConfiguration();
-  const available = cfg.enabled && cfg.instance && cfg.key && cfg.signingKey && cfg.origin;
+  const available = Boolean(weeklyCheckoutConfiguration());
   return NextResponse.json({
     provider: 'Payrexx',
-    enabled: Boolean(available),
-    plans: (['weekly', 'monthly', 'yearly'] as const).map(id => getPlan(id)),
-    message: available ? 'Checkout technically configured; final business acceptance is required.' : 'Checkout ist noch nicht freigeschaltet.',
+    enabled: available,
+    sandboxOnly: available,
+    plans: (['weekly', 'monthly', 'yearly'] as const).map(id => ({ ...getPlan(id), available: available && id === 'weekly' })),
+    message: available ? 'Nur der Wochenpass ist für Testzahlungen freigeschaltet.' : 'Checkout ist noch nicht freigeschaltet.',
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
 import { LocalDocuments } from './local-documents';
+import { JobPostingImport } from './job-posting-import';
 import { WorkspaceBackup } from './workspace-backup';
+import { WeeklyTestCheckout } from './weekly-test-checkout';
 import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
 import { readLocalRecord, updateLocalRecord } from '@/lib/local-workspace';
 import { guidedLetter, letterDraftInput, prepareExternalDraftInput } from '@/lib/letter-draft';
@@ -196,12 +198,16 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
         setMessage('Bitte bestätige die Kontolöschung über den Link in deinem Postfach.');
       } catch (error) { setMessage(error instanceof Error ? error.message : 'Kontolöschung fehlgeschlagen.'); }
       }}>Konto löschen</button><button className="underline" onClick={onSignOut}>Abmelden</button></div></div>
+    {!internal && <WeeklyTestCheckout />}
     <Applications userId={user.id} internal={internal} />
     <LocalDocuments userId={user.id} />
     <form onSubmit={generate} className="space-y-4">
       <p className="text-sm">Deine Eingaben und dein Entwurf werden in diesem Browser zwischengespeichert.</p>
       {draftError && <p role="alert">{draftError}</p>}
-      {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
+      {fields.map(([id, label]) => <div key={id} className="space-y-3">
+        {id === 'job' && !internal && <JobPostingImport hasText={Boolean(values.job.trim())} onImport={job => setValues(current => ({ ...current, job }))} />}
+        <label className="block space-y-1"><span className="font-medium">{label}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>
+      </div>)}
       {!internal && <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowExternalProcessing} onChange={event => setAllowExternalProcessing(event.target.checked)} /><span>Meine Eingaben für diesen Entwurf an OpenAI senden, sofern der Dienst freigeschaltet ist. Entferne vorab Namen, Kontaktdaten und weitere Angaben, die für den Entwurf nicht erforderlich sind.</span></label>}
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
       <button type="button" className="ml-3 underline" onClick={() => {
