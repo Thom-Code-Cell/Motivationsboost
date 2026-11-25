@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { databasePool } from '@/lib/server/postgres';
+import { databaseConnectionConfigured, databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
 import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   const checkout = weeklyCheckoutConfiguration();
   const sandbox = checkout?.signingKey ? checkout : undefined;
   const signingKey = sandbox?.signingKey ?? config.signingKey;
-  if (!config.webhookEnabled || !signingKey || !process.env.DATABASE_URL)
+  if (!config.webhookEnabled || !signingKey || !databaseConnectionConfigured())
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });
   if (Number(request.headers.get('content-length') || '0') > 131072)
     return NextResponse.json({ error: 'Payload too large' }, { status: 413 });

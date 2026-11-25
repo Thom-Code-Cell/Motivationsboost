@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(), query: vi.fn(), connect: vi.fn(), checkoutQuery: vi.fn(), release: vi.fn(),
 }));
 vi.mock('@/lib/server/app-session', () => ({ requireAppSession: mocks.session }));
-vi.mock('@/lib/server/postgres', () => ({ databasePool: () => ({ query: mocks.query, connect: mocks.connect }) }));
+vi.mock('@/lib/server/postgres', () => ({ databaseConnectionConfigured: () => Boolean(process.env.DATABASE_URL), databasePool: () => ({ query: mocks.query, connect: mocks.connect }) }));
 import { GET, POST } from '@/app/api/payrexx/checkout/route';
 
 const origin = 'https://preview.example.test';

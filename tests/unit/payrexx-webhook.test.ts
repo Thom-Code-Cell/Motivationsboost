@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock('@/lib/server/postgres', () => ({ databasePool: () => ({ query: mocks.query }) }));
+vi.mock('@/lib/server/postgres', () => ({ databaseConnectionConfigured: () => Boolean(process.env.DATABASE_URL), databasePool: () => ({ query: mocks.query }) }));
 import { POST } from '@/app/api/payrexx/webhook/route';
 
 const signingKey = 'a'.repeat(64);

@@ -10,7 +10,8 @@ export async function GET() {
       to_regclass('"session"') IS NOT NULL AS sessions,
       to_regclass('"account"') IS NOT NULL AS accounts,
       to_regclass('verification') IS NOT NULL AS verifications,
-      to_regclass('"rateLimit"') IS NOT NULL AS rate_limits,
+      EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+        AND table_name = 'rateLimit' AND column_name = 'id') AS rate_limits,
       to_regclass('applications') IS NOT NULL AS applications,
       to_regclass('applicant_profiles') IS NOT NULL AS profiles,
       to_regclass('ai_usage') IS NOT NULL AS ai_usage,
