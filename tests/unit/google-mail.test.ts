@@ -1,4 +1,6 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { emailDeliveryConfigured, sendTransactionalEmail } from '@/lib/server/email';
 
@@ -42,4 +44,67 @@ it('fails closed for an invalid or missing relay endpoint', async () => {
   vi.stubEnv('GOOGLE_APPS_SCRIPT_MAIL_URL', 'https://script.google.com.evil.example/macros/s/test/exec');
   expect(emailDeliveryConfigured()).toBe(false);
   await expect(sendTransactionalEmail(message)).rejects.toThrow('nicht konfiguriert');
+});
+
+function googleScript() {
+  const content = readFileSync('scripts/google-workspace-mail/Code.gs', 'utf8');
+  const send = vi.fn();
+  const values = new Map([['MAIL_RELAY_SECRET', secret], ['MAIL_RELAY_MODE', 'preview']]);
+  const store = {
+    getProperty: (key: string) => values.get(key),
+    setProperty: (key: string, value: string) => values.set(key, value),
+    getProperties: () => Object.fromEntries(values),
+    deleteProperty: (key: string) => values.delete(key),
+    setProperties: (properties: Record<string, string>) => Object.entries(properties).forEach(([key, value]) => values.set(key, value)),
+  };
+  const post = runInNewContext(content + '\ndoPost', {
+    ContentService: { MimeType: { JSON: 'JSON' }, createTextOutput: (text: string) => ({ setMimeType: () => JSON.parse(text) }) },
+    Utilities: {
+      Charset: { UTF_8: 'UTF-8' },
+      computeHmacSha256Signature: (value: string, key: string) => [...createHmac('sha256', key).update(value).digest()],
+      base64DecodeWebSafe: (value: string) => Buffer.from(value, 'base64url'),
+      base64Encode: (value: string) => Buffer.from(value).toString('base64'),
+      base64EncodeWebSafe: (value: string) => Buffer.from(value).toString('base64url'),
+      newBlob: (value: string | Uint8Array) => {
+        const bytes = typeof value === 'string' ? Buffer.from(value) : Buffer.from(value);
+        return { getBytes: () => bytes, getDataAsString: () => bytes.toString() };
+      },
+      formatDate: (date: Date) => date.toISOString().slice(0, 10),
+    },
+    Gmail: { Users: { Messages: { send } } },
+    LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
+    PropertiesService: { getScriptProperties: () => store },
+  }) as (request: { postData: { contents: string } }) => { status: string };
+  const request = (to = 'thhullin+mb-check@gmail.com', timestamp = Date.now(), key = secret, subject = message.subject) => {
+    const id = createHash('sha256').update('fixed-test-request').digest('hex');
+    const payload = Buffer.from(JSON.stringify({ ...message, id, to, subject })).toString('base64url');
+    const signature = createHmac('sha256', key).update(`${timestamp}.${payload}`).digest('hex');
+    return post({ postData: { contents: JSON.stringify({ timestamp, payload, signature }) } });
+  };
+  return { request, send };
+}
+
+it('rejects wrong signatures, old timestamps, other recipients and header injection in the preview script', () => {
+  const script = googleScript();
+  expect(script.request(undefined, Date.now(), 'b'.repeat(64))).toEqual({ status: 'denied' });
+  expect(script.request(undefined, Date.now() - 300_000)).toEqual({ status: 'denied' });
+  expect(script.request('unrelated@example.com')).toEqual({ status: 'denied' });
+  expect(script.request(undefined, Date.now(), secret, 'Subject\r\nBcc: unrelated@example.com')).toEqual({ status: 'denied' });
+  expect(script.send).not.toHaveBeenCalled();
+});
+
+it('uses the fixed alias and avoids sending the same message again', () => {
+  const { request, send } = googleScript();
+  expect(request()).toEqual({ status: 'sent' });
+  expect(request()).toEqual({ status: 'duplicate' });
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(Buffer.from(send.mock.calls[0][0].raw, 'base64url').toString()).toContain('From: Motivationsboost <motivationsboost@th-analytica.com>');
+});
+
+it('holds an ambiguous send without retrying it blindly', () => {
+  const { request, send } = googleScript();
+  send.mockImplementation(() => { throw new Error('uncertain provider response'); });
+  expect(request()).toEqual({ status: 'uncertain' });
+  expect(request()).toEqual({ status: 'uncertain' });
+  expect(send).toHaveBeenCalledTimes(1);
 });
