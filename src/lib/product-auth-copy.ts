@@ -11,6 +11,12 @@ const de = {
   failure: 'Anmeldung fehlgeschlagen.', resetFailure: 'Die Anfrage konnte momentan nicht verarbeitet werden.',
   resetSent: 'Wenn ein Konto zu dieser Adresse besteht, wird ein Link zum Zurücksetzen gesendet.',
   verify: 'Bitte bestätige deine E-Mail-Adresse über den Link in deinem Postfach.',
+  deleteAccount: 'Konto löschen', deleteCancel: 'Abbrechen',
+  deleteRequest: 'Bestätigungslink anfordern',
+  deleteEmailInfo: 'Gib dein aktuelles Passwort ein. Danach erhältst du einen Link zur Bestätigung der Kontolöschung.',
+  deleteDirectInfo: 'Gib dein aktuelles Passwort ein, um dein Konto und die zugehörigen Serverdaten zu löschen.',
+  deleteSent: 'Bitte bestätige die Kontolöschung über den Link in deinem Postfach.',
+  deleteFailed: 'Die Löschung konnte nicht angefordert werden. Prüfe dein Passwort und versuche es erneut.',
 } as const;
 
 type AuthCopy = { [Key in keyof typeof de]: string };
@@ -27,6 +33,12 @@ export const authCopy: Record<ProductLocale, AuthCopy> = {
     failure: 'Sign-in failed.', resetFailure: 'We couldn’t process the request right now.',
     resetSent: 'If an account exists for this email address, we’ll send a password reset link.',
     verify: 'Confirm your email address using the link in your inbox.',
+    deleteAccount: 'Delete account', deleteCancel: 'Cancel',
+    deleteRequest: 'Request confirmation link',
+    deleteEmailInfo: 'Enter your current password. We’ll email you a link to confirm account deletion.',
+    deleteDirectInfo: 'Enter your current password to delete your account and its server data.',
+    deleteSent: 'Confirm account deletion using the link in your inbox.',
+    deleteFailed: 'We couldn’t request deletion. Check your password and try again.',
   },
   fr: {
     tagline: 'Votre expérience. Vos mots. Votre prochaine étape.',
@@ -39,6 +51,12 @@ export const authCopy: Record<ProductLocale, AuthCopy> = {
     failure: 'Échec de la connexion.', resetFailure: 'La demande ne peut pas être traitée pour le moment.',
     resetSent: 'Si un compte existe pour cette adresse, vous recevrez un lien de réinitialisation.',
     verify: 'Confirmez votre adresse e-mail via le lien reçu dans votre boîte de réception.',
+    deleteAccount: 'Supprimer le compte', deleteCancel: 'Annuler',
+    deleteRequest: 'Demander le lien de confirmation',
+    deleteEmailInfo: 'Saisissez votre mot de passe actuel. Vous recevrez un lien pour confirmer la suppression du compte.',
+    deleteDirectInfo: 'Saisissez votre mot de passe actuel pour supprimer votre compte et ses données sur le serveur.',
+    deleteSent: 'Confirmez la suppression de votre compte à l’aide du lien reçu par e-mail.',
+    deleteFailed: 'La suppression n’a pas pu être demandée. Vérifiez votre mot de passe et réessayez.',
   },
   it: {
     tagline: 'La tua esperienza. Le tue parole. Il tuo prossimo passo.',
@@ -51,5 +69,11 @@ export const authCopy: Record<ProductLocale, AuthCopy> = {
     failure: 'Accesso non riuscito.', resetFailure: 'La richiesta non può essere elaborata al momento.',
     resetSent: 'Se esiste un account per questo indirizzo, riceverai un link per reimpostare la password.',
     verify: 'Conferma il tuo indirizzo e-mail usando il link ricevuto.',
+    deleteAccount: 'Elimina account', deleteCancel: 'Annulla',
+    deleteRequest: 'Richiedi il link di conferma',
+    deleteEmailInfo: 'Inserisci la password attuale. Riceverai un link per confermare l’eliminazione dell’account.',
+    deleteDirectInfo: 'Inserisci la password attuale per eliminare l’account e i relativi dati sul server.',
+    deleteSent: 'Conferma l’eliminazione dell’account tramite il link ricevuto via e-mail.',
+    deleteFailed: 'Impossibile richiedere l’eliminazione. Controlla la password e riprova.',
   },
 };

@@ -202,6 +202,10 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   const finalLetter = appendApplicationPrivacyNotice(letter, includePrivacyNotice, noticeLanguage);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const deleteCopy = authCopy[language];
+  const emailDeletionEnabled = process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true';
 
   useEffect(() => {
     if (internal) return;
@@ -307,18 +311,41 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   return <main className="mx-auto max-w-3xl space-y-6 px-5 py-10">
     <Header />
     {internal && <InternalNotice />}
-    <div className="flex flex-wrap items-center justify-between gap-4"><p>Angemeldet als {user.name || user.email}</p><div className="flex flex-wrap gap-4"><a className="underline" href="/api/v2/account/export">Daten exportieren</a><button className="underline" onClick={async () => {
-      const emailEnabled = process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true';
-      const password = window.prompt(emailEnabled ? 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Danach senden wir dir eine Bestätigungs-E-Mail zur Kontolöschung.' : 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Dein Konto und die zugehörigen Daten werden gelöscht.');
-      if (!password) return;
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <p>Angemeldet als {user.name || user.email}</p>
+      <div className="flex flex-wrap gap-4">
+        <a className="underline" href="/api/v2/account/export">Daten exportieren</a>
+        <button type="button" className="underline" aria-expanded={deletingAccount} onClick={() => setDeletingAccount(value => !value)}>{deleteCopy.deleteAccount}</button>
+        <button className="underline" onClick={onSignOut}>Abmelden</button>
+      </div>
+    </div>
+    {deletingAccount && <form className="space-y-3 rounded-xl border p-5" onSubmit={async event => {
+      event.preventDefault();
+      if (deleteBusy) return;
+      const input = event.currentTarget;
+      const password = new FormData(input).get('password');
+      if (typeof password !== 'string' || !password) return;
+      setDeleteBusy(true);
       try {
         const response = await fetch('/api/auth/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json', [productLanguageHeader]: language }, body: JSON.stringify({ password, callbackURL: '/app' }) });
-        if (!response.ok) throw new Error('Die Löschung konnte nicht angefordert werden. Prüfe dein Passwort und versuche es erneut.');
+        if (!response.ok) throw new Error(deleteCopy.deleteFailed);
         const result = await response.json() as { message?: string };
         if (result.message === 'User deleted') { window.location.assign('/app'); return; }
-        setMessage('Bitte bestätige die Kontolöschung über den Link in deinem Postfach.');
-      } catch (error) { setMessage(error instanceof Error ? error.message : 'Kontolöschung fehlgeschlagen.'); }
-      }}>Konto löschen</button><button className="underline" onClick={onSignOut}>Abmelden</button></div></div>
+        setDeletingAccount(false);
+        setMessage(deleteCopy.deleteSent);
+      } catch { setMessage(deleteCopy.deleteFailed); }
+      finally { input.reset(); setDeleteBusy(false); }
+    }}>
+      <p>{emailDeletionEnabled ? deleteCopy.deleteEmailInfo : deleteCopy.deleteDirectInfo}</p>
+      <label className="block space-y-1">
+        <span>{deleteCopy.password}</span>
+        <input className="block w-full rounded-lg border p-3 text-slate-900" type="password" name="password" autoComplete="current-password" required maxLength={128} />
+      </label>
+      <div className="flex flex-wrap gap-4">
+        <button disabled={deleteBusy} className="rounded-lg border px-4 py-2">{emailDeletionEnabled ? deleteCopy.deleteRequest : deleteCopy.deleteAccount}</button>
+        <button type="button" disabled={deleteBusy} className="underline" onClick={() => setDeletingAccount(false)}>{deleteCopy.deleteCancel}</button>
+      </div>
+    </form>}
     {!internal && <WeeklyTestCheckout />}
     <Applications userId={user.id} internal={internal} />
     <LocalDocuments userId={user.id} onUseText={text => {
