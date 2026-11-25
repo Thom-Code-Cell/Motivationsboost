@@ -4,6 +4,7 @@ import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
 import { ProductLanguagePicker, useProductLanguage } from '@/components/product-language';
 import { authCopy } from '@/lib/product-auth-copy';
+import { productLanguageHeader } from '@/lib/product-locale';
 import { LocalDocuments } from './local-documents';
 import { JobPostingImport } from './job-posting-import';
 import { WorkspaceBackup } from './workspace-backup';
@@ -89,16 +90,17 @@ function AuthenticatedBetaPage() {
       try {
         if (mode === 'reset') {
           const response = await fetch('/api/auth/request-password-reset', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', [productLanguageHeader]: locale },
             body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/reset-password` }),
           });
           if (!response.ok) throw new Error(words.resetFailure);
           setNotice(words.resetSent);
           return;
         }
+        const fetchOptions = { headers: { [productLanguageHeader]: locale } };
         const result = mode === 'signup'
-          ? await auth.signUp.email({ name: name.trim(), email: email.trim(), password })
-          : await auth.signIn.email({ email: email.trim(), password });
+          ? await auth.signUp.email({ name: name.trim(), email: email.trim(), password }, fetchOptions)
+          : await auth.signIn.email({ email: email.trim(), password }, fetchOptions);
         if (result.error) throw new Error(words.failure);
         if (mode === 'signup' && process.env.NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED === 'true') {
           setNotice(words.verify);
@@ -310,7 +312,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       const password = window.prompt(emailEnabled ? 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Danach senden wir dir eine Bestätigungs-E-Mail zur Kontolöschung.' : 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Dein Konto und die zugehörigen Daten werden gelöscht.');
       if (!password) return;
       try {
-        const response = await fetch('/api/auth/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, callbackURL: '/app' }) });
+        const response = await fetch('/api/auth/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json', [productLanguageHeader]: language }, body: JSON.stringify({ password, callbackURL: '/app' }) });
         if (!response.ok) throw new Error('Die Löschung konnte nicht angefordert werden. Prüfe dein Passwort und versuche es erneut.');
         const result = await response.json() as { message?: string };
         if (result.message === 'User deleted') { window.location.assign('/app'); return; }

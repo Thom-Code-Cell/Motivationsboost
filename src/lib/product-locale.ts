@@ -1,4 +1,5 @@
 export const productLocales = ['de', 'en', 'fr', 'it'] as const;
+export const productLanguageHeader = 'x-motivationsboost-language';
 export type ProductLocale = typeof productLocales[number];
 
 export function isProductLocale(value: string): value is ProductLocale {

@@ -1,6 +1,7 @@
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
+import { accountEmail } from '@/lib/account-email-copy';
 import { databasePool } from './postgres';
 import { emailDeliveryConfigured, sendTransactionalEmail } from './email';
 
@@ -24,32 +25,23 @@ function createAuth() {
       minPasswordLength: 12,
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }) => sendTransactionalEmail({
-        to: user.email,
-        subject: 'Passwort für Motivationsboost zurücksetzen',
-        text: `Über diesen Link kannst du dein Passwort zurücksetzen. Der Link ist nur kurz gültig:\n\n${url}\n\nFalls du die Anfrage nicht gestellt hast, ignoriere diese Nachricht.`,
-      }),
+      sendResetPassword: async ({ user, url }, request) =>
+        sendTransactionalEmail(accountEmail('reset', user.email, url, request)),
     },
     emailVerification: {
       sendOnSignUp: requireEmailVerification,
       sendOnSignIn: requireEmailVerification,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }) => sendTransactionalEmail({
-        to: user.email,
-        subject: 'E-Mail-Adresse für Motivationsboost bestätigen',
-        text: `Bitte bestätige deine E-Mail-Adresse über diesen Link:\n\n${url}\n\nFalls du kein Konto erstellt hast, ignoriere diese Nachricht.`,
-      }),
+      sendVerificationEmail: async ({ user, url }, request) =>
+        sendTransactionalEmail(accountEmail('verification', user.email, url, request)),
     },
     user: {
       deleteUser: {
         enabled: true,
         deleteTokenExpiresIn: 60 * 60,
         ...(confirmDeletionByEmail ? {
-          sendDeleteAccountVerification: async ({ user, url }: { user: { email: string }; url: string }) => sendTransactionalEmail({
-            to: user.email,
-            subject: 'Kontolöschung bei Motivationsboost bestätigen',
-            text: `Bestätige die dauerhafte Löschung deines Kontos über diesen Link (gültig 1 Stunde):\n\n${url}\n\nFalls du dies nicht angefordert hast, ignoriere diese Nachricht.`,
-          }),
+          sendDeleteAccountVerification: async ({ user, url }: { user: { email: string }; url: string }, request?: Request) =>
+            sendTransactionalEmail(accountEmail('deletion', user.email, url, request)),
         } : {}),
       },
     },

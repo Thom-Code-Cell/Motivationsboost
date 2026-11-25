@@ -3,10 +3,25 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { emailDeliveryConfigured, sendTransactionalEmail } from '@/lib/server/email';
+import { accountEmail } from '@/lib/account-email-copy';
+import { productLanguageHeader } from '@/lib/product-locale';
 
 const secret = 'a'.repeat(64);
 const endpoint = 'https://script.google.com/macros/s/test-id/exec';
 const message = { to: 'test@example.com', subject: 'Bestätige deine Adresse', text: 'Hallo', idempotencyKey: 'sandbox-notice' };
+
+it('localizes account messages and preserves the account link in the message body', () => {
+  const url = 'https://example.com/account?token=synthetic';
+  const request = new Request(url, { headers: { [productLanguageHeader]: 'fr', 'accept-language': 'en-US,en;q=0.9' } });
+  const verification = accountEmail('verification', message.to, url, request);
+  expect(verification.subject).toContain('Confirmez');
+  expect(verification.text.split('\n\n')[1]).toBe(url);
+  const preferred = new Request(url, { headers: { 'accept-language': 'en;q=0.2,it-CH;q=0.9,de;q=0' } });
+  expect(accountEmail('reset', message.to, url, preferred).subject).toContain('Reimposta');
+  expect(accountEmail('deletion', message.to, url).subject).toContain('Kontolöschung');
+  const english = new Request(url, { headers: { [productLanguageHeader]: 'en' } });
+  expect(accountEmail('deletion', message.to, url, english).subject).toContain('Confirm deletion');
+});
 
 beforeEach(() => {
   vi.stubEnv('EMAIL_TRANSPORT', 'google-workspace');
