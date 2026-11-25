@@ -140,7 +140,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
         setMessage('Bitte bestätige die Kontolöschung über den Link in deinem Postfach.');
       } catch (error) { setMessage(error instanceof Error ? error.message : 'Kontolöschung fehlgeschlagen.'); }
       }}>Konto löschen</button><button className="underline" onClick={onSignOut}>Abmelden</button></div></div>
-    <Applications userId={user.id} internal={internal} />
+    <Applications key={user.id} userId={user.id} internal={internal} />
     <form onSubmit={generate} className="space-y-4">
       {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>

@@ -6,7 +6,19 @@ Updated 18 November 2026 on branch `codex/internal-test-readiness-20261118`.
 
 **Production release is not approved yet.** This change prepares the application and release controls; it does not deploy to or modify Production. The Preview and Production databases and credentials must remain separate.
 
-## Current Preview app
+## Release candidate changes · 25 November 2026
+
+New application records and status changes are stored in the signed-in account's local browser storage. The old application API is read-only. Its owner-scoped import is issued only when requested, validates the records and preserves local edits if an ID already exists. The server originals remain available in the account export. The browser offers a separate JSON backup, merge-based restore and deletion. Moving to a different browser requires a transfer of the backup. Browser storage uses the device's normal browser protections.
+
+| Data | Path and retention | Release evidence or open point |
+| --- | --- | --- |
+| New application records | Browser storage under the account ID. Retained until local deletion or browser data removal. JSON backup stays wherever the user saves it. | Synthetic Chromium test covers persistence, rejection of central writes, owner-scoped import and repeat import. |
+| Older applications and applicant profiles | Existing Neon tables. Applications are accessible to their owner through export and optional import. The profile is included in account export. | No backfill or purge. Confirm historical retention, legacy provider copies and cutover before release. |
+| Cover letter input and output | Current editor state and selected local download. Input passes through the Vercel letter endpoint. Guided fallback returns without OpenAI; optional provider mode forwards the necessary text. | No durable write in the current letter route. Production provider settings, log retention, and draft recovery remain to verify. |
+| Identity and billing | Better Auth and server-side Neon. Resend for configured transactional email and Payrexx for configured payment flows. | Preview and production isolation, retention and provider contracts still require target-environment evidence. |
+| Older Firebase and Drive paths | Legacy code lives outside the active account flow. | Independently inventory older deploys and any historical cloud documents before removing dependencies or retiring data. |
+
+## Preview snapshot of 18 November
 
 - The primary route `/` and `/beta` use the same application flow.
 - Account registration and login use Better Auth email/password with Neon PostgreSQL. No Google or Firebase account is needed.

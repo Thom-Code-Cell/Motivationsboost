@@ -5,7 +5,8 @@ import { applicationInput, applicationUpdate } from '@/lib/application-input';
 
 export async function listApplications(owner: string) {
   return (await databasePool().query(
-    'SELECT id, job_title AS "jobTitle", company, job_url AS "jobUrl", status, notes, created_at AS "applicationDate" FROM applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200', [owner])).rows;
+    `SELECT id, job_title AS "jobTitle", company, COALESCE(job_url, '') AS "jobUrl", status, notes,
+      created_at AS "applicationDate" FROM applications WHERE user_id = $1 ORDER BY created_at DESC`, [owner])).rows;
 }
 export async function createApplication(owner: string, payload: unknown) {
   const data = applicationInput.parse(payload);

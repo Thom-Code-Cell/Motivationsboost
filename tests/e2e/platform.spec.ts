@@ -17,14 +17,16 @@ async function createAccount(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Neues Konto erstellen' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Synthetisches Konto');
-  await page.getByLabel('E-Mail', { exact: true }).fill(`e2e-${randomUUID()}@example.test`);
+  const email = `e2e-${randomUUID()}@example.test`;
+  await page.getByLabel('E-Mail', { exact: true }).fill(email);
   await page.getByLabel(/^Passwort/).fill('Synthetic-only-passphrase-25');
   await page.getByRole('button', { name: 'Konto erstellen', exact: true }).click();
   await expect(page.getByText('Angemeldet als Synthetisches Konto')).toBeVisible();
+  return email;
 }
 
 test('account session persists and exposes only its own application data', async ({ page, browser, baseURL }) => {
-  await createAccount(page);
+  const email = await createAccount(page);
   await page.getByLabel('Stelle', { exact: true }).fill('Betriebsleitung');
   await page.getByLabel('Unternehmen', { exact: true }).fill('Test AG');
   await page.getByLabel('Link zum Inserat').fill('https://example.test/job');
@@ -32,6 +34,27 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
   await page.reload();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
+  const legacyBefore = await page.request.get('/api/v2/applications');
+  expect((await legacyBefore.json()).applications).toEqual([]);
+  expect((await page.request.post('/api/v2/applications', {
+    headers: { Origin: baseURL! }, data: { jobTitle: 'No central write' },
+  })).status()).toBe(410);
+  const database = openTestDatabase();
+  try {
+    await database.query(
+      `INSERT INTO applications (id, user_id, job_title, company, notes)
+       SELECT $1, id, 'Ältere Bewerbung', 'Synthetik AG', 'Erhaltene Notiz' FROM "user" WHERE email = $2`,
+      [randomUUID(), email],
+    );
+  } finally {
+    await database.end();
+  }
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toBeVisible();
+  await expect(page.getByText('Erhaltene Notiz')).toBeVisible();
+  await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(1);
   const other = await browser.newContext({ baseURL });
   try {
     const otherPage = await other.newPage();
@@ -40,6 +63,9 @@ test('account session persists and exposes only its own application data', async
     const exported = await otherPage.request.get('/api/v2/account/export');
     expect(exported.ok()).toBe(true);
     expect((await exported.json()).applications).toEqual([]);
+    await otherPage.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+    await expect(otherPage.getByRole('status')).toContainText('Vorhandene Serverdaten wurden');
+    await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
   } finally {
     await other.close();
   }
