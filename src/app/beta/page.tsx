@@ -4,6 +4,8 @@ import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
 import { ProductLanguagePicker, useProductLanguage } from '@/components/product-language';
 import { authCopy } from '@/lib/product-auth-copy';
+import { legalCopy } from '@/lib/legal-translations';
+import { productDraftCopy } from '@/lib/product-draft-copy';
 import { productLanguageHeader } from '@/lib/product-locale';
 import { LocalDocuments } from './local-documents';
 import { JobPostingImport } from './job-posting-import';
@@ -16,14 +18,8 @@ import { evidenceItem, evidenceKinds, type EvidenceItem } from '@/lib/letter-evi
 import { letterCredits } from '@/lib/plans';
 
 const auth = createAuthClient();
-const fields = [
-  ['cv', 'Lebenslauf und nachgewiesene Erfahrungen'],
-  ['job', 'Text der Stellenanzeige'],
-  ['motivation', 'Warum interessiert dich diese Stelle?'],
-  ['example', 'Ein konkretes Beispiel aus deiner Erfahrung'],
-  ['contribution', 'Was möchtest du zum Unternehmen beitragen?'],
-] as const;
-type Field = typeof fields[number][0];
+const fields = ['cv', 'job', 'motivation', 'example', 'contribution'] as const;
+type Field = typeof fields[number];
 type BetaUser = { id: string; name?: string | null; email?: string | null };
 type CreditQuote = { available: boolean; cost: number; balance: number | null };
 const creditCopy = {
@@ -43,7 +39,7 @@ function restoredDraft(stored: unknown) {
     const kind = evidenceItem.shape.kind.safeParse(item.kind);
     return kind.success ? [{ kind: kind.data, text: item.text.slice(0, 1200) }] : [];
   }) : [];
-  for (const [field] of fields) {
+  for (const field of fields) {
     const value = result.values?.[field];
     if (typeof value === 'string') values[field] = value.slice(0, 12000);
   }
@@ -91,7 +87,7 @@ function AuthenticatedBetaPage() {
         if (mode === 'reset') {
           const response = await fetch('/api/auth/request-password-reset', {
             method: 'POST', headers: { 'Content-Type': 'application/json', [productLanguageHeader]: locale },
-            body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/reset-password` }),
+            body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/reset-password?lang=${locale}` }),
           });
           if (!response.ok) throw new Error(words.resetFailure);
           setNotice(words.resetSent);
@@ -186,10 +182,12 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   const draftKey = `letter:${user.id}`;
   const [values, setValues] = useState(emptyDraft);
   const language = useProductLanguage();
+  const copy = productDraftCopy[language];
+  const legalLabels = legalCopy[language];
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
   const [letter, setLetter] = useState('');
   const [draftReady, setDraftReady] = useState(false);
-  const [draftError, setDraftError] = useState('');
+  const [draftError, setDraftError] = useState<'loadFailed' | 'saveFailed'>();
   const [exportError, setExportError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [allowExternalProcessing, setAllowExternalProcessing] = useState(false);
@@ -198,7 +196,8 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   const creditText = creditCopy[language];
   const creditReady = Boolean(quote?.available && quote.cost === letterCredits && (quote.balance ?? 0) >= letterCredits);
   const [includePrivacyNotice, setIncludePrivacyNotice] = useState(false);
-  const [noticeLanguage, setNoticeLanguage] = useState<PrivacyNoticeLanguage>('de');
+  const [noticeOverride, setNoticeLanguage] = useState<PrivacyNoticeLanguage>();
+  const noticeLanguage = noticeOverride ?? language;
   const finalLetter = appendApplicationPrivacyNotice(letter, includePrivacyNotice, noticeLanguage);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -230,7 +229,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       setLetter(draft.letter);
       setDraftReady(true);
     }, () => {
-      if (active) setDraftError('Die lokale Zwischenspeicherung ist nicht verfügbar. Sichere wichtige Texte als Datei.');
+      if (active) setDraftError('loadFailed');
     });
     return () => { active = false; };
   }, [draftKey]);
@@ -239,7 +238,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     if (!draftReady) return;
     let active = true;
     void updateLocalRecord(draftKey, () => ({ values, letter, evidence })).catch(() => {
-      if (active) setDraftError('Der Entwurf konnte in diesem Browser nicht gesichert werden.');
+      if (active) setDraftError('saveFailed');
     });
     return () => { active = false; };
   }, [draftKey, draftReady, evidence, letter, values]);
@@ -251,7 +250,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       if (format === 'pdf') {
         const text = finalLetter.normalize('NFC').replaceAll('\t', '    ');
         if (/[^\r\n\x20-\x7e\u00a0-\u00ff\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u2013-\u2014\u2018-\u201a\u201c-\u201e\u2022\u2026\u2039\u203a\u20ac]/u.test(text)) {
-          setExportError('Die PDF-Schrift unterstützt einzelne Zeichen deines Textes nicht. Wähle Word oder Text, damit alle Zeichen erhalten bleiben.');
+          setExportError(copy.unsupportedPdf);
           return;
         }
         const { createTextPdf } = await import('@/lib/export-documents');
@@ -270,7 +269,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      setExportError('Die Datei konnte nicht erstellt werden. Bitte versuche es erneut.');
+      setExportError(copy.downloadFailed);
     } finally {
       setExporting(false);
     }
@@ -279,10 +278,10 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       const validated = letterDraftInput.safeParse({ ...values, language, evidence: evidence.filter(item => item.text.trim()) });
-      if (!validated.success) throw new Error('Bitte Lebenslauf, Stellenanzeige und persönliche Angaben vollständig ausfüllen.');
+      if (!validated.success) throw new Error(copy.incomplete);
       if (!internal && !allowExternalProcessing) {
         setLetter(guidedLetter(validated.data));
-        setMessage('Vorlagenentwurf erstellt. Deine Eingaben wurden in diesem Schritt nur in deinem Browser verarbeitet.');
+        setMessage(copy.localDone);
         return;
       }
       if (!internal && !creditReady) throw new Error(creditText.low);
@@ -293,12 +292,12 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
         body: JSON.stringify({ ...requestInput, allowExternalProcessing, ...(internal ? {} : { confirmedCreditCost: letterCredits }) }),
       });
       const data = await res.json() as { error?: string; code?: string; letter?: string; mode?: string; quota?: { used: number; limit: number } };
-      if (!res.ok || !data.letter) throw new Error(data.code === 'insufficient_credits' ? creditText.low : data.error || 'Der Entwurf konnte nicht erstellt werden.');
+      if (!res.ok || !data.letter) throw new Error(data.code === 'insufficient_credits' ? creditText.low : (language === 'de' ? data.error : undefined) || copy.generateFailed);
       setLetter(data.letter);
-      if (data.mode === 'guided-template') setMessage('Vorlagenentwurf erstellt. Der KI-Dienst ist derzeit nicht verbunden; überarbeite den Entwurf anhand der Stellenanzeige.');
-      else if (data.mode === 'evidence-template') setMessage('Die Belegauswahl konnte nicht geprüft werden. Der Entwurf verwendet deine eigenen Angaben.');
+      if (data.mode === 'guided-template') setMessage(copy.templateDone);
+      else if (data.mode === 'evidence-template') setMessage(copy.evidenceFallback);
       else if (data.quota) setMessage(`${data.quota.used} von ${data.quota.limit} Aktionen genutzt.${internal ? ' (simuliert)' : ''}`);
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Bitte später erneut versuchen.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : copy.generateFailed); }
     finally {
       if (!internal && allowExternalProcessing) {
         setAllowExternalProcessing(false);
@@ -308,15 +307,15 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       setBusy(false);
     }
   }
-  return <main className="mx-auto max-w-3xl space-y-6 px-5 py-10">
+  return <main lang={language} className="mx-auto max-w-3xl space-y-6 px-5 py-10">
     <Header />
     {internal && <InternalNotice />}
     <div className="flex flex-wrap items-center justify-between gap-4">
-      <p>Angemeldet als {user.name || user.email}</p>
+      <p>{copy.signedIn} {user.name || user.email}</p>
       <div className="flex flex-wrap gap-4">
-        <a className="underline" href="/api/v2/account/export">Daten exportieren</a>
+        <a className="underline" href="/api/v2/account/export">{copy.exportAccount}</a>
         <button type="button" className="underline" aria-expanded={deletingAccount} onClick={() => setDeletingAccount(value => !value)}>{deleteCopy.deleteAccount}</button>
-        <button className="underline" onClick={onSignOut}>Abmelden</button>
+        <button className="underline" onClick={onSignOut}>{copy.signOut}</button>
       </div>
     </div>
     {deletingAccount && <form className="space-y-3 rounded-xl border p-5" onSubmit={async event => {
@@ -351,18 +350,18 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     <LocalDocuments userId={user.id} onUseText={text => {
       const next = [values.cv.trim(), text.trim()].filter(Boolean).join('\n\n');
       if (next.length > 12000) {
-        setMessage('Der Text ist zu lang für den Entwurf. Kürze ihn zuerst in der Texterkennung.');
+        setMessage(copy.textTooLong);
         return;
       }
       setValues(current => ({ ...current, cv: next }));
-      setMessage('Der geprüfte Text wurde in die Erfahrungen für den Entwurf übernommen.');
+      setMessage(copy.textCopied);
     }} />
     <form onSubmit={generate} className="space-y-4">
-      <p className="text-sm">Deine Eingaben und dein Entwurf werden in diesem Browser zwischengespeichert.</p>
-      {draftError && <p role="alert">{draftError}</p>}
-      {fields.map(([id, label]) => <div key={id} className="space-y-3">
+      <p className="text-sm">{copy.saveNotice}</p>
+      {draftError && <p role="alert">{copy[draftError]}</p>}
+      {fields.map(id => <div key={id} className="space-y-3">
         {id === 'job' && !internal && <JobPostingImport hasText={Boolean(values.job.trim())} onImport={job => setValues(current => ({ ...current, job }))} />}
-        <label className="block space-y-1"><span className="font-medium">{label}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>
+        <label className="block space-y-1"><span className="font-medium">{copy[id]}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>
       </div>)}
       <LetterEvidenceFields evidence={evidence} onChange={setEvidence} />
       {!internal && <div className="space-y-2 rounded border p-3 text-sm">
@@ -374,33 +373,33 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
           <span>{creditText.consent}</span>
         </label>
       </div>}
-      <button disabled={busy || (allowExternalProcessing && !creditReady)} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : allowExternalProcessing ? `${creditText.action} · ${letterCredits} Credits` : 'Motivationsschreiben erstellen'}</button>
+      <button disabled={busy || (allowExternalProcessing && !creditReady)} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? copy.creating : allowExternalProcessing ? `${creditText.action} · ${letterCredits} Credits` : copy.create}</button>
       <button type="button" className="ml-3 underline" onClick={() => {
-        if (window.confirm('Eingaben und Briefentwurf in diesem Browser löschen?')) {
+        if (window.confirm(copy.confirmDelete)) {
           setValues(emptyDraft);
           setEvidence([]);
           setLetter('');
         }
-      }}>Lokalen Entwurf löschen</button>
+      }}>{copy.deleteDraft}</button>
     </form>
     {message && <p role="status">{message}</p>}
     <section className="space-y-3 rounded-xl border p-5">
-      <h2 className="text-xl font-semibold">Datenschutzhinweis für deine Bewerbung</h2>
-      <p className="text-sm text-slate-600">Entscheide freiwillig, ob du einer KI-Auswertung durch den Empfänger widersprechen und eine persönliche Beurteilung verlangen möchtest. Die KI-Hilfe in Motivationsboost ist davon getrennt.</p>
-      <label className="block space-y-1"><span>Sprache des Datenschutzhinweises</span><select className="w-full rounded-lg border p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option></select></label>
-      <textarea aria-label="Datenschutzhinweis zum Kopieren" className="w-full rounded-lg border p-3 text-sm text-slate-900" rows={5} readOnly value={applicationPrivacyNotices[noticeLanguage]} />
-      <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={includePrivacyNotice} onChange={event => setIncludePrivacyNotice(event.target.checked)} /><span>Datenschutzhinweis beim Herunterladen meines Motivationsschreibens anhängen</span></label>
-      <p className="text-xs text-slate-600">Du kannst den Hinweis auch in deinen Lebenslauf kopieren. Er verhindert eine KI-Verarbeitung nicht technisch und garantiert keine menschliche Prüfung. Deine Auswahl bleibt in dieser Ansicht und wird nicht an den KI-Dienst gesendet.</p>
+      <h2 className="text-xl font-semibold">{copy.privacy}</h2>
+      <p className="text-sm text-slate-600">{copy.privacyIntro}</p>
+      <label className="block space-y-1"><span>{copy.privacyLanguage}</span><select className="w-full rounded-lg border p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option></select></label>
+      <textarea aria-label={copy.privacyCopy} lang={noticeLanguage} className="w-full rounded-lg border p-3 text-sm text-slate-900" rows={5} readOnly value={applicationPrivacyNotices[noticeLanguage]} />
+      <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={includePrivacyNotice} onChange={event => setIncludePrivacyNotice(event.target.checked)} /><span>{copy.privacyAttach}</span></label>
+      <p className="text-xs text-slate-600">{copy.privacyLimits}</p>
     </section>
-    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">Vorschau des angehängten Hinweises</p><p className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}
+    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">{copy.draft}</h2><p className="text-sm text-slate-600">{copy.editIntro}</p><textarea aria-label={copy.edit} rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">{copy.previewNotice}</p><p lang={noticeLanguage} className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={exporting} onClick={() => void downloadLetter('txt')} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button>
-        <button type="button" disabled={exporting} onClick={() => void downloadLetter('pdf')} className="rounded-lg border px-4 py-2">Als PDF herunterladen</button>
-        <button type="button" disabled={exporting} onClick={() => void downloadLetter('docx')} className="rounded-lg border px-4 py-2">Als Word-Datei herunterladen</button>
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('txt')} className="rounded-lg border px-4 py-2">{copy.downloadText}</button>
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('pdf')} className="rounded-lg border px-4 py-2">{copy.downloadPdf}</button>
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('docx')} className="rounded-lg border px-4 py-2">{copy.downloadWord}</button>
       </div>
       {exportError && <p role="alert">{exportError}</p>}
 </section>}
     <WorkspaceBackup userId={user.id} />
-    <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/about">Über Motivationsboost</a><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
+    <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/about">{copy.about}</a><a className="underline" href="/datenschutz">{deleteCopy.privacy}</a><a className="underline" href="/agb">{legalLabels.agb}</a><a className="underline" href="/impressum">{legalLabels.impressum}</a></footer>
   </main>;
 }

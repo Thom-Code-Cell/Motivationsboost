@@ -257,6 +257,25 @@ test('uses the browser language until an explicit setting overrides it', async (
   }
 });
 
+test('localizes the signed-in workspace and keeps the reset link language', async ({ page }) => {
+  await createAccount(page);
+  const translations = [
+    ['Sprache', 'en', 'My applications', 'Create cover letter', 'Privacy notice language'],
+    ['Language', 'fr', 'Mes candidatures', 'Créer une lettre de motivation', 'Langue de l’avis de confidentialité'],
+    ['Langue', 'it', 'Le mie candidature', 'Crea la lettera di motivazione', 'Lingua dell’informativa sulla privacy'],
+  ];
+  for (const [picker, locale, applications, draft, privacy] of translations) {
+    await page.getByRole('combobox', { name: picker, exact: true }).selectOption(locale);
+    await expect(page.getByRole('main')).toHaveAttribute('lang', locale);
+    await expect(page.getByRole('heading', { name: applications, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: draft, exact: true })).toBeVisible();
+    await expect(page.getByLabel(privacy, { exact: true })).toHaveValue(locale);
+  }
+  await page.goto('/reset-password?lang=fr&token=synthetic');
+  await expect(page.getByRole('heading', { name: 'Choisir un nouveau mot de passe' })).toBeVisible();
+  await expect(page.getByLabel('Nouveau mot de passe')).toHaveAttribute('type', 'password');
+});
+
 test('recognises and reviews a synthetic scan on the device', async ({ page, baseURL }) => {
   await createAccount(page);
   const canvas = await page.evaluate(() => {
