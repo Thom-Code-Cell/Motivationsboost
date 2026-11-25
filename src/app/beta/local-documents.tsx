@@ -33,16 +33,18 @@ export function LocalDocuments({ userId }: { userId: string }) {
   }
 
   function add(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
+    const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = '';
-    if (!file) return;
-    if (!file.size || file.size > maximumLocalFileBytes || !isLocalDocumentName(file.name)) {
-      setError('Wähle eine PDF-, DOCX-, TXT-, JPG-, PNG- oder WebP-Datei bis 20 MB.');
+    if (!files.length) return;
+    if (files.some(file => !file.size || file.size > maximumLocalFileBytes || !isLocalDocumentName(file.name))) {
+      setError('Wähle PDF-, DOCX-, TXT-, JPG-, PNG-, WebP- oder HEIC/HEIF-Dateien bis 20 MB pro Datei.');
       return;
     }
+    const newDocuments = files.map(file => ({ id: crypto.randomUUID(), name: file.name, category, file }));
     void update(current => {
-      if (current.reduce((sum, entry) => sum + entry.file.size, file.size) > maximumVaultBytes) throw new Error('Local vault limit');
-      return [...current, { id: crypto.randomUUID(), name: file.name, category, file }];
+      const next = [...current, ...newDocuments];
+      if (next.reduce((sum, entry) => sum + entry.file.size, 0) > maximumVaultBytes) throw new Error('Local vault limit');
+      return next;
     });
   }
 

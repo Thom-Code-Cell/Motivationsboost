@@ -41,6 +41,16 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
   await page.reload();
   await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  const camera = page.getByLabel('Unterlage fotografieren');
+  await expect(camera).toHaveAttribute('capture', 'environment');
+  await page.getByLabel('Kategorie', { exact: true }).selectOption('Arbeitszeugnis');
+  await camera.setInputFiles({ name: 'kamera-test.heic', mimeType: 'image/heic', buffer: Buffer.from('synthetic local file') });
+  const evidence = page.getByLabel('Datei lokal hinzufügen');
+  await evidence.setInputFiles(['seite-1.txt', 'seite-2.txt'].map(name => ({ name, mimeType: 'text/plain', buffer: Buffer.from('synthetic') })));
+  await page.reload();
+  for (const name of ['kamera-test.heic', 'seite-1.txt', 'seite-2.txt']) {
+    await expect(page.getByText(name + ' · Arbeitszeugnis')).toBeVisible();
+  }
   const legacyBefore = await page.request.get('/api/v2/applications');
   expect((await legacyBefore.json()).applications).toEqual([]);
   expect((await page.request.post('/api/v2/applications', {
