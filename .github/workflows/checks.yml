@@ -28,7 +28,7 @@ jobs:
       - run: npm run test:rules
       - name: Production dependency security audit
         id: production_audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
         continue-on-error: true
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -38,4 +38,3 @@ jobs:
         run: |
           echo 'Production dependency vulnerabilities remain unresolved. Release blocked.' >&2
           exit 1
-
