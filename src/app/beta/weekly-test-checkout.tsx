@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { PLANS } from '@/lib/plans';
+import { productSupportEmail } from '@/lib/public-product';
 
 type OrderStatus = 'pending' | 'gateway-created' | 'gateway-error' | 'paid' | 'cancelled' | 'refunded';
 type CheckoutState = {
@@ -110,7 +111,7 @@ export function WeeklyTestCheckout() {
     <h2 id="testzahlung-titel" className="text-xl font-semibold">Wochenpass im Payrexx-Test</h2>
     <p>Simulierter Preis: CHF {(PLANS.weekly.amount / 100).toFixed(2)} für sieben Tage. Der Wochenpass verlängert sich nicht automatisch. Verwende ausschliesslich Payrexx-Testdaten.</p>
     {checkout.orderStatus && <p role="status">{statusMessages[checkout.orderStatus]} {checkout.active && 'Dein Testzugang ist aktiv.'}</p>}
-    {needsReview && <p>Falls der Status offen bleibt, kontaktiere den <a className="underline" href="mailto:thomas@th-analytica.com">Support</a>.</p>}
+    {needsReview && <p>Falls der Status offen bleibt, kontaktiere den <a className="underline" href={'mailto:' + productSupportEmail}>Support</a>.</p>}
     {showPayment && <form onSubmit={start} className="space-y-3">
       <label className="flex items-start gap-2"><input type="checkbox" checked={acceptedVersion === termsVersion} onChange={event => setAcceptedVersion(event.target.checked ? termsVersion : undefined)} />
         <span>Ich habe die <a className="underline" href="/agb">Bedingungen der Testumgebung</a> gelesen und bestätige die Testbestellung.</span>

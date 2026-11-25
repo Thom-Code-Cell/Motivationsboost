@@ -1,4 +1,5 @@
 export const productOrigin = 'https://motivationsboost.th-analytica.com';
+export const productSupportEmail = 'motivationsboost@th-analytica.com';
 export const productAbout = productOrigin + '/about';
 export const productSummary = 'Motivationsboost von TH Analytica unterstützt dich beim Entwerfen eines Motivationsschreibens und beim Organisieren deiner Bewerbungen.';
 

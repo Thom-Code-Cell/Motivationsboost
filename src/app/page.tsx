@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { productOrigin, productSummary, publicProductApproved } from '@/lib/public-product';
+import { productOrigin, productSummary, productSupportEmail, publicProductApproved } from '@/lib/public-product';
 import { PLANS } from '@/lib/plans';
 import { LandingNavigation } from './landing-navigation';
 import './sites-landing.css';
@@ -168,7 +168,7 @@ export default function ProductHome() {
 
     <section className="section sand" id="faq">
     <div className="wrap faq">
-      <div><p className="eyebrow">FAQ</p><h2>Häufig gestellte Fragen.</h2><p>Fragen zum Projekt? Schreib an <a href="mailto:thomas@th-analytica.com">TH Analytica</a>.</p></div>
+      <div><p className="eyebrow">FAQ</p><h2>Häufig gestellte Fragen.</h2><p>Fragen zu Motivationsboost? Schreib an <a href={'mailto:' + productSupportEmail}>den Produktsupport</a>.</p></div>
       <div className="questions">
         <details><summary>Was ist Motivationsboost?<i aria-hidden="true"></i></summary><p>Motivationsboost ist der geplante persönliche KI-gestützte Bewerbungs- und Karrierecoach von TH Analytica. Er soll von der Orientierung und Stellenanalyse bis zu Unterlagen und Interviewvorbereitung unterstützen.</p></details>
         <details><summary>Für wen eignet sich die Anwendung?<i aria-hidden="true"></i></summary><p>Für Stellensuchende, Berufseinsteigende, erfahrene Berufstätige, Führungskräfte, Menschen ab 50 sowie für Quer- und Wiedereinsteigende.</p></details>
@@ -192,7 +192,7 @@ export default function ProductHome() {
     </main>
 
     <footer className="site-footer"><div className="wrap footer-grid">
-      <div><a className="brand" href="#start"><span className="brand-icon" aria-hidden="true"></span>Motivations<span>boost</span></a><p>Ein Produkt von <a href="https://th-analytica.com">TH Analytica</a> aus der Schweiz.</p><a href="mailto:thomas@th-analytica.com">thomas@th-analytica.com</a></div>
+      <div><a className="brand" href="#start"><span className="brand-icon" aria-hidden="true"></span>Motivations<span>boost</span></a><p>Ein Produkt von <a href="https://th-analytica.com">TH Analytica</a> aus der Schweiz.</p><a href={'mailto:' + productSupportEmail}>{productSupportEmail}</a></div>
       <div><h2>Rechtliche Informationen</h2><ul>
         <li><Link href="/impressum">Impressum</Link></li><li><Link href="/datenschutz">Datenschutzerklärung</Link></li><li><Link href="/agb">AGB</Link></li>
       </ul></div>
