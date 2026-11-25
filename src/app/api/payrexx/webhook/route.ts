@@ -26,7 +26,8 @@ function recordFields(payload: unknown) {
 
 export async function POST(request: NextRequest) {
   const config = payrexxConfiguration();
-  const sandbox = weeklyCheckoutConfiguration();
+  const checkout = weeklyCheckoutConfiguration();
+  const sandbox = checkout?.signingKey ? checkout : undefined;
   const signingKey = sandbox?.signingKey ?? config.signingKey;
   if (!config.webhookEnabled || !signingKey || !process.env.DATABASE_URL)
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });

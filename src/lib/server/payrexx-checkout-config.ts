@@ -9,10 +9,12 @@ export function weeklyCheckoutConfiguration() {
   const webhook = payrexxConfiguration();
   const testProvider = z.string().regex(/^[1-9]\d{0,8}$/).transform(Number).safeParse(process.env.PAYREXX_SANDBOX_PSP_ID);
   const key = process.env.PAYREXX_SANDBOX_API_KEY;
-  const signingKey = process.env.PAYREXX_SANDBOX_WEBHOOK_SIGNING_KEY;
+  const configuredSigningKey = process.env.PAYREXX_SANDBOX_WEBHOOK_SIGNING_KEY;
+  const signingKey = webhook.webhookEnabled && configuredSigningKey !== webhook.signingKey ? configuredSigningKey : undefined;
+  const pollingEnabled = process.env.PAYREXX_SANDBOX_STATUS_POLLING === 'true';
   const approvedTerms = termsVersion.safeParse(process.env.PAYREXX_SANDBOX_TERMS_VERSION);
-  if (!weeklySandboxEnabled() || !webhook.webhookEnabled || !webhook.origin || !process.env.DATABASE_URL ||
+  if (!weeklySandboxEnabled() || (!pollingEnabled && !signingKey) || !webhook.origin || !process.env.DATABASE_URL ||
       !webhook.instance || !testProvider.success ||
-      !key || key === webhook.key || !signingKey || signingKey === webhook.signingKey || !approvedTerms.success) return null;
-  return { instance: webhook.instance, pspId: testProvider.data, key, signingKey, origin: webhook.origin, termsVersion: approvedTerms.data };
+      !key || key === webhook.key || !approvedTerms.success) return null;
+  return { instance: webhook.instance, pspId: testProvider.data, key, signingKey, pollingEnabled, origin: webhook.origin, termsVersion: approvedTerms.data };
 }

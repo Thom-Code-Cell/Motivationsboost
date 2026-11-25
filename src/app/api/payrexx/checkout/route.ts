@@ -10,6 +10,7 @@ import { latestSandboxOrder, resumableSandboxGateway, trustedSandboxGateway } fr
 
 const bodySchema = z.object({ plan: z.literal('weekly'), termsVersion, acceptTerms: z.literal(true) }).strict();
 const gatewayValidityMinutes = 25;
+const gatewayData = z.object({ link: z.string().url(), id: z.number().int().positive().max(2147483647).optional() });
 
 function reply(body: object, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -29,7 +30,8 @@ export async function GET() {
       "SELECT 1 FROM ai_entitlements WHERE user_id = $1 AND status = 'active' AND ends_at > now()", [userId],
     );
     return reply({ enabled: true, termsVersion: config.termsVersion, orderStatus: order?.status,
-      active: Boolean(active.rowCount), canResume: Boolean(url) });
+      active: Boolean(active.rowCount), canResume: Boolean(url),
+      canReconcile: config.pollingEnabled && (order?.status === 'gateway-created' || order?.status === 'paid') });
   } catch {
     return reply({ error: 'Zahlungsstatus derzeit nicht verfügbar.' }, 503);
   }
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
         cancelRedirectUrl: config.origin + '/app?payment=cancelled',
         failedRedirectUrl: config.origin + '/app?payment=failed',
       }),
+      redirect: 'error',
       signal: AbortSignal.timeout(10000),
       cache: 'no-store',
     });
@@ -106,14 +109,15 @@ export async function POST(request: NextRequest) {
       return reply({ error: 'Payrexx hat die Testbestellung abgelehnt.' }, 502);
     }
     if (!response.ok) throw new Error('Unconfirmed gateway result');
-    const result = await response.json() as { data?: Array<{ link?: string }> | { link?: string } };
-    const link = Array.isArray(result.data) ? result.data[0]?.link : result.data?.link;
-    const url = trustedSandboxGateway(link ?? '', config.instance);
+    const result = await response.json() as { data?: unknown };
+    const gateway = gatewayData.parse(Array.isArray(result.data) ? result.data[0] : result.data);
+    if (config.pollingEnabled && !gateway.id) throw new Error('Gateway ID missing');
+    const url = trustedSandboxGateway(gateway.link, config.instance);
     const saved = await database.query(
       `UPDATE payment_orders SET status = 'gateway-created', gateway_url = $2,
-       gateway_expires_at = created_at + ($3 * interval '1 minute'), updated_at = now()
+       gateway_expires_at = created_at + ($3 * interval '1 minute'), payrexx_gateway_id = $4, updated_at = now()
        WHERE reference_id = $1 AND status = 'pending' RETURNING reference_id`,
-      [referenceId, url.toString(), gatewayValidityMinutes],
+      [referenceId, url.toString(), gatewayValidityMinutes, gateway.id ?? null],
     );
     if (!saved.rowCount) throw new Error('Gateway was not saved');
     return reply({ url: url.toString() });

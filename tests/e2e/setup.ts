@@ -25,6 +25,7 @@ export default async function setup() {
       '007_ai_spend_reservations.sql',
       '008_payrexx_entitlement_reference.sql',
       '009_payrexx_sandbox_checkout.sql',
+      '010_payrexx_sandbox_status.sql',
     ]) {
       const migration = await readFile(`migrations/${file}`, 'utf8');
       await database.query(migration);

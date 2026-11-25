@@ -85,7 +85,7 @@ describe('isolated Payrexx checkout', () => {
   it('only returns account-owned status without exposing gateway URLs or order identifiers', async () => {
     mocks.query.mockResolvedValueOnce({ rows: [{ reference_id: 'private', status: 'paid', gateway_url: 'private' }], rowCount: 1 });
     mocks.query.mockResolvedValueOnce({ rows: [{}], rowCount: 1 });
-    expect(await (await GET()).json()).toEqual({ enabled: true, orderStatus: 'paid', active: true, canResume: false, termsVersion: 'sandbox-1' });
+    expect(await (await GET()).json()).toEqual({ enabled: true, orderStatus: 'paid', active: true, canResume: false, canReconcile: false, termsVersion: 'sandbox-1' });
     expect(mocks.query.mock.calls.every(([, args]) => args[0] === 'verified-test-user')).toBe(true);
   });
 

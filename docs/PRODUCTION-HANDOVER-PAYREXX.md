@@ -41,3 +41,7 @@ The signed-in workspace has a weekly-pass sandbox checkout and an account-owned 
 - With synthetic user data, verify gateway creation and the visible TEST and Vorkasse labels before submitting a test order. Verify order status on return, signed callback, duplicate handling and seven-day access rules. Check refund support for that provider. Verify card/TWINT and recurring charges separately before activation.
 - Payrexx-managed subscriptions require separate settlement and shopper cancellation work. Validate the policy, first payment, recurring charge, failure, shopper notice, operator cancellation, refund, expiry and account deletion coordination before enabling these tariffs.
 - A public weekly release additionally requires a separately approved production payment path, fulfilment, approved terms and refund process, customer notification and reconciliation. Test-mode results do not configure or enable a production route.
+
+### Server-to-server status checks for the protected Preview
+
+Payrexx can be polled from the signed-in workspace without opening Vercel access to the app. Apply migration 010 to the isolated Preview database and set `PAYREXX_SANDBOX_STATUS_POLLING=true` on the same Preview branch as the dedicated test API key. Reconciliation reads only a gateway created for the signed-in account, then checks its transaction reference, amount, provider, currency and TEST mode before changing entitlement. A browser redirect alone cannot grant access. This path does not activate LIVE transactions or replace production webhook acceptance.
