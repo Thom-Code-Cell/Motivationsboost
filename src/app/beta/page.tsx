@@ -11,6 +11,7 @@ import { WeeklyTestCheckout } from './weekly-test-checkout';
 import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
 import { readLocalRecord, updateLocalRecord } from '@/lib/local-workspace';
 import { guidedLetter, letterDraftInput, prepareExternalDraftInput } from '@/lib/letter-draft';
+import { evidenceItem, evidenceKinds, type EvidenceItem } from '@/lib/letter-evidence';
 
 const auth = createAuthClient();
 const fields = [
@@ -25,14 +26,19 @@ type BetaUser = { id: string; name?: string | null; email?: string | null };
 const emptyDraft: Record<Field, string> = { cv: '', job: '', motivation: '', example: '', contribution: '' };
 
 function restoredDraft(stored: unknown) {
-  if (!stored || typeof stored !== 'object') return { values: emptyDraft, letter: '' };
-  const result = stored as { values?: Partial<Record<Field, unknown>>; letter?: unknown };
+  if (!stored || typeof stored !== 'object') return { values: emptyDraft, letter: '', evidence: [] as EvidenceItem[] };
+  const result = stored as { values?: Partial<Record<Field, unknown>>; letter?: unknown; evidence?: unknown };
   const values = { ...emptyDraft };
+  const evidence = Array.isArray(result.evidence) ? result.evidence.slice(0, 12).flatMap((item: unknown) => {
+    if (!item || typeof item !== 'object' || !('kind' in item) || !('text' in item) || typeof item.text !== 'string') return [];
+    const kind = evidenceItem.shape.kind.safeParse(item.kind);
+    return kind.success ? [{ kind: kind.data, text: item.text.slice(0, 1200) }] : [];
+  }) : [];
   for (const [field] of fields) {
     const value = result.values?.[field];
     if (typeof value === 'string') values[field] = value.slice(0, 12000);
   }
-  return { values, letter: typeof result.letter === 'string' ? result.letter.slice(0, 30000) : '' };
+  return { values, letter: typeof result.letter === 'string' ? result.letter.slice(0, 30000) : '', evidence };
 }
 
 export default function BetaPage() {
@@ -126,9 +132,51 @@ function InternalNotice() {
   </aside>;
 }
 
+const evidenceLabels = {
+  de: ['Belegte Qualifikation', 'Berufserfahrung', 'Bestätigte Fähigkeit', 'Übertragbare Kompetenz', 'Entwicklungsziel', 'Künftige Tätigkeit', 'Unbelegte Angabe'],
+  en: ['Documented qualification', 'Work experience', 'Confirmed skill', 'Transferable skill', 'Development goal', 'Future work', 'Unverified information'],
+  fr: ['Qualification documentée', 'Expérience professionnelle', 'Compétence confirmée', 'Compétence transférable', 'Objectif de développement', 'Activité future', 'Information non vérifiée'],
+  it: ['Qualifica documentata', 'Esperienza professionale', 'Competenza confermata', 'Competenza trasferibile', 'Obiettivo di sviluppo', 'Attività futura', 'Informazione non verificata'],
+} as const;
+const evidenceCopy = {
+  de: ['Belege und Ziele ergänzen', 'Ordne jede Angabe selbst ein. Verwende für belegte Angaben den überprüften Wortlaut aus deinem Dokument.', 'Kategorie', 'Wortlaut', 'Entfernen', 'Angabe hinzufügen'],
+  en: ['Add evidence and goals', 'Classify each entry yourself. For documented claims, use the wording you checked in your source document.', 'Category', 'Source wording', 'Remove', 'Add entry'],
+  fr: ['Ajouter des preuves et des objectifs', 'Classez chaque élément. Pour un fait documenté, saisissez le texte vérifié dans la pièce originale.', 'Catégorie', 'Texte source', 'Supprimer', 'Ajouter un élément'],
+  it: ['Aggiungi prove e obiettivi', 'Classifica ogni voce. Per un fatto documentato, usa il testo verificato nel documento originale.', 'Categoria', 'Testo originale', 'Rimuovi', 'Aggiungi una voce'],
+} as const;
+
+function LetterEvidenceFields({ evidence, onChange }: { evidence: EvidenceItem[]; onChange: (items: EvidenceItem[]) => void }) {
+  const locale = useProductLanguage();
+  const [title, hint, categoryLabel, textLabel, removeLabel, addLabel] = evidenceCopy[locale];
+  function update(index: number, item: EvidenceItem) {
+    onChange(evidence.map((current, position) => position === index ? item : current));
+  }
+  return <details className="space-y-3 rounded-lg border p-3" lang={locale}>
+    <summary className="cursor-pointer font-medium">{title}</summary>
+    <p className="text-sm">{hint}</p>
+    {evidence.map((item, index) => <fieldset className="space-y-2 rounded border p-3" key={index}>
+      <label className="block text-sm">{categoryLabel}
+        <select className="ml-2 rounded border bg-white p-1 text-slate-900" value={item.kind} onChange={event => {
+          const parsed = evidenceItem.shape.kind.safeParse(event.target.value);
+          if (parsed.success) update(index, { ...item, kind: parsed.data });
+        }}>
+          {evidenceKinds.map((kind, position) => <option key={kind} value={kind}>{evidenceLabels[locale][position]}</option>)}
+        </select>
+      </label>
+      <label className="block text-sm">{textLabel}
+        <textarea className="block w-full rounded border p-2 text-slate-900" value={item.text} minLength={8} maxLength={1200} onChange={event => update(index, { ...item, text: event.target.value })} />
+      </label>
+      <button type="button" className="underline" onClick={() => onChange(evidence.filter((_, position) => position !== index))}>{removeLabel}</button>
+    </fieldset>)}
+    {evidence.length < 12 && <button type="button" className="underline" onClick={() => onChange([...evidence, { kind: 'unverified', text: '' }])}>{addLabel}</button>}
+  </details>;
+}
+
 function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; onSignOut: () => void; internal?: boolean }) {
   const draftKey = `letter:${user.id}`;
   const [values, setValues] = useState(emptyDraft);
+  const language = useProductLanguage();
+  const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
   const [letter, setLetter] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [draftError, setDraftError] = useState('');
@@ -147,6 +195,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       if (!active) return;
       const draft = restoredDraft(stored);
       setValues(draft.values);
+      setEvidence(draft.evidence);
       setLetter(draft.letter);
       setDraftReady(true);
     }, () => {
@@ -158,11 +207,11 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   useEffect(() => {
     if (!draftReady) return;
     let active = true;
-    void updateLocalRecord(draftKey, () => ({ values, letter })).catch(() => {
+    void updateLocalRecord(draftKey, () => ({ values, letter, evidence })).catch(() => {
       if (active) setDraftError('Der Entwurf konnte in diesem Browser nicht gesichert werden.');
     });
     return () => { active = false; };
-  }, [draftKey, draftReady, letter, values]);
+  }, [draftKey, draftReady, evidence, letter, values]);
   async function downloadLetter(format: 'txt' | 'pdf' | 'docx') {
     setExportError('');
     setExporting(true);
@@ -198,7 +247,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   async function generate(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setMessage('');
     try {
-      const validated = letterDraftInput.safeParse(values);
+      const validated = letterDraftInput.safeParse({ ...values, language, evidence: evidence.filter(item => item.text.trim()) });
       if (!validated.success) throw new Error('Bitte Lebenslauf, Stellenanzeige und persönliche Angaben vollständig ausfüllen.');
       if (!internal && !allowExternalProcessing) {
         setLetter(guidedLetter(validated.data));
@@ -215,6 +264,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       if (!res.ok || !data.letter) throw new Error(data.error || 'Der Entwurf konnte nicht erstellt werden.');
       setLetter(data.letter);
       if (data.mode === 'guided-template') setMessage('Vorlagenentwurf erstellt. Der KI-Dienst ist derzeit nicht verbunden; überarbeite den Entwurf anhand der Stellenanzeige.');
+      else if (data.mode === 'evidence-template') setMessage('Die Belegauswahl konnte nicht geprüft werden. Der Entwurf verwendet deine eigenen Angaben.');
       else if (data.quota) setMessage(`${data.quota.used} von ${data.quota.limit} Aktionen genutzt.${internal ? ' (simuliert)' : ''}`);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Bitte später erneut versuchen.'); }
     finally { setBusy(false); }
@@ -252,11 +302,13 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
         {id === 'job' && !internal && <JobPostingImport hasText={Boolean(values.job.trim())} onImport={job => setValues(current => ({ ...current, job }))} />}
         <label className="block space-y-1"><span className="font-medium">{label}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>
       </div>)}
+      <LetterEvidenceFields evidence={evidence} onChange={setEvidence} />
       {!internal && <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowExternalProcessing} onChange={event => setAllowExternalProcessing(event.target.checked)} /><span>Meine Eingaben für diesen Entwurf an OpenAI senden, sofern der Dienst freigeschaltet ist. Entferne vorab Namen, Kontaktdaten und weitere Angaben, die für den Entwurf nicht erforderlich sind.</span></label>}
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
       <button type="button" className="ml-3 underline" onClick={() => {
         if (window.confirm('Eingaben und Briefentwurf in diesem Browser löschen?')) {
           setValues(emptyDraft);
+          setEvidence([]);
           setLetter('');
         }
       }}>Lokalen Entwurf löschen</button>

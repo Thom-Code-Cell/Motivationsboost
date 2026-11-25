@@ -30,8 +30,8 @@ const flows: [string, string, object, object][] = [
   ['suggest-job-opportunities', 'suggestJobOpportunities', { cvData: cv, location: 'Zürich', language: 'de' }, { strategySummary: 'Führungsrollen suchen', suggestedJobTitles: ['Betriebsleitung'], suggestedCompanies: ['Firma'], searchLinks: [{ platform: 'LinkedIn', url: 'https://www.linkedin.com/jobs/' }] }],
   ['generate-marketing-content', 'generateMarketingContent', { topic: 'Neue Funktion', format: 'LinkedIn Post', language: 'de' }, { headline: 'Neu', content: 'Interviewtraining' }],
 ];
-beforeEach(() => { process.env.OPENAI_API_KEY = 'test-only-key'; auth.authorizeAI.mockResolvedValue({ uid: 'alice' }); });
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+beforeEach(() => { vi.stubEnv('MOTIVATIONS_PAID_AI_ENABLED', 'true'); vi.stubEnv('MOTIVATIONS_AI_PRICE_APPROVED_UNTIL', '2099-12-31T00:00:00Z'); vi.stubEnv('OPENAI_API_KEY', 'test-only-key'); auth.authorizeAI.mockResolvedValue({ uid: 'alice' }); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.clearAllMocks(); });
 describe('all structured AI functions with isolated provider responses', () => {
   it.each(flows)('%s validates inputs, sends a structured request and returns parsed results', async (path, name, input, output) => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(output) }] }] }), { status: 200 }));

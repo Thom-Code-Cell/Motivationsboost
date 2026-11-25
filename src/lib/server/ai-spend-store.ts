@@ -6,6 +6,7 @@ export class AiSpendBlocked extends Error {}
 export class DuplicateAiRequest extends Error {}
 
 export async function reserveAiSpend(userId: string, requestId: string, amount: number) {
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 10_000_000) throw new AiSpendBlocked();
   const db = await databasePool().connect();
   const id = randomUUID();
   try {

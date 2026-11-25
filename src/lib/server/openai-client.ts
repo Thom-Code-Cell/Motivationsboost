@@ -11,7 +11,7 @@ const knownFailureCodes = new Set([
 ]);
 
 export class OpenAIRequestError extends Error {
-  constructor(message: string, readonly status: number, readonly code: string | null = null) {
+  constructor(message: string, readonly status: number, readonly code: string | null = null, readonly providerRequestId: string | null = null) {
     super(message);
   }
 }
@@ -26,8 +26,18 @@ export function getOpenAIKey(): string {
   return key;
 }
 
+export function hasCurrentAiApproval(now = Date.now()): boolean {
+  const expires = Date.parse(process.env.MOTIVATIONS_AI_PRICE_APPROVED_UNTIL ?? '');
+  return process.env.MOTIVATIONS_PAID_AI_ENABLED === 'true' && Number.isFinite(expires) && now < expires;
+}
+
+function requireReservedAiCall(reservation?: string) {
+  if (!reservation) throw new Error('Dieser KI-Aufruf besitzt keine Kostenreservierung.');
+  if (!hasCurrentAiApproval()) throw new OpenAIRequestError('Die befristete KI-Freigabe ist abgelaufen.', 0, 'approval_expired');
+}
+
 export async function callOpenAI(path: string, body: unknown, spendReservation?: string): Promise<Response> {
-  if (!spendReservation) throw new Error('Dieser KI-Aufruf besitzt keine Kostenreservierung.');
+  requireReservedAiCall(spendReservation);
   const key = getOpenAIKey();
   let response: Response;
   try {
@@ -52,13 +62,15 @@ export async function callOpenAI(path: string, body: unknown, spendReservation?:
     let message = 'OpenAI-Anfrage fehlgeschlagen (HTTP ' + response.status + ').';
     if (response.status === 429) message = 'OpenAI-Limit erreicht. Bitte später erneut versuchen.';
     if (response.status === 401 || response.status === 403) message = 'OpenAI-Zugang ist nicht freigeschaltet. Bitte API-Key prüfen.';
-    throw new OpenAIRequestError(message, response.status, code);
+    const id = response.headers.get('x-request-id');
+    const providerRequestId = id && /^req_[A-Za-z0-9_-]{1,100}$/.test(id) ? id : null;
+    throw new OpenAIRequestError(message, response.status, code, providerRequestId);
   }
   return response;
 }
 
 export async function callOpenAIForm(path: string, body: FormData, spendReservation?: string): Promise<Response> {
-  if (!spendReservation) throw new Error('Dieser KI-Aufruf besitzt keine Kostenreservierung.');
+  requireReservedAiCall(spendReservation);
   const key = getOpenAIKey();
   let response: Response;
   try {

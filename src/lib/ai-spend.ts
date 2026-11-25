@@ -14,16 +14,21 @@ export function textCostChfMicros(inputTokens: number, outputTokens: number, mod
   return Math.ceil((input * inputTokens + output * outputTokens) * 11 / 100);
 }
 
-export function maximumLetterCostChfMicros(input: string, instructions: string, model: ApprovedTextModel = approvedTextModel) {
+export function maximumLetterCostChfMicros(input: string, instructions: string, model: ApprovedTextModel = approvedTextModel, outputLimit = maximumOutputTokens) {
   // Bound byte-level tokenization and leave room for provider framing.
   const inputBound = Buffer.byteLength(input, 'utf8') + Buffer.byteLength(instructions, 'utf8') + 2048;
-  return textCostChfMicros(inputBound, maximumOutputTokens, model);
+  return textCostChfMicros(inputBound, outputLimit, model);
 }
 
-export function providerUsageCost(usage: unknown, model: ApprovedTextModel = approvedTextModel) {
+export function providerTokenCounts(usage: unknown) {
   if (!usage || typeof usage !== 'object') return undefined;
   const { input_tokens: input, output_tokens: output } = usage as Record<string, unknown>;
   if (typeof input !== 'number' || !Number.isSafeInteger(input) || input < 0 ||
       typeof output !== 'number' || !Number.isSafeInteger(output) || output < 0) return undefined;
-  return textCostChfMicros(input, output, model);
+  return { input, output };
+}
+
+export function providerUsageCost(usage: unknown, model: ApprovedTextModel = approvedTextModel) {
+  const tokens = providerTokenCounts(usage);
+  if (tokens) return textCostChfMicros(tokens.input, tokens.output, model);
 }
