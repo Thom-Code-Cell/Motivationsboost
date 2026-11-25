@@ -1,67 +1,149 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
-type Item = { id: string; jobTitle: string; company: string; status: string; jobUrl: string };
-type Form = { jobTitle: string; company: string; jobUrl: string };
-const statuses = ['Entwurf', 'Gesendet', 'Antwort erhalten', 'Interview', 'Absage', 'Zusage'];
+
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { applicationInput, applicationUpdate } from '@/lib/application-input';
+import {
+  createApplicationBackup, mergeBrowserApplications, readApplicationBackup, readBrowserApplications,
+  writeBrowserApplications, type BrowserApplication,
+} from '@/lib/browser-applications';
+
+const emptyForm = { jobTitle: '', company: '', jobUrl: '' };
+const statuses = applicationUpdate.shape.status.options;
 
 export function Applications({ userId, internal = false }: { userId: string; internal?: boolean }) {
   const key = `motivationsboost.applications.v1.${userId}`;
-  const [items, setItems] = useState<Item[]>([]);
-  const [form, setForm] = useState<Form>({ jobTitle: '', company: '', jobUrl: '' });
+  const [items, setItems] = useState<BrowserApplication[]>([]);
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => {
-    if (internal) {
-      const raw = localStorage.getItem(key);
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) throw new Error('Gespeicherte Daten sind ungültig.');
-      setItems(parsed as Item[]); return;
+  const [message, setMessage] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const records = await readBrowserApplications(key);
+        if (active) setItems(records);
+      } catch {
+        if (active) setError('Die lokalen Bewerbungen konnten nicht gelesen werden.');
+      }
     }
-    const response = await fetch('/api/v2/applications', { cache: 'no-store' });
-    const data = await response.json() as { applications?: Item[]; error?: string };
-    if (!response.ok || !data.applications) throw new Error(data.error || 'Bewerbungen konnten nicht geladen werden.');
-    setItems(data.applications);
-  }, [internal, key]);
-  useEffect(() => { void load().catch(() => setError('Bewerbungen konnten nicht geladen werden.')); }, [load]);
-  async function create(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setError('');
-    try {
-      const parsed = new URL(form.jobUrl);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
-      if (internal) {
-        const next = [...items, { ...form, id: crypto.randomUUID(), status: 'Entwurf' }];
-        localStorage.setItem(key, JSON.stringify(next)); setItems(next);
-      } else {
-        const response = await fetch('/api/v2/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-        if (!response.ok) throw new Error('Bewerbung konnte nicht gespeichert werden.');
-        await load();
-      }
-      setForm({ jobTitle: '', company: '', jobUrl: '' });
-    } catch { setError('Bewerbung konnte nicht gespeichert werden. Bitte prüfe die Eingaben und Verbindung.'); }
-    finally { setBusy(false); }
+    function synchronize(event: StorageEvent) {
+      if (event.key === key || event.key === null) void load();
+    }
+    void load();
+    window.addEventListener('storage', synchronize);
+    return () => {
+      active = false;
+      window.removeEventListener('storage', synchronize);
+    };
+  }, [key]);
+
+  async function save(update: (current: BrowserApplication[]) => BrowserApplication[]) {
+    setItems(await writeBrowserApplications(key, update));
   }
-  async function change(id: string, method: 'PATCH' | 'DELETE', status?: string) {
-    setBusy(true); setError('');
+
+  async function change(update: (current: BrowserApplication[]) => BrowserApplication[]) {
+    setError('');
     try {
-      if (internal) {
-        const next = method === 'DELETE' ? items.filter(item => item.id !== id) : items.map(item => item.id === id && status && statuses.includes(status) ? { ...item, status } : item);
-        localStorage.setItem(key, JSON.stringify(next)); setItems(next);
-      } else {
-        const response = await fetch(`/api/v2/applications/${id}`, { method, ...(status ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) } : {}) });
-        if (!response.ok) throw new Error('Änderung konnte nicht gespeichert werden.');
-        await load();
-      }
-    } catch { setError('Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.'); }
-    finally { setBusy(false); }
+      await save(update);
+      return true;
+    } catch {
+      setError('Änderung konnte nicht gespeichert werden. Prüfe die Eingaben und den verfügbaren Browserspeicher.');
+      return false;
+    }
   }
-  return <section className="space-y-4 rounded-xl border p-5"><h2 className="text-xl font-semibold">Meine Bewerbungen</h2><p className="text-sm">{internal ? 'Im lokalen Test bleiben diese Daten in diesem Browser.' : 'Deine Bewerbungen werden in deinem Konto gespeichert.'}</p>
+
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    if (await change(current => [...current, {
+      ...applicationInput.parse(form),
+      id: crypto.randomUUID(),
+      status: 'Entwurf',
+      applicationDate: new Date().toISOString(),
+    }])) setForm(emptyForm);
+  }
+
+  async function merge(incoming: unknown, description: string) {
+    await save(current => mergeBrowserApplications(current, incoming));
+    setMessage(description);
+  }
+
+  async function importPrevious() {
+    setImporting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/v2/applications', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Import unavailable');
+      const data: { applications: unknown } = await response.json();
+      await merge(data.applications, 'Vorhandene Serverdaten wurden in diesen Browser übernommen. Die Originale bleiben für den Kontodatenexport erhalten.');
+    } catch {
+      setError('Die bisherigen Bewerbungen konnten nicht übernommen werden.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function download() {
+    setError('');
+    try {
+      const content = createApplicationBackup(await readBrowserApplications(key));
+      const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'motivationsboost-bewerbungen.json';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setError('Die lokale Sicherung konnte nicht erstellt werden.');
+    }
+  }
+
+  async function restore(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    setError('');
+    setMessage('');
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new Error('Backup too large');
+      await merge(readApplicationBackup(await file.text()), 'Sicherung übernommen. Vorhandene Bewerbungen mit derselben ID bleiben erhalten.');
+    } catch {
+      setError('Die Sicherung konnte nicht gelesen oder gespeichert werden.');
+    }
+  }
+
+  return <section className="space-y-4 rounded-xl border p-5">
+    <h2 className="text-xl font-semibold">Meine Bewerbungen</h2>
+    <p className="text-sm">Neue Bewerbungen bleiben in diesem Browser. Beim Löschen der Browserdaten können sie verloren gehen. Sichere die Datei an einem privaten Ort.</p>
     <form onSubmit={create} className="grid gap-3">
       <label>Stelle<input required maxLength={200} className="block w-full rounded border p-2 text-slate-900" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} /></label>
       <label>Unternehmen<input required maxLength={200} className="block w-full rounded border p-2 text-slate-900" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} /></label>
-      <label>Link zum Inserat<input required type="url" className="block w-full rounded border p-2 text-slate-900" value={form.jobUrl} onChange={e => setForm({ ...form, jobUrl: e.target.value })} /></label>
-      <button disabled={busy} className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Bewerbung hinzufügen</button>
+      <label>Link zum Inserat<input required type="url" maxLength={2048} className="block w-full rounded border p-2 text-slate-900" value={form.jobUrl} onChange={e => setForm({ ...form, jobUrl: e.target.value })} /></label>
+      <button className="rounded bg-slate-900 px-4 py-2 text-white">Bewerbung hinzufügen</button>
     </form>
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <button type="button" className="underline" onClick={download}>Lokale Bewerbungen sichern</button>
+      <label>Lokale Sicherung einlesen<input className="block max-w-full" type="file" accept=".json,application/json" onChange={restore} /></label>
+      {!internal && <button type="button" className="underline" disabled={importing} onClick={() => void importPrevious()}>Bisherige Serverdaten übernehmen</button>}
+      <button type="button" className="underline" disabled={!items.length} onClick={() => {
+        if (window.confirm('Alle lokalen Bewerbungen in diesem Browser löschen?')) change(() => []);
+      }}>Lokale Bewerbungen löschen</button>
+    </div>
     {error && <p role="alert">{error}</p>}
-    {items.length === 0 ? <p>Noch keine Bewerbungen erfasst.</p> : <ul className="space-y-3">{items.map(item => <li key={item.id} className="rounded border p-3"><p className="font-medium">{item.jobTitle} · {item.company}</p>{item.jobUrl && <a className="underline" href={item.jobUrl} target="_blank" rel="noreferrer">Inserat öffnen</a>}<label className="ml-2">Status <select disabled={busy} value={item.status} onChange={e => void change(item.id, 'PATCH', e.target.value)} className="rounded border p-1 text-slate-900">{statuses.map(status => <option key={status}>{status}</option>)}</select></label><button disabled={busy} onClick={() => { if (window.confirm('Diese Bewerbung wirklich löschen?')) void change(item.id, 'DELETE'); }} className="ml-3 underline">Löschen</button></li>)}</ul>}
+    {message && <p role="status">{message}</p>}
+    {items.length === 0 ? <p>Noch keine Bewerbungen erfasst.</p> : <ul className="space-y-3">{items.map(item => <li key={item.id} className="break-words rounded border p-3">
+      <p className="font-medium">{item.jobTitle} · {item.company}</p>
+      {item.notes && <p className="whitespace-pre-wrap">{item.notes}</p>}
+      {item.jobUrl && <a className="underline" href={item.jobUrl} target="_blank" rel="noreferrer">Inserat öffnen</a>}
+      <label className="ml-2">Status <select value={item.status} onChange={e => {
+        const status = applicationUpdate.shape.status.parse(e.target.value);
+        change(current => current.map(record => record.id === item.id ? { ...record, status } : record));
+      }} className="rounded border p-1 text-slate-900">{statuses.map(status => <option key={status}>{status}</option>)}</select></label>
+      <button type="button" onClick={() => {
+        if (window.confirm('Diese Bewerbung in diesem Browser löschen?')) change(current => current.filter(record => record.id !== item.id));
+      }} className="ml-3 underline">Löschen</button>
+    </li>)}</ul>}
   </section>;
 }

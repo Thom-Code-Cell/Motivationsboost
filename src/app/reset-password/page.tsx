@@ -32,7 +32,7 @@ function ResetPasswordForm() {
       </form>
       {message && <p role="status">{message}</p>}
     </>}
-    <a href="/" className="underline">Zur Anmeldung</a>
+    <a href="/app" className="underline">Zur Anmeldung</a>
   </main>;
 }
 

@@ -16,7 +16,7 @@ export default function SuccessPage() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/">Zurück zum Dashboard</Link>
+            <Link href="/app">Zurück zum Dashboard</Link>
           </Button>
         </CardContent>
       </Card>
