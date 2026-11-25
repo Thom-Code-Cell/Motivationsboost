@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
 import { test, expect, type Page } from '@playwright/test';
 import { openTestDatabase } from './setup';
 
@@ -225,4 +226,91 @@ test('checkout is disabled even when all three proposed plans are visible', asyn
   const data = await result.json();
   expect(data.enabled).toBe(false);
   expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly']);
+});
+
+test('uses the browser language until an explicit setting overrides it', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, locale: 'fr-CH' });
+  try {
+    const page = await context.newPage();
+    await page.goto('/app');
+    await expect(page.getByRole('button', { name: 'Se connecter', exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Langue', exact: true }).selectOption('it');
+    await expect(page.getByRole('button', { name: 'Accedi', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Accedi', exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Lingua', exact: true }).selectOption('');
+    await expect(page.getByRole('button', { name: 'Se connecter', exact: true })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('recognises and reviews a synthetic scan on the device', async ({ page, baseURL }) => {
+  await createAccount(page);
+  const canvas = await page.evaluate(() => {
+    const image = document.createElement('canvas');
+    image.width = 1100;
+    image.height = 350;
+    const context = image.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, image.width, image.height);
+    context.fillStyle = '#111';
+    context.font = '48px Arial';
+    context.fillText('Arbeitszeugnis Musterbetrieb', 40, 90);
+    context.fillText('Koordination der Schichtplanung', 40, 170);
+    return image.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetisches-zeugnis.png', mimeType: 'image/png', buffer: Buffer.from(canvas, 'base64'),
+  });
+  const outside = new Set<string>();
+  page.context().on('request', request => {
+    const url = new URL(request.url());
+    if (url.protocol.startsWith('http') && url.origin !== new URL(baseURL!).origin) outside.add(url.origin);
+    if (request.method() === 'POST') outside.add(request.method() + ' ' + url.pathname);
+  });
+  await page.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await page.getByRole('button', { name: 'Text erkennen', exact: true }).click();
+  const recognised = page.getByRole('textbox', { name: 'Erkannter Text' });
+  await expect(recognised).toHaveValue(/Schichtplanung/, { timeout: 45000 });
+  await page.getByRole('button', { name: 'Text speichern', exact: true }).click();
+  await expect(page.getByText('Der Text wurde gespeichert.')).toBeVisible();
+  await page.getByRole('button', { name: 'Als Beleg in den Entwurf übernehmen', exact: true }).click();
+  await expect(page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen')).toHaveValue(/Schichtplanung/);
+  expect([...outside]).toEqual([]);
+  await page.reload();
+  await page.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await expect(recognised).toHaveValue(/Schichtplanung/);
+  const pdf = new jsPDF({ orientation: 'landscape' });
+  for (let index = 0; index < 2; index++) {
+    if (index) pdf.addPage();
+    pdf.addImage('data:image/png;base64,' + canvas, 'PNG', 15, 15, 250, 80);
+  }
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetischer-scan.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf.output('arraybuffer')),
+  });
+  const scanRow = page.getByRole('listitem').filter({ hasText: 'synthetischer-scan.pdf' });
+  await scanRow.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await scanRow.getByRole('button', { name: 'Text erkennen', exact: true }).click();
+  await expect(scanRow.getByRole('textbox', { name: 'Erkannter Text' })).toHaveValue(/Schichtplanung[\s\S]*Schichtplanung/, { timeout: 45000 });
+  expect([...outside]).toEqual([]);
+});
+
+test('automatically reconciles an open weekly test payment', async ({ page }) => {
+  let checked = false;
+  await page.route('**/api/payrexx/checkout', route => route.fulfill({
+    json: {
+      enabled: true, termsVersion: 'synthetic-test', canReconcile: true,
+      orderStatus: checked ? 'paid' : 'gateway-created', active: checked, canResume: !checked,
+    },
+  }));
+  await page.route('**/api/payrexx/checkout/reconcile', async route => {
+    expect(route.request().method()).toBe('POST');
+    checked = true;
+    await route.fulfill({ json: { ok: true } });
+  });
+
+  await createAccount(page);
+  await expect(page.getByText(/Dein Testzugang ist aktiv/)).toBeVisible();
+  expect(checked).toBe(true);
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { PLANS } from '@/lib/plans';
 
 type OrderStatus = 'pending' | 'gateway-created' | 'gateway-error' | 'paid' | 'cancelled' | 'refunded';
@@ -29,6 +29,7 @@ export function WeeklyTestCheckout() {
   const [acceptedVersion, setAcceptedVersion] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const reconciling = useRef(false);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -51,24 +52,38 @@ export function WeeklyTestCheckout() {
     return () => request.abort();
   }, [refresh]);
 
+  const reconcile = useCallback(async (signal?: AbortSignal) => {
+    if (reconciling.current || signal?.aborted) return;
+    reconciling.current = true;
+    if (!signal) setLoading(true);
+    try {
+      const response = await fetch(checkoutPath + '/reconcile', { method: 'POST', signal });
+      if (!response.ok) throw new Error('Test payment unavailable');
+      await refresh(signal);
+    } catch {
+      if (!signal) setMessage('Payrexx konnte den Teststatus gerade nicht bestätigen.');
+    } finally {
+      reconciling.current = false;
+      if (!signal) setLoading(false);
+    }
+  }, [refresh]);
+
+  const openForReconciliation = checkout?.canReconcile && checkout.orderStatus === 'gateway-created';
+  useEffect(() => {
+    if (!openForReconciliation) return;
+    const request = new AbortController();
+    const check = () => {
+      if (document.visibilityState === 'visible') void reconcile(request.signal);
+    };
+    check();
+    const timer = window.setInterval(check, 20_000);
+    return () => { request.abort(); window.clearInterval(timer); };
+  }, [openForReconciliation, reconcile]);
   if (!checkout) return null;
   const termsVersion = checkout.termsVersion;
   const needsReview = checkout.orderStatus === 'pending' ||
     (checkout.orderStatus === 'gateway-created' && !checkout.canResume);
   const showPayment = !checkout.active && !needsReview;
-
-  async function updateStatus() {
-    if (!checkout?.canReconcile) return refresh();
-    setLoading(true);
-    try {
-      const response = await fetch(checkoutPath + '/reconcile', { method: 'POST' });
-      if (!response.ok) throw new Error('Payrexx konnte den Teststatus gerade nicht bestätigen.');
-      await refresh();
-    } catch {
-      setMessage('Payrexx konnte den Teststatus gerade nicht bestätigen.');
-      setLoading(false);
-    }
-  }
 
   async function start(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,7 +119,7 @@ export function WeeklyTestCheckout() {
         {checkout.canResume ? 'Payrexx-Testzahlung fortsetzen' : 'Payrexx-Testcheckout öffnen'}
       </button>
     </form>}
-    <button type="button" className="underline" disabled={loading} onClick={() => void updateStatus()}>Zahlungsstatus aktualisieren</button>
+    <button type="button" className="underline" disabled={loading} onClick={() => void (checkout.canReconcile ? reconcile() : refresh())}>Zahlungsstatus aktualisieren</button>
     {message && <p role="alert">{message}</p>}
   </section>;
 }

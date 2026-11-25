@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
+import { ProductLanguagePicker, useProductLanguage } from '@/components/product-language';
+import { authCopy } from '@/lib/product-auth-copy';
 import { LocalDocuments } from './local-documents';
 import { JobPostingImport } from './job-posting-import';
 import { WorkspaceBackup } from './workspace-backup';
@@ -55,6 +57,8 @@ function InternalBetaPage() {
 }
 
 function AuthenticatedBetaPage() {
+  const locale = useProductLanguage();
+  const words = authCopy[locale];
   const { data: session, isPending } = auth.useSession();
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [name, setName] = useState('');
@@ -63,8 +67,8 @@ function AuthenticatedBetaPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  if (isPending) return <main className="mx-auto max-w-3xl px-5 py-10"><p>Deine Anmeldung wird geprüft …</p></main>;
-  if (!session) return <main className="mx-auto max-w-3xl space-y-6 px-5 py-10">
+  if (isPending) return <main lang={locale} className="mx-auto max-w-3xl px-5 py-10"><p>{words.checking}</p></main>;
+  if (!session) return <main lang={locale} className="mx-auto max-w-3xl space-y-6 px-5 py-10">
     <Header />
     <form className="space-y-4 rounded-xl border p-6" onSubmit={async event => {
       event.preventDefault(); setBusy(true); setError(''); setNotice('');
@@ -74,33 +78,33 @@ function AuthenticatedBetaPage() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/reset-password` }),
           });
-          if (!response.ok) throw new Error('Die Anfrage konnte momentan nicht verarbeitet werden.');
-          setNotice('Wenn ein Konto zu dieser Adresse besteht, wird ein Link zum Zurücksetzen gesendet.');
+          if (!response.ok) throw new Error(words.resetFailure);
+          setNotice(words.resetSent);
           return;
         }
         const result = mode === 'signup'
           ? await auth.signUp.email({ name: name.trim(), email: email.trim(), password })
           : await auth.signIn.email({ email: email.trim(), password });
-        if (result.error) throw new Error(result.error.message || 'Anmeldung fehlgeschlagen.');
+        if (result.error) throw new Error(words.failure);
         if (mode === 'signup' && process.env.NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED === 'true') {
-          setNotice('Bitte bestätige deine E-Mail-Adresse über den Link in deinem Postfach.');
+          setNotice(words.verify);
         }
-      } catch (cause) { setError(cause instanceof Error ? cause.message : 'Anmeldung fehlgeschlagen.'); }
+      } catch (cause) { setError(cause instanceof Error && cause.message === words.resetFailure ? words.resetFailure : words.failure); }
       finally { setBusy(false); }
     }}>
-      <p>{mode === 'reset' ? 'Gib deine Konto-E-Mail ein. Wir senden dir einen Link, falls ein Konto besteht.' : 'Erstelle ein Konto oder melde dich mit E-Mail und Passwort an.'}</p>
-      {mode === 'signup' && <label className="block space-y-1"><span>Name</span><input required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>}
-      <label className="block space-y-1"><span>E-Mail</span><input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>
-      {mode !== 'reset' && <label className="block space-y-1"><span>Passwort {mode === 'signup' && '(mindestens 12 Zeichen)'}</span><input required minLength={mode === 'signup' ? 12 : 1} maxLength={128} type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>}
+      <p>{mode === 'reset' ? words.resetIntro : words.intro}</p>
+      {mode === 'signup' && <label className="block space-y-1"><span>{words.name}</span><input required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>}
+      <label className="block space-y-1"><span>{words.email}</span><input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>
+      {mode !== 'reset' && <label className="block space-y-1"><span>{words.password} {mode === 'signup' && words.passwordLength}</span><input required minLength={mode === 'signup' ? 12 : 1} maxLength={128} type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-lg border p-3 text-slate-900" /></label>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
       {notice && <p role="status" className="text-green-800">{notice}</p>}
-      <button disabled={busy} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">{busy ? 'Bitte warten …' : mode === 'signup' ? 'Konto erstellen' : mode === 'reset' ? 'Link anfordern' : 'Anmelden'}</button>
+      <button disabled={busy} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">{busy ? words.busy : mode === 'signup' ? words.create : mode === 'reset' ? words.request : words.signin}</button>
       <div className="flex flex-wrap gap-4 text-sm">
-        {mode !== 'reset' && <button type="button" className="underline" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(''); setNotice(''); }}>{mode === 'signup' ? 'Ich habe bereits ein Konto' : 'Neues Konto erstellen'}</button>}
-        {mode !== 'signup' && process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true' && <button type="button" className="underline" onClick={() => { setMode(mode === 'reset' ? 'signin' : 'reset'); setError(''); setNotice(''); }}>{mode === 'reset' ? 'Zur Anmeldung' : 'Passwort vergessen?'}</button>}
+        {mode !== 'reset' && <button type="button" className="underline" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(''); setNotice(''); }}>{mode === 'signup' ? words.existing : words.newAccount}</button>}
+        {mode !== 'signup' && process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true' && <button type="button" className="underline" onClick={() => { setMode(mode === 'reset' ? 'signin' : 'reset'); setError(''); setNotice(''); }}>{mode === 'reset' ? words.back : words.forgot}</button>}
       </div>
     </form>
-    <footer className="flex flex-wrap gap-4 text-sm"><a className="underline" href="/">Zur Produktseite</a><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
+    <footer className="flex flex-wrap gap-4 text-sm"><a className="underline" href="/">{words.home}</a><a className="underline" href="/datenschutz">{words.privacy}</a><a className="underline" href="/agb">{words.terms}</a><a className="underline" href="/impressum">{words.legal}</a></footer>
   </main>;
   return <BetaWorkspace key={session.user.id}
     user={session.user}
@@ -109,7 +113,11 @@ function AuthenticatedBetaPage() {
 }
 
 function Header() {
-  return <header><h1 className="text-3xl font-semibold">Motivationsboost</h1><p className="mt-2 text-slate-600">Deine Erfahrung. Deine Worte. Dein nächster Schritt.</p></header>;
+  const locale = useProductLanguage();
+  return <header lang={locale} className="flex flex-wrap items-start justify-between gap-3">
+    <div><h1 className="text-3xl font-semibold">Motivationsboost</h1><p className="mt-2 text-slate-600">{authCopy[locale].tagline}</p></div>
+    <ProductLanguagePicker />
+  </header>;
 }
 
 function InternalNotice() {
@@ -228,7 +236,15 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       }}>Konto löschen</button><button className="underline" onClick={onSignOut}>Abmelden</button></div></div>
     {!internal && <WeeklyTestCheckout />}
     <Applications userId={user.id} internal={internal} />
-    <LocalDocuments userId={user.id} />
+    <LocalDocuments userId={user.id} onUseText={text => {
+      const next = [values.cv.trim(), text.trim()].filter(Boolean).join('\n\n');
+      if (next.length > 12000) {
+        setMessage('Der Text ist zu lang für den Entwurf. Kürze ihn zuerst in der Texterkennung.');
+        return;
+      }
+      setValues(current => ({ ...current, cv: next }));
+      setMessage('Der geprüfte Text wurde in die Erfahrungen für den Entwurf übernommen.');
+    }} />
     <form onSubmit={generate} className="space-y-4">
       <p className="text-sm">Deine Eingaben und dein Entwurf werden in diesem Browser zwischengespeichert.</p>
       {draftError && <p role="alert">{draftError}</p>}
