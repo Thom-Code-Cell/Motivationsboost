@@ -22,7 +22,8 @@ This assessment records the state of connected tools and repository files; it is
 - Confirm privacy disclosures, terms, processor agreements, actual processing countries and retention for Neon, Vercel, Google Workspace and any activated OpenAI and Payrexx paths.
 - Test registration, duplicate email, wrong password, session expiry, logout, email verification, password recovery, export, deletion and cross-account isolation.
 - Test application create, list, status update, reload, delete and export using fabricated accounts.
-- Review the guided letter against fabricated CV and job text. When OpenAI is enabled, confirm the configured model, data terms, CHF 10 monthly cost limit and failure behavior before use.
+- Review the guided letter against fabricated CV and job text. Before enabling commercial OpenAI use, confirm the configured model, data terms, the approved monthly production ceiling in `MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS`, and failure behavior. The separate cumulative CHF 10 acceptance budget remains exclusive to the protected test environment.
+- Review the final Payrexx checkout on the actual product payment path. Verify the seller and contact details, total CHF price, steps to place the order, the customer's ability to correct errors before submission, and immediate electronic acknowledgement of the order. [Swiss SME Portal requirements](https://www.kmu.admin.ch/de/die-gesetze-der-schweiz-und-der-eu)
 - Check phone and tablet layouts, keyboard navigation, validation, error messages and network failure.
 - Verify FREE under protection independently. Follow the [weekly Payrexx handover](PRODUCTION-HANDOVER-PAYREXX.md) for the first paid offer. Keep each remaining offer unavailable until its checkout, entitlement, cancellation and refund flows pass.
 

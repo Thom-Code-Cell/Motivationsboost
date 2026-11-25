@@ -14,7 +14,7 @@ Die Abfragen verwenden ausschliesslich freigegebene CHF-Verkäufe und tatsächli
 
 Eine ausdrücklich bestätigte Belegauswahl kostet drei Credits. Das System reserviert Guthaben und Kosten in derselben Transaktion. Jahreskontingente werden vom Beginn der bezahlten Laufzeit aus in höchstens zwölf Monatsperioden eingeteilt. Credits einer aktiven Laufzeit werden vor Zusatzcredits abgebucht. Ein endgültig unberechneter Versuch stellt die Credits wieder her. Bei unklarem Provider-Ergebnis bleibt die Reserve bis zur Zuordnung bestehen.
 
-Der kommerzielle Verbrauch wird vom CHF-10-Testkonto getrennt geführt. Eine zusätzliche monatliche Betriebsgrenze kann mit `MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS` gesetzt werden. Auch ohne diese Einstellung bleiben die bezahlten Credits und der Preis je Aktion verbindliche Grenzen. Produktion benötigt die separate Produkt- und KI-Freigabe. FREE führt weiterhin lokale Funktionen aus. Bild, Audio und eine kostenlose Anbieter-Kennenlernfunktion setzen ihre jeweilige separate Abnahme voraus.
+Der kommerzielle Verbrauch wird vom kumulativen CHF-10-Testbudget getrennt geführt. Produktive KI-Aufrufe setzen eine gültige, genehmigte monatliche Betriebsgrenze in `MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS` voraus. Bezahlte Credits und der Preis je Aktion bleiben verbindliche Grenzen. Produktion benötigt die separate Produkt- und KI-Freigabe. FREE führt weiterhin lokale Funktionen aus. Bild, Audio und eine kostenlose Anbieter-Kennenlernfunktion setzen ihre jeweilige separate Abnahme voraus.
 
 Abos, Zusatzpakete und Rückbuchungen benötigen vor dem Start einen bestätigten Providerpfad. Die App prüft die bestätigten Zahlungsnachweise für Credits. Das Anlegen solcher Nachweise bleibt dem Anbieterabgleich vorbehalten.
 
