@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({ session: vi.fn(), reserve: vi.fn(), spend: vi.fn(), settle: vi.fn(), key: vi.fn(), openai: vi.fn() }));
 vi.mock('@/lib/server/app-session', () => ({ requireAppSession: mocks.session }));
 vi.mock('@/lib/server/ai-quota-store', () => ({ reserveAiAction: mocks.reserve }));
-vi.mock('@/lib/server/ai-spend-store', () => ({ AiSpendBlocked: class extends Error {}, DuplicateAiRequest: class extends Error {}, reserveAiSpend: mocks.spend, settleAiSpend: mocks.settle }));
+vi.mock('@/lib/server/ai-spend-store', () => ({ AiSpendBlocked: class extends Error {}, DuplicateAiRequest: class extends Error {}, commercialAiBudgetLimit: () => 100_000, reserveAiSpend: mocks.spend, settleAiSpend: mocks.settle }));
 vi.mock('@/lib/server/openai-client', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/server/openai-client')>(), getOpenAIKey: mocks.key, getTextModel: () => 'gpt-6.1-terra', callOpenAI: mocks.openai }));
 import { POST } from '@/app/api/v2/letter/route';
 import { OpenAIRequestError } from '@/lib/server/openai-client';

@@ -86,6 +86,8 @@ describe.skipIf(!connection)('PostgreSQL spend reservations', () => {
   });
 
   it('uses only verified credits, keeps commercial spend separate and reverses a definite no-cost attempt once', async () => {
+    vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '');
+    await expect(reserveAiSpend('synthetic-1', randomUUID(), 29_000, { credits: 3, sandbox: false })).rejects.toBeInstanceOf(AiSpendBlocked);
     vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '1000000');
     try {
       const paid = randomUUID();
@@ -129,7 +131,8 @@ describe.skipIf(!connection)('PostgreSQL spend reservations', () => {
     const month = "date_trunc('month', now() AT TIME ZONE 'Europe/Zurich')::date";
     await mocks.pool!.query(`INSERT INTO product_economic_postings (source_key,month,plan,category,amount_micros)
       VALUES ('sale',${month},'weekly','net_sales',10000000), ('support',${month},'portfolio','support',3000000)`);
-    const receipt = await reserveAiSpend('synthetic-2', randomUUID(), 29000, { credits: 3, sandbox: false });
+    vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '1000000');
+    const receipt = await reserveAiSpend('synthetic-2', randomUUID(), 29000, { credits: 3, sandbox: false }).finally(() => vi.unstubAllEnvs());
     const report = await mocks.pool!.query(readFileSync('scripts/product-economics.sql', 'utf8'));
     expect(report.rows[0]).toMatchObject({ plan: 'portfolio', status: 'incomplete_ai_cost', operating_margin_pct: '70.00' });
     await settleAiSpend(receipt, 0);

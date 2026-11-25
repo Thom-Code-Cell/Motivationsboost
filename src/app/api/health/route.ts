@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { databasePool } from '@/lib/server/postgres';
 import { emailDeliveryConfigured } from '@/lib/server/email';
+import { isCanonicalProductOrigin } from '@/lib/public-product';
 export async function GET() {
   let database = false;
   let schema = false;
@@ -24,11 +25,14 @@ export async function GET() {
     schema = Object.values(result.rows[0] as Record<string, boolean>).every(Boolean);
   } catch { /* report status without leaking connection details */ }
   const production = process.env.VERCEL_ENV === 'production' || (process.env.NODE_ENV === 'production' && !process.env.VERCEL);
+  const configuredOrigin = process.env.BETTER_AUTH_URL || process.env.APP_URL;
+  const originReady = process.env.VERCEL_ENV === 'production' ? isCanonicalProductOrigin(configuredOrigin) :
+    production ? /^https:\/\//.test(configuredOrigin || '') : Boolean(configuredOrigin || process.env.VERCEL_URL);
   const emailVerificationRequired = process.env.NODE_ENV === 'production' || process.env.BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION === 'true';
   const checks = {
     database,
     databaseSchema: schema,
-    emailPasswordAuth: Boolean(process.env.BETTER_AUTH_SECRET && Buffer.byteLength(process.env.BETTER_AUTH_SECRET, 'utf8') >= 32 && (production ? (process.env.BETTER_AUTH_URL || process.env.APP_URL) : (process.env.BETTER_AUTH_URL || process.env.APP_URL || process.env.VERCEL_URL)) && (!production || /^https:\/\//.test(process.env.BETTER_AUTH_URL || process.env.APP_URL || ''))),
+    emailPasswordAuth: Boolean(process.env.BETTER_AUTH_SECRET && Buffer.byteLength(process.env.BETTER_AUTH_SECRET, 'utf8') >= 32 && originReady),
     transactionalEmail: emailDeliveryConfigured() && (!production || process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true'),
     emailVerification: emailVerificationRequired && (!production || (process.env.BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION === 'true' && process.env.NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED === 'true')),
     aiProvider: Boolean(process.env.OPENAI_API_KEY),

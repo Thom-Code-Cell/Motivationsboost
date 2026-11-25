@@ -7,9 +7,8 @@ import { chfMicrosPerCredit } from '@/lib/plans';
 export class AiSpendBlocked extends Error {}
 export class DuplicateAiRequest extends Error {}
 
-function productBudgetLimit() {
+export function commercialAiBudgetLimit() {
   const raw = process.env.MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS;
-  if (!raw) return Number.MAX_SAFE_INTEGER;
   const limit = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
   return Number.isSafeInteger(limit) && limit > 0 ? limit : 0;
 }
@@ -20,7 +19,7 @@ export async function reserveAiSpend(userId: string, requestId: string, amount: 
     throw new AiSpendBlocked();
   }
   const commercial = charge && !charge.sandbox;
-  const limit = commercial ? productBudgetLimit() : 10_000_000;
+  const limit = commercial ? commercialAiBudgetLimit() : 10_000_000;
   if (limit < amount) throw new AiSpendBlocked();
   const db = await databasePool().connect();
   const id = randomUUID();

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
 import { requireAppSession } from '@/lib/server/app-session';
 import { reserveAiAction } from '@/lib/server/ai-quota-store';
-import { AiSpendBlocked, DuplicateAiRequest, reserveAiSpend, settleAiSpend } from '@/lib/server/ai-spend-store';
+import { AiSpendBlocked, commercialAiBudgetLimit, DuplicateAiRequest, reserveAiSpend, settleAiSpend } from '@/lib/server/ai-spend-store';
 import { maximumLetterCostChfMicros, previewTextModel, providerTokenCounts, providerUsageCost } from '@/lib/ai-spend';
 import { callOpenAI, getOpenAIKey, hasCurrentAiApproval, OpenAIRequestError } from '@/lib/server/openai-client';
 import { creditBalance, InsufficientCredits } from '@/lib/server/ai-credits';
@@ -24,6 +24,7 @@ const noStore = { headers: { 'Cache-Control': 'private, no-store' } };
 const sandbox = () => process.env.VERCEL_ENV === 'preview';
 
 function paidAiModel() {
+  if (!sandbox() && !commercialAiBudgetLimit()) return null;
   if (!hasCurrentAiApproval() || (!sandbox() && process.env.NODE_ENV === 'production' && !publicProductApproved())) return null;
   try { getOpenAIKey(); } catch { return null; }
   return previewTextModel;
