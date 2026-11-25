@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
+import { applyWeeklySandboxEvent, weeklySandboxEnabled } from '@/lib/server/payrexx-weekly';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -40,8 +41,27 @@ export async function POST(request: NextRequest) {
   const referenceId = payrexxReferenceId(payload);
   const eventHash = createHash('sha256').update(body).digest('hex');
   const fields = recordFields(payload);
+  let connection;
   try {
-    const result = await databasePool().query(
+    if (!weeklySandboxEnabled()) {
+      const result = await recordEvent(databasePool());
+      return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
+    }
+    connection = await databasePool().connect();
+    await connection.query('BEGIN');
+    const result = await recordEvent(connection);
+    const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload);
+    await connection.query('COMMIT');
+    return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted });
+  } catch {
+    await connection?.query('ROLLBACK').catch(() => {});
+    return NextResponse.json({ error: 'Webhook konnte nicht dauerhaft gespeichert werden.' }, { status: 503 });
+  } finally {
+    connection?.release();
+  }
+
+  function recordEvent(database: Pick<ReturnType<typeof databasePool>, 'query'>) {
+    return database.query(
       `INSERT INTO payrexx_webhook_events
          (event_hash, reference_id, resource_type, resource_id, resource_status)
        VALUES ($1, $2, $3, $4, $5)
@@ -49,9 +69,5 @@ export async function POST(request: NextRequest) {
        RETURNING event_hash`,
       [eventHash, referenceId, fields.resourceType ?? 'unknown', fields.resourceId ?? null, fields.resourceStatus ?? null],
     );
-    // Only verified event metadata is persisted. No raw payload, PII, or entitlement changes.
-    return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
-  } catch {
-    return NextResponse.json({ error: 'Webhook konnte nicht dauerhaft gespeichert werden.' }, { status: 503 });
   }
 }

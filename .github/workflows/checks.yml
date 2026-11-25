@@ -43,6 +43,8 @@ jobs:
           npm run build
       - run: npm run typecheck
       - run: npm test
+        env:
+          MOTIVATIONS_E2E_DATABASE_URL: postgresql://postgres@127.0.0.1:55453/motivationsboost_e2e
       - run: npm run test:quality
       - name: Verify legacy Firestore rules with the pinned loopback emulator
         shell: bash

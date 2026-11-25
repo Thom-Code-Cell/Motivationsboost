@@ -19,29 +19,34 @@ export function Applications({ userId, internal = false }: { userId: string; int
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    function load() {
+    let active = true;
+    async function load() {
       try {
-        setItems(readBrowserApplications(key));
+        const records = await readBrowserApplications(key);
+        if (active) setItems(records);
       } catch {
-        setError('Die lokalen Bewerbungen konnten nicht gelesen werden.');
+        if (active) setError('Die lokalen Bewerbungen konnten nicht gelesen werden.');
       }
     }
     function synchronize(event: StorageEvent) {
-      if (event.key === key || event.key === null) load();
+      if (event.key === key || event.key === null) void load();
     }
-    load();
+    void load();
     window.addEventListener('storage', synchronize);
-    return () => window.removeEventListener('storage', synchronize);
+    return () => {
+      active = false;
+      window.removeEventListener('storage', synchronize);
+    };
   }, [key]);
 
-  function save(update: (current: BrowserApplication[]) => BrowserApplication[]) {
-    setItems(writeBrowserApplications(key, update));
+  async function save(update: (current: BrowserApplication[]) => BrowserApplication[]) {
+    setItems(await writeBrowserApplications(key, update));
   }
 
-  function change(update: (current: BrowserApplication[]) => BrowserApplication[]) {
+  async function change(update: (current: BrowserApplication[]) => BrowserApplication[]) {
     setError('');
     try {
-      save(update);
+      await save(update);
       return true;
     } catch {
       setError('Änderung konnte nicht gespeichert werden. Prüfe die Eingaben und den verfügbaren Browserspeicher.');
@@ -49,9 +54,9 @@ export function Applications({ userId, internal = false }: { userId: string; int
     }
   }
 
-  function create(event: FormEvent) {
+  async function create(event: FormEvent) {
     event.preventDefault();
-    if (change(current => [...current, {
+    if (await change(current => [...current, {
       ...applicationInput.parse(form),
       id: crypto.randomUUID(),
       status: 'Entwurf',
@@ -59,8 +64,8 @@ export function Applications({ userId, internal = false }: { userId: string; int
     }])) setForm(emptyForm);
   }
 
-  function merge(incoming: unknown, description: string) {
-    save(current => mergeBrowserApplications(current, incoming));
+  async function merge(incoming: unknown, description: string) {
+    await save(current => mergeBrowserApplications(current, incoming));
     setMessage(description);
   }
 
@@ -72,7 +77,7 @@ export function Applications({ userId, internal = false }: { userId: string; int
       const response = await fetch('/api/v2/applications', { cache: 'no-store' });
       if (!response.ok) throw new Error('Import unavailable');
       const data: { applications: unknown } = await response.json();
-      merge(data.applications, 'Vorhandene Serverdaten wurden in diesen Browser übernommen. Die Originale bleiben für den Kontodatenexport erhalten.');
+      await merge(data.applications, 'Vorhandene Serverdaten wurden in diesen Browser übernommen. Die Originale bleiben für den Kontodatenexport erhalten.');
     } catch {
       setError('Die bisherigen Bewerbungen konnten nicht übernommen werden.');
     } finally {
@@ -80,10 +85,10 @@ export function Applications({ userId, internal = false }: { userId: string; int
     }
   }
 
-  function download() {
+  async function download() {
     setError('');
     try {
-      const content = createApplicationBackup(readBrowserApplications(key));
+      const content = createApplicationBackup(await readBrowserApplications(key));
       const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
       const link = document.createElement('a');
       link.href = url;
@@ -103,7 +108,7 @@ export function Applications({ userId, internal = false }: { userId: string; int
     setMessage('');
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error('Backup too large');
-      merge(readApplicationBackup(await file.text()), 'Sicherung übernommen. Vorhandene Bewerbungen mit derselben ID bleiben erhalten.');
+      await merge(readApplicationBackup(await file.text()), 'Sicherung übernommen. Vorhandene Bewerbungen mit derselben ID bleiben erhalten.');
     } catch {
       setError('Die Sicherung konnte nicht gelesen oder gespeichert werden.');
     }

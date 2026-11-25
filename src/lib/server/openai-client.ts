@@ -13,7 +13,8 @@ export function getOpenAIKey(): string {
   return key;
 }
 
-export async function callOpenAI(path: string, body: unknown): Promise<Response> {
+export async function callOpenAI(path: string, body: unknown, spendReservation?: string): Promise<Response> {
+  if (!spendReservation) throw new Error('Dieser KI-Aufruf besitzt keine Kostenreservierung.');
   const key = getOpenAIKey();
   let response: Response;
   try {
@@ -35,7 +36,8 @@ export async function callOpenAI(path: string, body: unknown): Promise<Response>
   return response;
 }
 
-export async function callOpenAIForm(path: string, body: FormData): Promise<Response> {
+export async function callOpenAIForm(path: string, body: FormData, spendReservation?: string): Promise<Response> {
+  if (!spendReservation) throw new Error('Dieser KI-Aufruf besitzt keine Kostenreservierung.');
   const key = getOpenAIKey();
   let response: Response;
   try {
