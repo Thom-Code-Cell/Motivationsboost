@@ -9,9 +9,9 @@ export function databaseConnectionConfigured() {
 
 function databaseConnectionString() {
   if (process.env.VERCEL_ENV === 'preview' && process.env.MOTIVATIONS_NEON_BRANCH_PREVIEW === 'true') {
-    // Vercel's Neon integration injects the branch-aware pooled URL. Ignore the
-    // manually added project-wide DATABASE_URL when this preview opts in.
-    return process.env.POSTGRES_URL;
+    // This candidate requires an explicit connection scoped to its isolated
+    // branch. Do not fall back to project-wide marketplace or legacy settings.
+    return process.env.MOTIVATIONS_NEON_BRANCH_DATABASE_URL;
   }
   return process.env.DATABASE_URL;
 }
