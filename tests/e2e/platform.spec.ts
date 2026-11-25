@@ -207,10 +207,11 @@ test('legal pages render without horizontal overflow', async ({ page }) => {
 
 test('landing page fits a landscape tablet and its application link opens the auth route', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Separate tablet viewport in the desktop browser.');
-  await page.setViewportSize({ width: 820, height: 1050 });
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  await page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' }).click();
+  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('banner').getByRole('link', { name: 'Kostenlos ausprobieren' }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
 });
