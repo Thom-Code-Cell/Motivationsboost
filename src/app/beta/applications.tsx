@@ -7,7 +7,7 @@ import {
   writeBrowserApplications, type BrowserApplication,
 } from '@/lib/browser-applications';
 
-const emptyForm = { jobTitle: '', company: '', jobUrl: '' };
+const emptyForm = { jobTitle: '', company: '', jobUrl: '', dueDate: '' };
 const statuses = applicationUpdate.shape.status.options;
 
 export function Applications({ userId, internal = false }: { userId: string; internal?: boolean }) {
@@ -56,11 +56,13 @@ export function Applications({ userId, internal = false }: { userId: string; int
 
   async function create(event: FormEvent) {
     event.preventDefault();
+    const { dueDate, ...details } = form;
     if (await change(current => [...current, {
-      ...applicationInput.parse(form),
+      ...applicationInput.parse(details),
       id: crypto.randomUUID(),
       status: 'Entwurf',
       applicationDate: new Date().toISOString(),
+      dueDate: dueDate || undefined,
     }])) setForm(emptyForm);
   }
 
@@ -121,6 +123,7 @@ export function Applications({ userId, internal = false }: { userId: string; int
       <label>Stelle<input required maxLength={200} className="block w-full rounded border p-2 text-slate-900" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} /></label>
       <label>Unternehmen<input required maxLength={200} className="block w-full rounded border p-2 text-slate-900" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} /></label>
       <label>Link zum Inserat<input required type="url" maxLength={2048} className="block w-full rounded border p-2 text-slate-900" value={form.jobUrl} onChange={e => setForm({ ...form, jobUrl: e.target.value })} /></label>
+      <label>Bewerbungsfrist (optional)<input type="date" className="block max-w-full rounded border p-2 text-slate-900" value={form.dueDate} onChange={event => setForm({ ...form, dueDate: event.target.value })} /></label>
       <button className="rounded bg-slate-900 px-4 py-2 text-white">Bewerbung hinzufügen</button>
     </form>
     <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -141,6 +144,12 @@ export function Applications({ userId, internal = false }: { userId: string; int
         const status = applicationUpdate.shape.status.parse(e.target.value);
         change(current => current.map(record => record.id === item.id ? { ...record, status } : record));
       }} className="rounded border p-1 text-slate-900">{statuses.map(status => <option key={status}>{status}</option>)}</select></label>
+      <label className="mt-2 block">Frist für {item.jobTitle}
+        <input type="date" className="ml-2 max-w-full rounded border p-1 text-slate-900" value={item.dueDate ?? ''} onChange={event => {
+          const dueDate = event.target.value || undefined;
+          void change(current => current.map(record => record.id === item.id ? { ...record, dueDate } : record));
+        }} />
+      </label>
       <button type="button" onClick={() => {
         if (window.confirm('Diese Bewerbung in diesem Browser löschen?')) change(current => current.filter(record => record.id !== item.id));
       }} className="ml-3 underline">Löschen</button>

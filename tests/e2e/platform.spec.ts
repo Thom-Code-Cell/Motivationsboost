@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import JSZip from 'jszip';
 import { test, expect, type Page } from '@playwright/test';
 import { openTestDatabase } from './setup';
 
@@ -30,10 +32,12 @@ test('account session persists and exposes only its own application data', async
   await page.getByLabel('Stelle', { exact: true }).fill('Betriebsleitung');
   await page.getByLabel('Unternehmen', { exact: true }).fill('Test AG');
   await page.getByLabel('Link zum Inserat').fill('https://example.test/job');
+  await page.getByLabel('Bewerbungsfrist (optional)').fill('2026-12-15');
   await page.getByRole('button', { name: 'Bewerbung hinzufügen' }).click();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
   await page.reload();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
+  await expect(page.getByLabel('Frist für Betriebsleitung')).toHaveValue('2026-12-15');
   await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
     name: 'synthetischer-lebenslauf.txt', mimeType: 'text/plain',
     buffer: Buffer.from('Reiner Testinhalt für die lokale Ablage.'),
@@ -43,10 +47,11 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
   const camera = page.getByLabel('Unterlage fotografieren');
   await expect(camera).toHaveAttribute('capture', 'environment');
-  await page.getByLabel('Kategorie', { exact: true }).selectOption('Arbeitszeugnis');
+  await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption('Arbeitszeugnis');
   await camera.setInputFiles({ name: 'kamera-test.heic', mimeType: 'image/heic', buffer: Buffer.from('synthetic local file') });
   const evidence = page.getByLabel('Datei lokal hinzufügen');
   await evidence.setInputFiles(['seite-1.txt', 'seite-2.txt'].map(name => ({ name, mimeType: 'text/plain', buffer: Buffer.from('synthetic') })));
+  await expect(page.getByText('seite-2.txt · Arbeitszeugnis')).toBeVisible();
   await page.reload();
   for (const name of ['kamera-test.heic', 'seite-1.txt', 'seite-2.txt']) {
     await expect(page.getByText(name + ' · Arbeitszeugnis')).toBeVisible();
@@ -150,6 +155,22 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ }).check();
   await expect(page.getByText('Vorschau des angehängten Hinweises')).toBeVisible();
   await expect(draft).toHaveValue(originalDraft);
+  for (const [format, label] of [['txt', 'Als Textdatei herunterladen'], ['pdf', 'Als PDF herunterladen'], ['docx', 'Als Word-Datei herunterladen']]) {
+    const pendingDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: label }).click();
+    const download = await pendingDownload;
+    expect(download.suggestedFilename()).toBe('motivationsschreiben.' + format);
+    const data = await readFile(await download.path());
+    if (format === 'txt') expect(data.toString()).toContain(originalDraft);
+    if (format === 'pdf') expect(data.subarray(0, 5).toString()).toBe('%PDF-');
+    if (format === 'docx') {
+      const zip = await JSZip.loadAsync(data);
+      const xml = await zip.file('word/document.xml')?.async('string');
+      expect(xml).toContain('Schichtplanung');
+      expect(xml).toContain('human');
+    }
+  }
+  expect(externalRequests).toEqual([]);
   await page.reload();
   await expect(page.getByLabel('Motivationsschreiben bearbeiten')).toHaveValue(originalDraft);
   await expect(page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ })).not.toBeChecked();
@@ -158,7 +179,9 @@ test('guided draft and optional translated notice are separate', async ({ page }
 test('legal pages render without horizontal overflow', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Dein nächster Schritt.');
-  await expect(page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' })).toHaveAttribute('href', '/app');
+  const menu = page.getByRole('button', { name: 'Menü' });
+  if (await menu.isVisible()) await menu.click();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Kostenlos ausprobieren' })).toHaveAttribute('href', '/app');
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   const productImages = page.getByRole('main').getByRole('img');

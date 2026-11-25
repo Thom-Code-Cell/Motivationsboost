@@ -8,6 +8,7 @@ const application = applicationInput.extend({
   notes: z.string().max(10000).nullish().transform(value => value ?? ''),
   status: applicationUpdate.shape.status,
   applicationDate: z.string().datetime({ offset: true }).optional(),
+  dueDate: z.string().date().optional(),
 });
 const records = z.array(application);
 const backup = z.object({
