@@ -39,7 +39,7 @@ export default function ProductHome() {
       <ul className="wrap"><li>Entwickelt in der Schweiz</li><li>Datenschutzorientiert</li><li>Persönliche Kontrolle</li><li>Belegorientierte KI-Unterstützung</li></ul>
     </div>
     </section>
-    
+
     <section className="section wrap" id="funktionen">
     <div className="section-heading">
       <p className="eyebrow">Mehr als ein Motivationsschreiben</p>
@@ -60,7 +60,7 @@ export default function ProductHome() {
       <article data-status="planned"><span aria-hidden="true">▥</span><h3>Bewerbungsverwaltung</h3><p>Behalt Stellen, Unterlagen und nächste Schritte im Blick.</p></article>
     </div>
     </section>
-    
+
     <section id="moeglichkeiten" className="section sand">
     <div className="wrap split">
       <figure className="media landscape" data-slot="orientation"><div className="media-art"><Image src="/landing/motivationsboost-02-neuanfang-weitblick.webp" width={1448} height={1086} alt="Ein Mann sitzt nachdenklich vor seinem Laptop, neben ihm liegen ein Notizbuch und Unterlagen." sizes="(max-width: 610px) 100vw, 50vw" /></div></figure>
@@ -70,7 +70,7 @@ export default function ProductHome() {
       </div>
     </div>
     </section>
-    
+
     <section className="section wrap" id="vorteile">
     <div className="section-heading"><p className="eyebrow">Deine Vorteile</p><h2>Warum Motivationsboost?</h2><p>Vom ersten Arbeitszeugnis bis zum fertigen Bewerbungsentwurf: Bereite deinen nächsten Schritt in einem zusammenhängenden Ablauf vor.</p><p className="prototype-note">Vorgesehener Nutzen · Produktabnahme ausstehend</p></div>
     <dl className="benefits">
@@ -82,7 +82,7 @@ export default function ProductHome() {
       <div><dt>Dein gesamter Bewerbungsprozess</dt><dd>Unterlagen, Bewerbungsstand und Interviewvorbereitung sollen an einem Ort zusammenlaufen, damit du für den nächsten Schritt alles zur Hand hast.</dd></div>
     </dl>
     </section>
-    
+
     <section className="section process" id="ablauf">
     <div className="wrap">
       <div className="section-heading"><p className="eyebrow">So funktioniert’s</p><h2>Ein klarer Weg durch deine Bewerbung.</h2><p>Entdecke die acht geplanten Schritte. Öffne einen Schritt, um zu sehen, wobei er dich unterstützen soll.</p></div>
@@ -118,14 +118,14 @@ export default function ProductHome() {
       </div>
     </div>
     </section>
-    
+
     <section className="section wrap split" id="interview">
       <div><p className="eyebrow">Vorstellungsgespräch</p><h2>Gut vorbereitet. Mit mehr Selbstvertrauen ins Gespräch.</h2>
       <p>Bereite dich gezielt auf mögliche Fragen vor, reflektiere deine Erfahrungen und lerne, deine Kompetenzen verständlich und überzeugend zu vermitteln.</p>
       <p>Die KI soll dir bei der Vorbereitung helfen. Deine Persönlichkeit, deine Erfahrungen und deine eigenen Antworten stehen im Mittelpunkt.</p></div>
       <figure className="media landscape" data-slot="interview"><div className="media-art"><Image src="/landing/motivationsboost-03-bewerbungsgespraech-coaching.webp" width={1448} height={1086} alt="Eine Frau und ein Mann führen ein Gespräch an einem Holztisch." sizes="(max-width: 610px) 100vw, 50vw" /></div></figure>
     </section>
-    
+
     <section className="section dark" id="datenschutz">
     <div className="wrap">
       <div className="split privacy">
@@ -141,14 +141,14 @@ export default function ProductHome() {
       </div>
     </div>
     </section>
-    
+
     <section className="section sand" id="menschliche-beurteilung">
     <div className="wrap human">
       <div><p className="eyebrow">Menschliche Beurteilung</p><h2>Eine Bewerbung verdient menschliche Aufmerksamkeit.</h2><blockquote>KI unterstützt dich bei deiner Bewerbung. Über deine berufliche Zukunft sollen Menschen entscheiden.</blockquote></div>
       <div><p>Vorgesehen ist ein freiwilliger Hinweis für deine Bewerbungsunterlagen. Damit kannst du den Empfänger bitten, auf KI-gestützte Analyse, Bewertung, Profilbildung, Selektion und Modelltraining zu verzichten und die Bewerbung durch Menschen beurteilen zu lassen.</p><p>Du entscheidest, ob du den Hinweis beifügst. Für den Hinweis sind keine zusätzlichen KI-Kosten vorgesehen. Ob der Empfänger deinem Wunsch folgt, lässt sich nicht garantieren.</p></div>
     </div>
     </section>
-    
+
     <section className="section wrap" id="preise">
       <div className="section-heading"><p className="eyebrow">Preise</p><h2>Wähle den Zeitraum, der zu dir passt.</h2><p>Preise, Kontingente und Leistungsumfang sind vorläufig. Buchungen sind bis zur Verkaufsfreigabe geschlossen.</p></div>
       <div className="pricing">
@@ -158,7 +158,7 @@ export default function ProductHome() {
         <article><h3>Jahresabo</h3><p className="price"><span>CHF</span> 119.00</p><p>Pro Jahr.</p><button className="button outline" type="button" disabled>Jahresabo in Vorbereitung</button></article>
       </div>
     </section>
-    
+
     <section className="section sand" id="faq">
     <div className="wrap faq">
       <div><p className="eyebrow">FAQ</p><h2>Häufig gestellte Fragen.</h2><p>Fragen zum Projekt? Schreib an <a href="mailto:thomas@th-analytica.com">TH Analytica</a>.</p></div>
@@ -180,16 +180,16 @@ export default function ProductHome() {
       </div>
     </div>
     </section>
-    
+
     <section className="section closing" aria-labelledby="closing-title"><div className="wrap"><h2 id="closing-title">Dein nächster beruflicher Schritt beginnt mit dir.</h2><p>Entdecke deine Möglichkeiten, bringe deine Erfahrung auf den Punkt und bereite deine nächste Bewerbung mit mehr Klarheit und Selbstvertrauen vor.</p><Link className="button" href="/app">Kostenlos ausprobieren</Link></div></section>
     </main>
-    
+
     <footer className="site-footer"><div className="wrap footer-grid">
       <div><a className="brand" href="#start"><span className="brand-icon" aria-hidden="true"></span>Motivations<span>boost</span></a><p>Ein Produkt von <a href="https://th-analytica.com">TH Analytica</a> aus der Schweiz.</p><a href="mailto:thomas@th-analytica.com">thomas@th-analytica.com</a></div>
       <div><h2>Rechtliche Informationen</h2><ul>
         <li><Link href="/impressum">Impressum</Link></li><li><Link href="/datenschutz">Datenschutzerklärung</Link></li><li><Link href="/agb">AGB</Link></li>
       </ul></div>
-      
+
     </div></footer>
   </div>;
 }

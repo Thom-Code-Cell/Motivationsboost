@@ -12,7 +12,11 @@ const reference = 'ba8e2438-f702-4cd5-8ce2-aec7af504cf1';
 const external = vi.fn();
 const reply = (value: unknown) => new Response(JSON.stringify({ status: 'success', data: [value] }));
 const order = { reference_id: reference, payrexx_gateway_id: 101 };
-const payment = { id: 301, invoice: { referenceId: reference, paymentRequestId: 101 }, mode: 'TEST', pspId: 27 };
+const payment = {
+  id: 301, uuid: 'eda04158', status: 'confirmed', mode: 'TEST', pspId: 27, paymentType: 'one-time',
+  referenceId: reference,
+  invoice: { paymentRequestId: 101, currencyAlpha3: 'CHF', totalAmount: 890, originalAmount: 890, refundedAmount: 0 },
+};
 
 beforeEach(() => {
   vi.stubGlobal('fetch', external);
@@ -32,7 +36,11 @@ it('surveys only a claimed owned gateway and submits a matching provider transac
     'https://api.payrexx.com/v1.19/Transaction/301/?instance=shared-live',
   ]);
   expect(mocks.apply).toHaveBeenCalledOnce();
-  expect(mocks.apply.mock.calls[0][1]).toEqual({ transaction: payment });
+  expect(mocks.apply.mock.calls[0][1]).toEqual({ transaction: {
+    uuid: 'eda04158', referenceId: reference, status: 'confirmed', mode: 'TEST', pspId: 27,
+    paymentType: 'one-time', amount: 890,
+    invoice: { currency: 'CHF', originalAmount: 890, refundedAmount: 0, test: true },
+  } });
 });
 
 it('does not contact Payrexx without a claimed order', async () => {
@@ -52,6 +60,14 @@ it('does not settle transactions linked to a different order', async () => {
   external.mockReset()
     .mockResolvedValueOnce(reply({ id: 101, invoices: [{ transactions: [{ id: 301 }] }] }))
     .mockResolvedValueOnce(reply({ ...payment, invoice: { ...payment.invoice, paymentRequestId: 999 } }));
+  await reconcileSandboxGateway('user-1', config);
+  expect(mocks.apply).not.toHaveBeenCalled();
+});
+
+it('never translates a live transaction into a sandbox event', async () => {
+  external.mockReset()
+    .mockResolvedValueOnce(reply({ id: 101, invoices: [{ transactions: [{ id: 301 }] }] }))
+    .mockResolvedValueOnce(reply({ ...payment, mode: 'LIVE' }));
   await reconcileSandboxGateway('user-1', config);
   expect(mocks.apply).not.toHaveBeenCalled();
 });

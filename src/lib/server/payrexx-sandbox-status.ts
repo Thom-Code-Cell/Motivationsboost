@@ -11,8 +11,20 @@ const gatewaySchema = z.object({
 const transactionSchema = z.object({
   id: identifier,
   referenceId: z.string().uuid().nullish(),
-  invoice: z.object({ referenceId: z.string().uuid().nullish(), paymentRequestId: identifier.nullish() }),
-}).passthrough();
+  uuid: z.string().min(1).max(128),
+  status: z.string(),
+  mode: z.string(),
+  pspId: identifier,
+  paymentType: z.string().nullish(),
+  invoice: z.object({
+    referenceId: z.string().uuid().nullish(),
+    paymentRequestId: identifier.nullish(),
+    currencyAlpha3: z.string(),
+    totalAmount: z.number().int().nonnegative(),
+    originalAmount: z.number().int().positive(),
+    refundedAmount: z.number().int().nonnegative().optional(),
+  }),
+});
 
 async function payrexxGet(instance: string, key: string, resource: 'Gateway' | 'Transaction', id: number) {
   const version = 'v1.19';
@@ -55,8 +67,24 @@ export async function reconcileSandboxGateway(userId: string, config: { instance
     const parsed = transactionSchema.parse(body);
     if (parsed.id !== id || (parsed.referenceId ?? parsed.invoice.referenceId) !== order.reference_id ||
         (parsed.invoice.paymentRequestId != null && parsed.invoice.paymentRequestId !== order.payrexx_gateway_id)) return null;
-    // Keep the provider invoice fields needed by the existing signed-event validator.
-    return body;
+    if (parsed.mode !== 'TEST' || parsed.pspId !== config.pspId) return null;
+    // The REST transaction and the signed webhook use different invoice field names.
+    return {
+      uuid: parsed.uuid,
+      referenceId: parsed.referenceId,
+      status: parsed.status,
+      mode: parsed.mode,
+      pspId: parsed.pspId,
+      paymentType: parsed.paymentType,
+      amount: parsed.invoice.totalAmount,
+      invoice: {
+        referenceId: parsed.invoice.referenceId,
+        currency: parsed.invoice.currencyAlpha3,
+        originalAmount: parsed.invoice.originalAmount,
+        refundedAmount: parsed.invoice.refundedAmount,
+        test: true,
+      },
+    };
   }));
 
   const connection = await pool.connect();
