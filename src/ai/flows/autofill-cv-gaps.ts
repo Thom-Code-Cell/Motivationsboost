@@ -11,6 +11,7 @@ import { getLanguageName } from '@/lib/document-languages';
  */
 
 import { authorizeAI } from '@/lib/server/session';
+import { preservesSourceText } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -51,6 +52,6 @@ const autofillCVGapsFlow = ai.defineFlow(
     const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Kein KI-Ergebnis.');
-    return output;
+    return { filledCvText: preservesSourceText(output.filledCvText, [input.cvText]) ? output.filledCvText : input.cvText };
   }
 );

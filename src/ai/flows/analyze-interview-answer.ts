@@ -12,6 +12,7 @@ import { getLanguageName } from '@/lib/document-languages';
 
 import { getJobPosting } from '@/lib/server/job-posting';
 import { authorizeAI } from '@/lib/server/session';
+import { preservesSourceText } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -83,6 +84,6 @@ const analyzeInterviewAnswerFlow = ai.defineFlow(
     const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName, jobPostingText});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return { ...output, exampleAnswer: preservesSourceText(output.exampleAnswer, [input.userAnswer]) ? output.exampleAnswer : input.userAnswer };
   }
 );

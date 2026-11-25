@@ -11,6 +11,7 @@ import { getLanguageName } from '@/lib/document-languages';
  */
 
 import { authorizeAI } from '@/lib/server/session';
+import { preservesSourceText } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -70,6 +71,9 @@ const refineDocumentsForATSFlow = ai.defineFlow(
     const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return {
+      refinedCvText: preservesSourceText(output.refinedCvText, [input.cvText]) ? output.refinedCvText : input.cvText,
+      refinedCoverLetterText: preservesSourceText(output.refinedCoverLetterText, [input.coverLetterText]) ? output.refinedCoverLetterText : input.coverLetterText,
+    };
   }
 );

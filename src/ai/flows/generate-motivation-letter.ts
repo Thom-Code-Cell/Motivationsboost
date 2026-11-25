@@ -1,6 +1,8 @@
 
 'use server';
 import { getLanguageName } from '@/lib/document-languages';
+import { guidedLetter } from '@/lib/letter-draft';
+import { preferredProductLocale } from '@/lib/product-locale';
 
 /**
  * @fileOverview This file defines a Genkit flow for generating a personalized cover letter based on a job URL, a selected motivation style, and user data.
@@ -12,6 +14,7 @@ import { getLanguageName } from '@/lib/document-languages';
 
 import { getJobPosting } from '@/lib/server/job-posting';
 import { authorizeAI } from '@/lib/server/session';
+import { preservesSourceText } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -73,6 +76,8 @@ const generateMotivationLetterFlow = ai.defineFlow(
     const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName, jobPostingText});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return { motivationLetter: preservesSourceText(output.motivationLetter, [input.companyReason, input.realExample, input.contribution])
+      ? output.motivationLetter
+      : guidedLetter({ cv: input.cvDaten, job: jobPostingText, motivation: input.companyReason, example: input.realExample, contribution: input.contribution, language: preferredProductLocale([input.language]) }) };
   }
 );

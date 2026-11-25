@@ -9,6 +9,7 @@ import { getLanguageName } from '@/lib/document-languages';
  */
 
 import { authorizeAI } from '@/lib/server/session';
+import { preservesSourceText } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -94,6 +95,6 @@ const generateLinkedInSummaryFlow = ai.defineFlow(
     });
 
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return { linkedinSummary: preservesSourceText(output.linkedinSummary, [input.cvData.summary]) ? output.linkedinSummary : input.cvData.summary };
   }
 );

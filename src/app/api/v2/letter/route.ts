@@ -18,7 +18,7 @@ const requestIdSchema = z.string().uuid();
 
 function paidAiModel(): ApprovedTextModel | null {
   if (!hasCurrentAiApproval()) return null;
-  const model = getTextModel();
+  const model = getTextModel('letter');
   if (model === approvedTextModel || (process.env.VERCEL_ENV === 'preview' && model === previewTextModel)) return model;
   return null;
 }

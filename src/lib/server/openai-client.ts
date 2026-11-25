@@ -18,7 +18,8 @@ export class OpenAIRequestError extends Error {
   }
 }
 
-export function getTextModel(): string {
+export function getTextModel(purpose?: 'letter'): string {
+  if (purpose === 'letter' && process.env.OPENAI_LETTER_MODEL?.trim()) return process.env.OPENAI_LETTER_MODEL.trim();
   return process.env.OPENAI_MODEL?.trim() || 'gpt-6.1-terra';
 }
 

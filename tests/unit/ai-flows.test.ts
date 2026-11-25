@@ -37,7 +37,17 @@ describe('all structured AI functions with isolated provider responses', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(output) }] }] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const module = await import(`../../src/ai/flows/${path}.ts`);
-    expect(await module[name](input)).toEqual(output);
+    const result = await module[name](input);
+    const guarded: Record<string, () => void> = {
+      'generate-cv-from-documents': () => expect(result).toMatchObject({ summary: '', skills: [], sections: [{ title: 'Dokumentauszüge zur Prüfung' }] }),
+      'generate-motivation-letter': () => expect(result.motivationLetter).toContain((input as { realExample: string }).realExample),
+      'analyze-interview-answer': () => expect(result.exampleAnswer).toBe((input as { userAnswer: string }).userAnswer),
+      'autofill-cv-gaps': () => expect(result.filledCvText).toBe((input as { cvText: string }).cvText),
+      'refine-documents-for-ats': () => expect(result).toEqual({ refinedCvText: 'Leitung', refinedCoverLetterText: 'Bewerbung' }),
+      'generate-email-response': () => expect(result.emailBody).toContain('Stand meiner Bewerbung'),
+    };
+    if (guarded[path]) guarded[path]();
+    else expect(result).toEqual(output);
     expect(auth.authorizeAI).toHaveBeenCalledWith(input);
     const request = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(request.text.format.type).toBe('json_schema');
