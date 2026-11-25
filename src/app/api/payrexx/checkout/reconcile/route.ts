@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
   try {
     await reconcileSandboxGateway(userId, config);
     return reply({ ok: true });
-  } catch {
+  } catch (error) {
+    console.warn('Payrexx test status check failed', { type: error instanceof Error ? error.name : 'UnknownError' });
     return reply({ error: 'Payrexx konnte den Teststatus gerade nicht bestätigen.' }, 502);
   }
 }

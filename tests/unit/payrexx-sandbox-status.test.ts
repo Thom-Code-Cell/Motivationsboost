@@ -28,8 +28,8 @@ it('surveys only a claimed owned gateway and submits a matching provider transac
   expect(mocks.claim.mock.calls[0][1]).toEqual(['user-1', 27]);
   expect(mocks.claim.mock.calls[0][0]).toContain("interval '15 seconds'");
   expect(external.mock.calls.map(([url]) => url)).toEqual([
-    'https://api.payrexx.com/v1.17/Gateway/101/?instance=shared-live',
-    'https://api.payrexx.com/v1.18/Transaction/301/?instance=shared-live',
+    'https://api.payrexx.com/v1.19/Gateway/101/?instance=shared-live',
+    'https://api.payrexx.com/v1.19/Transaction/301/?instance=shared-live',
   ]);
   expect(mocks.apply).toHaveBeenCalledOnce();
   expect(mocks.apply.mock.calls[0][1]).toEqual({ transaction: payment });

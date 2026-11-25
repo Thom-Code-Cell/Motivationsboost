@@ -15,14 +15,14 @@ const transactionSchema = z.object({
 }).passthrough();
 
 async function payrexxGet(instance: string, key: string, resource: 'Gateway' | 'Transaction', id: number) {
-  const version = resource === 'Gateway' ? 'v1.17' : 'v1.18';
+  const version = 'v1.19';
   const response = await fetch(`https://api.payrexx.com/${version}/${resource}/${id}/?instance=${encodeURIComponent(instance)}`, {
     headers: { 'X-API-KEY': key, Accept: 'application/json' },
     cache: 'no-store',
     redirect: 'error',
     signal: AbortSignal.timeout(2500),
   });
-  if (!response.ok) throw new Error('Payrexx status unavailable');
+  if (!response.ok) throw new Error(`Payrexx ${resource} HTTP ${response.status}`);
   const body: { status?: string; data?: unknown[] | unknown } = await response.json();
   if (body.status !== 'success') throw new Error('Payrexx status unavailable');
   return Array.isArray(body.data) ? body.data[0] : body.data;
@@ -46,7 +46,10 @@ export async function reconcileSandboxGateway(userId: string, config: { instance
   const gateway = gatewaySchema.parse(await payrexxGet(config.instance, config.key, 'Gateway', order.payrexx_gateway_id));
   if (gateway.id !== order.payrexx_gateway_id) throw new Error('Gateway identifier mismatch');
   const ids = [...new Set(gateway.invoices.flatMap(invoice => invoice.transactions.map(transaction => transaction.id)))].slice(-5);
-  if (!ids.length) return;
+  if (!ids.length) {
+    console.info('Payrexx test gateway has no transaction IDs', { invoiceCount: gateway.invoices.length });
+    return;
+  }
   const transactions = await Promise.all(ids.map(async id => {
     const body = await payrexxGet(config.instance, config.key, 'Transaction', id);
     const parsed = transactionSchema.parse(body);
@@ -60,7 +63,12 @@ export async function reconcileSandboxGateway(userId: string, config: { instance
   try {
     await connection.query('BEGIN');
     for (const transaction of transactions) {
-      if (transaction) await applyWeeklySandboxEvent(connection, { transaction }, config);
+      if (!transaction) {
+        console.info('Payrexx test transaction did not match the order reference');
+        continue;
+      }
+      const activated = await applyWeeklySandboxEvent(connection, { transaction }, config);
+      if (!activated) console.info('Payrexx test transaction did not activate a pass');
     }
     await connection.query('COMMIT');
   } catch (error) {
