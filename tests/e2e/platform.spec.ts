@@ -62,7 +62,7 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('Erhaltene Notiz')).toBeVisible();
   await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
   await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(1);
-  const passphrase = 'Test-Sicherung-2026';
+  const passphrase = randomUUID();
   await page.getByLabel('Sicherungs-Passphrase, optional').fill(passphrase);
   const exportedWorkspace = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Arbeitsplatz sichern', exact: true }).click();
@@ -86,7 +86,7 @@ test('account session persists and exposes only its own application data', async
     await otherPage.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
     await expect(otherPage.getByRole('status')).toContainText('Vorhandene Serverdaten wurden');
     await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
-    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill('Falsche-Test-Passphrase');
+    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill(randomUUID());
     await otherPage.getByLabel('Arbeitsplatz wiederherstellen').setInputFiles((await backup.path())!);
     await expect(otherPage.getByText('Sicherung konnte nicht gelesen werden. Prüfe Datei und Passphrase.')).toBeVisible();
     await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
