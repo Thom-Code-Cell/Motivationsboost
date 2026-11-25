@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const candidate = { model: model.model, caseId: item.id, locale: item.locale };
     const estimate = (input: number, output: number) => Math.ceil((input * model.input + output * model.output) * 1.1);
-    const hash = createHash('sha256').update('evidence-selection-v1:' + phase + ':' + model.model + ':' + item.id).digest('hex');
+    const hash = createHash('sha256').update('evidence-selection-v2:' + phase + ':' + model.model + ':' + item.id).digest('hex');
     const reqId = [hash.slice(0, 8), hash.slice(8, 12), hash.slice(12, 16), hash.slice(16, 20), hash.slice(20, 32)].join('-');
     let receipt: string;
     try {
@@ -87,5 +87,8 @@ export async function POST(request: NextRequest) {
         : { ...candidate, status: 'unknown-result' };
     }
   })));
-  return NextResponse.json({ scores }, { headers });
+  const output = JSON.stringify({ scores }).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  return new NextResponse('<!doctype html><html lang="de" translate="no"><meta name="google" content="notranslate"><title>Synthetische Testergebnisse</title><pre translate="no" class="notranslate">' + output + '</pre></html>', {
+    headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
+  });
 }
