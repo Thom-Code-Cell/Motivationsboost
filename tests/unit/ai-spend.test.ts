@@ -29,6 +29,21 @@ it('blocks unreserved legacy transports before any network call', async () => {
   }
 });
 
+it('does not dispatch any paid transport at or after approval expiry', async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  vi.stubEnv('MOTIVATIONS_PAID_AI_ENABLED', 'true');
+  vi.stubEnv('MOTIVATIONS_AI_PRICE_APPROVED_UNTIL', new Date().toISOString());
+  try {
+    await expect(callOpenAI('/responses', {}, 'existing-receipt')).rejects.toMatchObject({ code: 'approval_expired' });
+    await expect(callOpenAIForm('/images/edits', new FormData(), 'existing-receipt')).rejects.toMatchObject({ code: 'approval_expired' });
+    expect(fetch).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+
 const connection = process.env.MOTIVATIONS_E2E_DATABASE_URL;
 describe.skipIf(!connection)('PostgreSQL spend reservations', () => {
   const schema = 'spend_test_' + randomUUID().replaceAll('-', '');
