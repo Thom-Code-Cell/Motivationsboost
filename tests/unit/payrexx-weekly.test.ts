@@ -29,7 +29,7 @@ const poolClient = {
 
 beforeAll(async () => {
   await database.exec(`CREATE TABLE "user" (id text PRIMARY KEY); INSERT INTO "user" VALUES ('test-user');`);
-  for (const file of ['001_app_data.sql', '004_payrexx_orders.sql', '008_payrexx_entitlement_reference.sql', '009_payrexx_sandbox_checkout.sql']) {
+  for (const file of ['001_app_data.sql', '004_payrexx_orders.sql', '008_payrexx_entitlement_reference.sql', '009_payrexx_sandbox_checkout.sql', '011_payrexx_test_notices.sql']) {
     await database.exec(readFileSync(`migrations/${file}`, 'utf8'));
   }
   await database.query("INSERT INTO payment_orders (reference_id,user_id,plan,amount,currency,status,sandbox,sandbox_psp_id) VALUES ($1,'test-user','weekly',890,'CHF','gateway-created',true,27)", [reference]);
@@ -59,4 +59,7 @@ it('validates the weekly sandbox amount and order, grants once, and applies a ma
   await applyWeeklySandboxEvent(poolClient, { transaction: refund });
   const revoked = await database.query('SELECT status FROM ai_entitlements');
   expect(revoked.rows).toEqual([{ status: 'refunded' }]);
+  await applyWeeklySandboxEvent(poolClient, { transaction: refund });
+  const notices = await database.query('SELECT kind FROM payrexx_test_notices ORDER BY kind');
+  expect(notices.rows).toEqual([{ kind: 'paid' }, { kind: 'refunded' }]);
 });

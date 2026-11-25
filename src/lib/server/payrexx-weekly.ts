@@ -29,6 +29,10 @@ export function weeklySandboxEnabled() {
     process.env.PAYREXX_WEEKLY_SANDBOX_ENTITLEMENTS_ENABLED === 'true';
 }
 
+async function enqueueTestNotice(db: PoolClient, reference: string, kind: 'paid' | 'refunded') {
+  await db.query('INSERT INTO payrexx_test_notices (order_reference, kind) VALUES ($1, $2) ON CONFLICT DO NOTHING', [reference, kind]);
+}
+
 export async function applyWeeklySandboxEvent(db: PoolClient, payload: unknown, expected: { instance: string; pspId: number }) {
   const parsed = eventSchema.safeParse(payload);
   if (!parsed.success) return false;
@@ -58,6 +62,7 @@ export async function applyWeeklySandboxEvent(db: PoolClient, payload: unknown, 
         invoice.refundedAmount !== order.amount) return false;
     await db.query("UPDATE ai_entitlements SET status = 'refunded' WHERE payment_reference = $1 AND user_id = $2", [reference, order.user_id]);
     await db.query("UPDATE payment_orders SET status = 'refunded', updated_at = now() WHERE reference_id = $1", [reference]);
+    await enqueueTestNotice(db, reference, 'refunded');
     return false;
   }
   if (order.status !== 'gateway-created' || transaction.amount !== order.amount || invoice.refundedAmount) return false;
@@ -77,5 +82,6 @@ export async function applyWeeklySandboxEvent(db: PoolClient, payload: unknown, 
     "UPDATE payment_orders SET status = 'paid', payrexx_transaction_id = $2, updated_at = now() WHERE reference_id = $1",
     [reference, transaction.uuid],
   );
+  await enqueueTestNotice(db, reference, 'paid');
   return true;
 }

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { sendNextPayrexxTestNotice } from '@/lib/server/payrexx-test-notices';
 import { isRequestOriginAllowed } from '@/lib/security';
 import { requireAppSession } from '@/lib/server/app-session';
 import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
   catch { return reply({ error: 'Bitte anmelden.' }, 401); }
   try {
     await reconcileSandboxGateway(userId, config);
+    after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));
     return reply({ ok: true });
   } catch (error) {
     console.warn('Payrexx test status check failed', { type: error instanceof Error ? error.name : 'UnknownError' });

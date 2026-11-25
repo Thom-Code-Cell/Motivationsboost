@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { sendNextPayrexxTestNotice } from '@/lib/server/payrexx-test-notices';
 import { databaseConnectionConfigured, databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     const result = await recordEvent(connection);
     const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload, sandbox);
     await connection.query('COMMIT');
+    after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));
     return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted });
   } catch {
     await connection?.query('ROLLBACK').catch(() => {});
