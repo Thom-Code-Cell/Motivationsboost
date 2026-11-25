@@ -124,6 +124,8 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
   const [letter, setLetter] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [draftError, setDraftError] = useState('');
+  const [exportError, setExportError] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [allowExternalProcessing, setAllowExternalProcessing] = useState(false);
   const [includePrivacyNotice, setIncludePrivacyNotice] = useState(false);
   const [noticeLanguage, setNoticeLanguage] = useState<PrivacyNoticeLanguage>('de');
@@ -153,11 +155,37 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     });
     return () => { active = false; };
   }, [draftKey, draftReady, letter, values]);
-  function downloadLetter() {
-    const url = URL.createObjectURL(new Blob([finalLetter], { type: 'text/plain;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url; link.download = 'motivationsschreiben.txt'; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  async function downloadLetter(format: 'txt' | 'pdf' | 'docx') {
+    setExportError('');
+    setExporting(true);
+    try {
+      let blob: Blob;
+      if (format === 'pdf') {
+        const text = finalLetter.normalize('NFC').replaceAll('\t', '    ');
+        if (/[^\r\n\x20-\x7e\u00a0-\u00ff\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u2013-\u2014\u2018-\u201a\u201c-\u201e\u2022\u2026\u2039\u203a\u20ac]/u.test(text)) {
+          setExportError('Die PDF-Schrift unterstützt einzelne Zeichen deines Textes nicht. Wähle Word oder Text, damit alle Zeichen erhalten bleiben.');
+          return;
+        }
+        const { createTextPdf } = await import('@/lib/export-documents');
+        blob = createTextPdf(text).output('blob');
+      } else if (format === 'docx') {
+        const { Document, Packer, Paragraph } = await import('docx');
+        const paragraphs = finalLetter.split(/\r?\n/).map(text => new Paragraph(text));
+        blob = await Packer.toBlob(new Document({ sections: [{ children: paragraphs }] }));
+      } else {
+        blob = new Blob([finalLetter], { type: 'text/plain;charset=utf-8' });
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'motivationsschreiben.' + format;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setExportError('Die Datei konnte nicht erstellt werden. Bitte versuche es erneut.');
+    } finally {
+      setExporting(false);
+    }
   }
   async function generate(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setMessage('');
@@ -226,7 +254,14 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={includePrivacyNotice} onChange={event => setIncludePrivacyNotice(event.target.checked)} /><span>Datenschutzhinweis beim Herunterladen meines Motivationsschreibens anhängen</span></label>
       <p className="text-xs text-slate-600">Du kannst den Hinweis auch in deinen Lebenslauf kopieren. Er verhindert eine KI-Verarbeitung nicht technisch und garantiert keine menschliche Prüfung. Deine Auswahl bleibt in dieser Ansicht und wird nicht an den KI-Dienst gesendet.</p>
     </section>
-    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">Vorschau des angehängten Hinweises</p><p className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}<button type="button" onClick={downloadLetter} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button></section>}
+    {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">Vorschau des angehängten Hinweises</p><p className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('txt')} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button>
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('pdf')} className="rounded-lg border px-4 py-2">Als PDF herunterladen</button>
+        <button type="button" disabled={exporting} onClick={() => void downloadLetter('docx')} className="rounded-lg border px-4 py-2">Als Word-Datei herunterladen</button>
+      </div>
+      {exportError && <p role="alert">{exportError}</p>}
+</section>}
     <WorkspaceBackup userId={user.id} />
     <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/about">Über Motivationsboost</a><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
   </main>;
