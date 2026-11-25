@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { maximumLetterCostChfMicros, providerUsageCost, textCostChfMicros } from '@/lib/ai-spend';
+import { maximumLetterCostChfMicros, providerUsageCost, textCostChfMicros, previewTextModel } from '@/lib/ai-spend';
 
 const mocks = vi.hoisted(() => ({ pool: undefined as Pool | undefined }));
 vi.mock('@/lib/server/postgres', () => ({ databasePool: () => mocks.pool }));
@@ -12,6 +12,8 @@ import { callOpenAI, callOpenAIForm } from '@/lib/server/openai-client';
 it('books the standard uncached token rates and rejects invalid usage reports', () => {
   expect(providerUsageCost({ input_tokens: 1000, output_tokens: 1000 })).toBe(6600);
   expect(providerUsageCost({ input_tokens: -1, output_tokens: 10 })).toBeUndefined();
+  expect(providerUsageCost({ input_tokens: 1000, output_tokens: 1000 }, previewTextModel)).toBe(2200);
+  expect(maximumLetterCostChfMicros('😀', 'x', previewTextModel)).toBe(4508);
   expect(maximumLetterCostChfMicros('😀', 'x')).toBe(textCostChfMicros(2053, 2048));
 });
 
