@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createWorkspaceBackup, emptyWorkspaceDraft, parseWorkspaceDraft, readWorkspaceBackup } from '@/lib/local-vault';
 import { evidenceCaseInput, evidenceCases } from '../fixtures/letter-evidence-cases';
 import { letterEvidence, renderEvidenceLetter, validateEvidenceSelection } from '@/lib/letter-evidence';
 
@@ -29,4 +30,15 @@ describe('evidence-based applicant content', () => {
   ])('rejects the entire non-conforming output', output => {
     expect(validateEvidenceSelection(output, letterEvidence(evidenceCaseInput(evidenceCases[0])))).toBeNull();
   });
+});
+
+it('round-trips evidence including unfinished entries and reads existing backups', async () => {
+  expect(parseWorkspaceDraft(emptyWorkspaceDraft)).toEqual(emptyWorkspaceDraft);
+  const draft = {
+    ...emptyWorkspaceDraft,
+    evidence: [evidenceCases[0].target, { kind: 'developmentGoal' as const, text: '' }],
+  };
+  const contents = await createWorkspaceBackup('[]', draft, []);
+  const result = await readWorkspaceBackup(new File([contents], 'synthetic-backup.json'), '');
+  expect(result.draft).toEqual(draft);
 });

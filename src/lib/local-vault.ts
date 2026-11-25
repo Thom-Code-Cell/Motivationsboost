@@ -1,4 +1,5 @@
 import { z } from 'zod/v3';
+import { storedEvidenceItem } from './letter-evidence';
 
 export const documentCategories = ['Lebenslauf', 'Arbeitszeugnis', 'Diplom oder Zertifikat', 'Bewerbungsfoto', 'Sonstige Bewerbungsunterlage'] as const;
 export const maximumLocalFileBytes = 20 * 1024 * 1024;
@@ -39,6 +40,7 @@ const backupSchema = z.object({
       example: z.string().max(2000), contribution: z.string().max(1500),
     }).strict(),
     letter: z.string().max(30000),
+    evidence: z.array(storedEvidenceItem).max(12).optional(),
   }).strict(),
   documents: z.array(documentInfo.extend({ content: z.string().min(1).max(Math.ceil(maximumLocalFileBytes / 3) * 4) })),
 }).strict();

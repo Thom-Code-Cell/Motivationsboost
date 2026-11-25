@@ -6,12 +6,13 @@ export const evidenceKinds = [
   'developmentGoal', 'futureWork', 'unverified',
 ] as const;
 
-export const evidenceItem = z.object({
+export const storedEvidenceItem = z.object({
   kind: z.enum(evidenceKinds),
-  text: z.string().trim().min(8).max(1200),
+  text: z.string().max(1200),
 }).strict();
 
-export type EvidenceItem = z.infer<typeof evidenceItem>;
+export const evidenceItem = storedEvidenceItem.extend({ text: z.string().trim().min(8).max(1200) });
+export type EvidenceItem = z.infer<typeof storedEvidenceItem>;
 type Evidence = EvidenceItem & { id: string };
 
 const evidenceSelection = z.object({
