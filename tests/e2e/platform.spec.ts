@@ -184,7 +184,19 @@ test('legal pages render without horizontal overflow', async ({ page }) => {
   if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('banner').getByRole('link', { name: 'Kostenlos ausprobieren' })).toHaveAttribute('href', '/app');
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await expect.poll(() => page.evaluate(() => {
+    const overflow = document.documentElement.scrollWidth - window.innerWidth;
+    if (overflow <= 1) return { overflow: false };
+    const outsideViewport = [...document.querySelectorAll('body *')].filter(element => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.width > 0 && bounds.right > window.innerWidth + 1;
+    }).slice(0, 8).map(element => ({
+      element: element.tagName,
+      className: element.getAttribute('class'),
+      right: Math.round(element.getBoundingClientRect().right),
+    }));
+    return { overflow: true, viewportWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, outsideViewport };
+  })).toEqual({ overflow: false });
   const productImages = page.getByRole('main').getByRole('img');
   for (const productImage of await productImages.all()) {
     await productImage.scrollIntoViewIfNeeded();
@@ -313,4 +325,25 @@ test('automatically reconciles an open weekly test payment', async ({ page }) =>
   await createAccount(page);
   await expect(page.getByText(/Dein Testzugang ist aktiv/)).toBeVisible();
   expect(checked).toBe(true);
+});
+
+test('legal documents follow the selected language across all three pages', async ({ page }) => {
+  const expected = {
+    de: ['Impressum', 'Datenschutzhinweise', 'Nutzungsbedingungen'],
+    en: ['Legal notice', 'Privacy notice', 'Terms of use'],
+    fr: ['Mentions légales', 'Avis de confidentialité', 'Conditions d’utilisation'],
+    it: ['Note legali', 'Informativa sulla privacy', 'Condizioni d’uso'],
+  };
+  const slugs = ['impressum', 'datenschutz', 'agb'];
+  await page.goto('/impressum');
+  for (const [language, titles] of Object.entries(expected)) {
+    await page.getByRole('combobox').selectOption(language);
+    for (const [index, slug] of slugs.entries()) {
+      await page.goto('/' + slug);
+      await expect(page.getByRole('heading', { level: 1, name: titles[index], exact: true })).toBeVisible();
+      await expect(page.locator('div[lang="' + language + '"]').filter({ has: page.getByRole('main') })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'thomas@th-analytica.com' }).first()).toBeVisible();
+    }
+    await page.goto('/impressum');
+  }
 });
