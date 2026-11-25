@@ -7,7 +7,7 @@ import { maximumLetterCostChfMicros, providerUsageCost, textCostChfMicros, previ
 const mocks = vi.hoisted(() => ({ pool: undefined as Pool | undefined }));
 vi.mock('@/lib/server/postgres', () => ({ databasePool: () => mocks.pool }));
 import { AiSpendBlocked, DuplicateAiRequest, reserveAiSpend, settleAiSpend } from '@/lib/server/ai-spend-store';
-import { callOpenAI, callOpenAIForm } from '@/lib/server/openai-client';
+import { callOpenAI } from '@/lib/server/openai-client';
 
 it('books the standard uncached token rates and rejects invalid usage reports', () => {
   expect(providerUsageCost({ input_tokens: 1000, output_tokens: 1000 })).toBe(6600);
@@ -22,7 +22,6 @@ it('blocks unreserved legacy transports before any network call', async () => {
   vi.stubGlobal('fetch', fetch);
   try {
     await expect(callOpenAI('/responses', {})).rejects.toThrow('keine Kostenreservierung');
-    await expect(callOpenAIForm('/images/edits', new FormData())).rejects.toThrow('keine Kostenreservierung');
     expect(fetch).not.toHaveBeenCalled();
   } finally {
     vi.unstubAllGlobals();
@@ -36,7 +35,6 @@ it('does not dispatch any paid transport at or after approval expiry', async () 
   vi.stubEnv('MOTIVATIONS_AI_PRICE_APPROVED_UNTIL', new Date().toISOString());
   try {
     await expect(callOpenAI('/responses', {}, 'existing-receipt')).rejects.toMatchObject({ code: 'approval_expired' });
-    await expect(callOpenAIForm('/images/edits', new FormData(), 'existing-receipt')).rejects.toMatchObject({ code: 'approval_expired' });
     expect(fetch).not.toHaveBeenCalled();
   } finally {
     vi.unstubAllGlobals();

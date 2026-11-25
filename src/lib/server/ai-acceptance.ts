@@ -56,11 +56,6 @@ export async function reserveAcceptance(path: string, body: unknown) {
       body.model === 'gpt-4o-mini-tts' && 'input' in body && typeof body.input === 'string' && Buffer.byteLength(body.input) <= 256) {
     model = body.model;
     amount = 100_000;
-  } else if (path === '/images/edits' && body instanceof FormData && body.get('model') === 'gpt-image-1-mini' &&
-      body.get('size') === '1024x1024' && body.get('quality') === 'low' && body.getAll('image').length === 1 &&
-      body.get('image') instanceof Blob && (body.get('image') as Blob).size <= 100_000) {
-    model = 'gpt-image-1-mini';
-    amount = 100_000;
   } else {
     throw new Error('Abnahmeaufruf ohne freigegebene Preisobergrenze.');
   }
@@ -87,16 +82,7 @@ export async function recordAcceptance(receipt: string, started: number, respons
   const tokens = providerTokenCounts(data?.usage);
   if (!tokens) return;
   context.metrics.tokens = tokens;
-  let actual: number;
-  if (context.metrics.model === previewTextModel) {
-    actual = textCostChfMicros(tokens.input, tokens.output, previewTextModel);
-  } else {
-    const usage = data?.usage as { input_tokens_details?: { image_tokens?: unknown; text_tokens?: unknown } };
-    const { image_tokens: image, text_tokens: text } = usage.input_tokens_details ?? {};
-    if (typeof image !== 'number' || typeof text !== 'number' || !Number.isSafeInteger(image) ||
-        !Number.isSafeInteger(text) || image < 0 || text < 0 || image + text !== tokens.input) return;
-    actual = Math.ceil((2.5 * image + 2 * text + 8 * tokens.output) * 1.1);
-  }
+  const actual = textCostChfMicros(tokens.input, tokens.output, previewTextModel);
   await settleAiSpend(receipt, actual);
   context.metrics.costChfMicros = actual;
 }

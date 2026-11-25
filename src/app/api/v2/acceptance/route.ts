@@ -8,6 +8,13 @@ import { isRequestOriginAllowed } from '@/lib/security';
 
 export const maxDuration = 180;
 
+async function metadataUser() {
+  if (process.env.VERCEL_ENV !== 'preview') return undefined;
+  const session = await requireAppSession().catch(() => null);
+  const id = session?.user.id;
+  if (id && id === process.env.MOTIVATIONS_ACCEPTANCE_USER_ID) return id;
+}
+
 async function eligibleUser() {
   if (!hasCurrentAcceptanceApproval()) return undefined;
   const session = await requireAppSession().catch(() => null);
@@ -22,16 +29,17 @@ function html(body: string) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!await eligibleUser()) return new NextResponse(null, { status: 404 });
   if (request.nextUrl.searchParams.get('mode') === 'models') {
+    if (!await metadataUser()) return new NextResponse(null, { status: 404 });
     const response = await fetch('https://api.openai.com/v1/models', {
       headers: { Authorization: 'Bearer ' + getOpenAIKey() }, cache: 'no-store', signal: AbortSignal.timeout(10_000),
     });
-    const body = await response.json() as { data?: { id: string }[] };
+    const body = await response.json().catch(() => ({})) as { data?: { id: string }[] };
     const candidates = body.data?.map(model => model.id).filter(id => /^(?:gpt-image-|chatgpt-image|dall-e-)/.test(id)) ?? [];
     return html('<pre translate="no">' + JSON.stringify({ status: response.status, candidates }).replaceAll('<', '&lt;') + '</pre>');
   }
-  return html('<h1>Synthetische Motivationsboost-Abnahme</h1><form method="post"><button name="group" value="evidence">Bewerbungsunterlagen prüfen</button><button name="group" value="analysis">Analysen prüfen</button><button name="group" value="media">Audio und Foto prüfen</button></form>');
+  if (!await eligibleUser()) return new NextResponse(null, { status: 404 });
+  return html('<h1>Synthetische Motivationsboost-Abnahme</h1><form method="post"><button name="group" value="evidence">Bewerbungsunterlagen prüfen</button><button name="group" value="analysis">Analysen prüfen</button><button name="group" value="media">Audio prüfen</button></form>');
 }
 
 export async function POST(request: NextRequest) {

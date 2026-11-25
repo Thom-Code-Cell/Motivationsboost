@@ -9,7 +9,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import Link from 'next/link';
 import React from 'react';
 
-import { LayoutDashboard, CreditCard, FileText, MessageSquareQuote, Sparkles, UploadCloud, Bot, LogOut, FilePlus2, PenSquare, MessageCircleQuestion, Briefcase, Linkedin, Loader2, HelpCircle, Mail, FileArchive, Shield, Search, DollarSign, Camera } from 'lucide-react';
+import { LayoutDashboard, CreditCard, FileText, MessageSquareQuote, Sparkles, UploadCloud, Bot, LogOut, FilePlus2, PenSquare, MessageCircleQuestion, Briefcase, Linkedin, Loader2, HelpCircle, Mail, FileArchive, Shield, Search, DollarSign } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -56,7 +56,6 @@ const Abo: React.ComponentType<any> = dynamic(() => import('@/components/abo').t
 const TrustCenter: React.ComponentType<any> = dynamic(() => import('@/components/trust-center').then((mod) => mod.TrustCenter), { ssr: false, loading: loadingSpinner });
 const OwnerDashboard: React.ComponentType<any> = dynamic(() => import('@/components/owner-dashboard').then((mod) => mod.OwnerDashboard), { ssr: false, loading: loadingSpinner });
 const SalaryChecker: React.ComponentType<any> = dynamic(() => import('@/components/salary-checker').then((mod) => mod.SalaryChecker), { ssr: false, loading: loadingSpinner });
-const PhotoStudio: React.ComponentType<any> = dynamic(() => import('@/components/photo-studio').then((mod) => mod.PhotoStudio), { ssr: false, loading: loadingSpinner });
 const AgbDialog: React.ComponentType<any> = dynamic(() => import('./agb-dialog').then(mod => mod.AgbDialog), { ssr: false });
 const PrivacyDialog: React.ComponentType<any> = dynamic(() => import('./privacy-dialog').then(mod => mod.PrivacyDialog), { ssr: false });
 const UpsellPrompt: React.ComponentType<any> = dynamic(() => import('./upsell-prompt').then(mod => mod.UpsellPrompt), { ssr: false });
@@ -67,7 +66,7 @@ type ActiveView =
   | 'style-profile' | 'linkedin-booster' | 'cv-generator'
   | 'cv-gaps' | 'feedback' | 'interview' | 'email'
   | 'uploads' | 'export' | 'abo' | 'trust'
-  | 'owner-dashboard' | 'salary-checker' | 'photo-studio' | 'career-profile' | 'data-privacy';
+  | 'owner-dashboard' | 'salary-checker' | 'career-profile' | 'data-privacy';
 
 interface DashboardProps {
   isAdmin: boolean;
@@ -254,8 +253,6 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
         case 'salary-checker':
             if (!cvJson) return <div className="space-y-4"><p>Erstellen Sie zuerst einen Lebenslauf aus Ihren Dokumenten.</p><Button onClick={() => setActiveView('cv-generator')}>Zum CV-Generator</Button></div>;
             return <SalaryChecker user={user} cvJson={cvJson} language={language} />;
-        case 'photo-studio':
-            return <PhotoStudio user={user} />;
         default:
             return <div>Komponente nicht gefunden.</div>;
     }
@@ -271,7 +268,6 @@ export function Dashboard({ isAdmin, user, accessToken, isAuthLoading, handleSig
     { id: 'feedback', label: 'ATS-Feedback', icon: MessageSquareQuote, group: 'Optimierung' },
     { id: 'linkedin-booster', label: 'LinkedIn-Booster', icon: Linkedin, group: 'Optimierung', feature: !!features?.linkedinBooster },
     { id: 'interview', label: 'Interview-Coach', icon: MessageCircleQuestion, group: 'Optimierung', feature: !!features?.showInterviewCoach },
-    { id: 'photo-studio', label: 'KI-Foto-Studio', icon: Camera, group: 'Optimierung' },
     { id: 'cv-gaps', label: 'CV-Editor', icon: FileText, group: 'Optimierung' },
     { id: 'salary-checker', label: 'Gehalts-Check', icon: DollarSign, group: 'Optimierung' },
 

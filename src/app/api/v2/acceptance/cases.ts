@@ -14,7 +14,6 @@ import { predictSalaryRange } from '@/ai/flows/predict-salary-range';
 import { suggestJobOpportunities } from '@/ai/flows/suggest-job-opportunities';
 import { generateMarketingContent } from '@/ai/flows/generate-marketing-content';
 import { generateAudioFromText } from '@/ai/flows/generate-audio-from-text';
-import { generateProfessionalPhoto } from '@/ai/flows/generate-professional-photo';
 import { evidenceCases } from '../../../../../tests/fixtures/letter-evidence-cases';
 
 const context = {
@@ -30,11 +29,10 @@ const cv = {
   sections: [{ title: 'Erfahrung', items: [{ title: 'Lagerassistenz', subtitle: 'Fiktiver Betrieb', date: '2020–2023', description: 'Wöchentliche Prüfung von Bestandslisten' }] }],
   skills: ['Bestandslisten prüfen'],
 };
-const syntheticPortrait = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAIAAABMXPacAAADJUlEQVR42u2dvWocMRSFx8JdXsLvEkNqQwoXJmBcmbQOuAvpAkkbtgoLwYWLQGqD8yiGdClTpU9hWIzjGc+PNOdc6bvVssMI3fPpHmmkWXbv7vefjtBFQgIAAIAAAAAIAACAAAAACAAAgAAAAAgANBH7ETt9cXLUd+nz1Y9YuexFOQ8YED00jAAAZkgfCIM1gIXSh8BgCiCj9OYYUjvqF225HgClNXJj4GVBI9X5cHrYd+n99jaWFxkBeFb9Ad1nkDBh4AJgWP1J0o/H4MAgVaz+s/c6zAfue0FL1M/VQuUW1DcMswvXZ0daI0qe6rfTB1MLKuEbnl6UDIdeOaX6WhYWAQcyrILWNQo3I5IBcNuTUfUnNTX8DYuAOaBJAIb78qpeGVXAms7g40JYEADajv1mM//fhV68fEsFNBey7ei/P7+4adFQBRiqr+qV9Rzw5uP1/Ydvl8eqFtqdA3baPfq8ZgtMwjwHEM0CeOja8xx8eQvVLkM9V0GSlSgWhAUBgAAAAAgAAKDm1Z5tr6gALAgABAAA4D3jbbY3m+3NpPan3qJaF1ABWNCIOD99dT+oxw//3V0AyFn1YxhMNSvtc0kYC9oN52F9d1dDDP9O/jPVqSczD9V/JPHAJecK0P9OeAmD4VrxV7+L+G5onxdF8Ry7CuikR8TybUGeA3gO0A1Dh11xlwpYXwuTMwksCACKIelzJOdVAevoYnUgamdBpdVxO452nAPKaWT4MoDpJFxCKc9XMXxXQXn18lTffRmaSzVb9bsof+Awe7PIWfpIAGZg8Jc+AIDj83dPfv/19UHfLWfffz35/fXmEwCW6p4l3EgYASiquy0JCwArS2+FQQxAKL0JBhkAE+nlGAQADKUXYkior+1hQn1tP1eyoCjSr29HCfW1PU+or+1/Qn1tFryWIo7E8NfmklBfm1FCfW1ezAHVzQG1Dv9C2VEB9a6CCAGAuv2nRI5UABYEAPxHmCkVgAUBgAAAAAgAAIAAAACWhO2PILJHxkypACwIALiQMEcqAAsCAC4kzI4KqNGCai2CEnmlQH2tT/2yFlQTg3K5MAeI4x98Dzc2/L/a4wAAAABJRU5ErkJggg==';
 
-function mediaSummary(data: string, kind: 'audio' | 'photo') {
+function mediaSummary(data: string) {
   const bytes = Buffer.from(data.split(',')[1] ?? '', 'base64');
-  return { kind, byteLength: bytes.length, header: bytes.subarray(0, 12).toString('hex') };
+  return { byteLength: bytes.length, header: bytes.subarray(0, 12).toString('hex') };
 }
 
 export const acceptanceCases = {
@@ -61,7 +59,6 @@ export const acceptanceCases = {
     marketing: () => generateMarketingContent({ topic: 'Synthetische Probe zum bestehenden Interviewtraining', format: 'LinkedIn Post', language: 'de' }),
   },
   media: {
-    audio: async () => mediaSummary((await generateAudioFromText({ text: 'Synthetischer Test. Erzählen Sie uns von einer Situation, in der Sie Abläufe verbessert haben.', language: 'de' })).audioDataUri, 'audio'),
-    photo: async () => mediaSummary((await generateProfessionalPhoto({ userPhoto: syntheticPortrait, style: 'business' })).generatedPhoto, 'photo'),
+    audio: async () => mediaSummary((await generateAudioFromText({ text: 'Synthetischer Test. Erzählen Sie uns von einer Situation, in der Sie Abläufe verbessert haben.', language: 'de' })).audioDataUri),
   },
 } satisfies Record<string, Record<string, () => Promise<unknown>>>;
