@@ -62,8 +62,10 @@ export function LocalDocuments({ userId }: { userId: string }) {
       <label>Kategorie<select className="block rounded border p-1" value={category} onChange={event => setCategory(event.target.value as LocalDocumentCategory)}>
         {documentCategories.map(value => <option key={value}>{value}</option>)}
       </select></label>
-      <label>Datei lokal hinzufügen<input type="file" className="block max-w-full" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={add} /></label>
+      <label>Datei lokal hinzufügen<input type="file" multiple className="block max-w-full" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp,.heic,.heif" onChange={add} /></label>
+      <label>Unterlage fotografieren<input type="file" className="block max-w-full" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" onChange={add} /></label>
     </div>
+    <p className="text-sm">Fotografiere die Seiten einzeln oder füge mehrere Dateien zur gewählten Kategorie hinzu. Fotos bleiben als Originaldateien gespeichert.</p>
     {error && <p role="alert">{error}</p>}
     {documents.length > 0 && <ul className="space-y-2">{documents.map(document => <li key={document.id} className="break-all rounded border p-3">
       <span>{document.name} · {document.category}</span>

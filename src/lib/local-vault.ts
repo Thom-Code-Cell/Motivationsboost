@@ -3,7 +3,7 @@ import { z } from 'zod/v3';
 export const documentCategories = ['Lebenslauf', 'Arbeitszeugnis', 'Diplom oder Zertifikat', 'Bewerbungsfoto', 'Sonstige Bewerbungsunterlage'] as const;
 export const maximumLocalFileBytes = 20 * 1024 * 1024;
 export const maximumVaultBytes = 100 * 1024 * 1024;
-export const localFileName = z.string().min(1).max(255).regex(/\.(pdf|docx|txt|jpe?g|png|webp)$/i);
+export const localFileName = z.string().min(1).max(255).regex(/\.(pdf|docx|txt|jpe?g|png|webp|hei[cf])$/i);
 const documentInfo = z.object({ id: z.string().uuid(), name: localFileName, category: z.enum(documentCategories) });
 const localDocument = documentInfo.extend({ file: z.instanceof(Blob) });
 export type LocalDocument = z.infer<typeof localDocument>;
