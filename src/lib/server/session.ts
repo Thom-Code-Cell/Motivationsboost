@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { adminAuth, adminDb } from './firebase-admin';
 import { quotaFor } from '@/lib/ai-quota';
+import { acceptanceContext } from './ai-acceptance';
 
 export const SESSION_COOKIE = '__session';
 export async function requireSession() {
@@ -17,6 +18,8 @@ export async function requireAdmin() {
   return session;
 }
 export async function authorizeAI(input: unknown, maxInputBytes = 2_000_000) {
+  const test = acceptanceContext();
+  if (test) return { uid: test.userId };
   const session = await requireSession();
   if (!process.env.OPENAI_API_KEY) throw new Error('Der KI-Dienst ist noch nicht konfiguriert.');
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes) throw new Error('Die Eingabe ist zu groß.');

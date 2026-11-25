@@ -1,3 +1,5 @@
+import { acceptanceContext, hasCurrentAcceptanceApproval, recordAcceptance, reserveAcceptance } from './ai-acceptance';
+
 // Server-only OpenAI API transport. Never expose OPENAI_API_KEY to client components.
 
 const API_ROOT = 'https://api.openai.com/v1';
@@ -27,6 +29,7 @@ export function getOpenAIKey(): string {
 }
 
 export function hasCurrentAiApproval(now = Date.now()): boolean {
+  if (acceptanceContext()) return hasCurrentAcceptanceApproval(now);
   const expires = Date.parse(process.env.MOTIVATIONS_AI_PRICE_APPROVED_UNTIL ?? '');
   return process.env.MOTIVATIONS_PAID_AI_ENABLED === 'true' && Number.isFinite(expires) && now < expires;
 }
@@ -37,7 +40,13 @@ function requireReservedAiCall(reservation?: string) {
 }
 
 export async function callOpenAI(path: string, body: unknown, spendReservation?: string): Promise<Response> {
-  requireReservedAiCall(spendReservation);
+  if (!hasCurrentAiApproval() && spendReservation) requireReservedAiCall(spendReservation);
+  const receipt = spendReservation ?? (hasCurrentAiApproval() ? await reserveAcceptance(path, body) : undefined);
+  try { requireReservedAiCall(receipt); } catch (error) {
+    if (receipt && !spendReservation) await recordAcceptance(receipt, Date.now(), undefined, true);
+    throw error;
+  }
+  const started = Date.now();
   const key = getOpenAIKey();
   let response: Response;
   try {
@@ -64,13 +73,23 @@ export async function callOpenAI(path: string, body: unknown, spendReservation?:
     if (response.status === 401 || response.status === 403) message = 'OpenAI-Zugang ist nicht freigeschaltet. Bitte API-Key prüfen.';
     const id = response.headers.get('x-request-id');
     const providerRequestId = id && /^req_[A-Za-z0-9_-]{1,100}$/.test(id) ? id : null;
+    if (receipt && !spendReservation && response.status === 403 && code === 'model_not_found') {
+      await recordAcceptance(receipt, started, undefined, true);
+    }
     throw new OpenAIRequestError(message, response.status, code, providerRequestId);
   }
+  if (receipt && !spendReservation) await recordAcceptance(receipt, started, response);
   return response;
 }
 
 export async function callOpenAIForm(path: string, body: FormData, spendReservation?: string): Promise<Response> {
-  requireReservedAiCall(spendReservation);
+  if (!hasCurrentAiApproval() && spendReservation) requireReservedAiCall(spendReservation);
+  const receipt = spendReservation ?? (hasCurrentAiApproval() ? await reserveAcceptance(path, body) : undefined);
+  try { requireReservedAiCall(receipt); } catch (error) {
+    if (receipt && !spendReservation) await recordAcceptance(receipt, Date.now(), undefined, true);
+    throw error;
+  }
+  const started = Date.now();
   const key = getOpenAIKey();
   let response: Response;
   try {
@@ -83,9 +102,19 @@ export async function callOpenAIForm(path: string, body: FormData, spendReservat
     });
   } catch { throw new Error('OpenAI-Bilddienst antwortet nicht.'); }
   if (!response.ok) {
-    if (response.status === 429) throw new Error('OpenAI-Bildlimit erreicht.');
-    if (response.status === 401 || response.status === 403) throw new Error('OpenAI-Bildzugang nicht freigeschaltet.');
+    let code: string | null = null;
+    try {
+      const payload = await response.json() as { error?: { code?: unknown } };
+      const value = payload.error?.code;
+      if (typeof value === 'string' && knownFailureCodes.has(value)) code = value;
+    } catch { /* keep HTTP status */ }
+    if (receipt && !spendReservation && response.status === 403 && code === 'model_not_found') {
+      await recordAcceptance(receipt, started, undefined, true);
+    }
+    if (response.status === 429) throw new OpenAIRequestError('OpenAI-Bildlimit erreicht.', response.status, code);
+    if (response.status === 401 || response.status === 403) throw new OpenAIRequestError('OpenAI-Bildzugang nicht freigeschaltet.', response.status, code);
     throw new Error(`OpenAI-Bildbearbeitung fehlgeschlagen (HTTP ${response.status}).`);
   }
+  if (receipt && !spendReservation) await recordAcceptance(receipt, started, response);
   return response;
 }

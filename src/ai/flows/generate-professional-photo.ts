@@ -1,6 +1,7 @@
 'use server';
 
 import { authorizeAI } from '@/lib/server/session';
+import { acceptanceContext } from '@/lib/server/ai-acceptance';
 import { callOpenAIForm } from '@/lib/server/openai-client';
 import { ai } from '@/ai/genkit';
 import {
@@ -15,7 +16,7 @@ const styles: Record<string, string> = {
 };
 
 export async function generateProfessionalPhoto(input: GenerateProfessionalPhotoInput): Promise<GenerateProfessionalPhotoOutput> {
-  if (process.env.OPENAI_ENABLE_IMAGES !== 'true') throw new Error('KI-Fotoeditor ist noch nicht freigeschaltet.');
+  if (!acceptanceContext() && process.env.OPENAI_ENABLE_IMAGES !== 'true') throw new Error('KI-Fotoeditor ist noch nicht freigeschaltet.');
   input = GenerateProfessionalPhotoInputSchema.parse(input);
   await authorizeAI(input, 12_000_000);
   return generateProfessionalPhotoFlow(input);
@@ -27,7 +28,7 @@ const generateProfessionalPhotoFlow = ai.defineFlow({
   outputSchema: GenerateProfessionalPhotoOutputSchema,
 }, async ({userPhoto, style, prompt: userPrompt}) => {
   // Explicit opt-in for the expensive feature. Text AI works without it.
-  if (process.env.OPENAI_ENABLE_IMAGES !== 'true') {
+  if (!acceptanceContext() && process.env.OPENAI_ENABLE_IMAGES !== 'true') {
     throw new Error('KI-Fotoeditor ist noch nicht freigeschaltet.');
   }
   const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(userPhoto);
@@ -42,7 +43,7 @@ const generateProfessionalPhotoFlow = ai.defineFlow({
     userPrompt ? `Additional user preference: ${userPrompt}` : '',
   ].filter(Boolean).join(' ');
   const form = new FormData();
-  form.append('model', process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini');
+  form.append('model', acceptanceContext() ? 'gpt-image-1-mini' : process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini');
   form.append('prompt', prompt);
   form.append('size', '1024x1024');
   form.append('quality', 'low');

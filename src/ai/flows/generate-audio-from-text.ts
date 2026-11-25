@@ -1,6 +1,7 @@
 'use server';
 
 import { authorizeAI } from '@/lib/server/session';
+import { acceptanceContext } from '@/lib/server/ai-acceptance';
 import { callOpenAI } from '@/lib/server/openai-client';
 import { ai } from '@/ai/genkit';
 import {
@@ -9,7 +10,7 @@ import {
 } from '@/ai/schemas';
 
 export async function generateAudioFromText(input: GenerateAudioFromTextInput): Promise<GenerateAudioFromTextOutput> {
-  if (process.env.OPENAI_AUDIO_BUDGET_VALIDATED !== 'true') throw new Error('Sprachausgabe ist noch nicht freigeschaltet.');
+  if (!acceptanceContext() && process.env.OPENAI_AUDIO_BUDGET_VALIDATED !== 'true') throw new Error('Sprachausgabe ist noch nicht freigeschaltet.');
   input = GenerateAudioFromTextInputSchema.parse(input);
   await authorizeAI(input);
   return generateAudioFromTextFlow(input);
@@ -22,7 +23,7 @@ const generateAudioFromTextFlow = ai.defineFlow({
 }, async input => {
   if (!input.text.trim() || input.text.length > 4096) throw new Error('Sprachausgabe unterstützt 1 bis 4096 Zeichen.');
   const response = await callOpenAI('/audio/speech', {
-    model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+    model: acceptanceContext() ? 'gpt-4o-mini-tts' : process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
     voice: 'alloy',
     input: input.text,
     response_format: 'wav',
