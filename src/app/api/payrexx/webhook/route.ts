@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { after, NextRequest, NextResponse } from 'next/server';
 import { sendNextPayrexxTestNotice } from '@/lib/server/payrexx-test-notices';
+import { sendNextPayrexxWeeklyNotice } from '@/lib/server/payrexx-weekly-notices';
 import { databaseConnectionConfigured, databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
-import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { weeklyCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
 import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
+import { applyWeeklyLiveEvent } from '@/lib/server/payrexx-weekly-live';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -29,7 +31,8 @@ export async function POST(request: NextRequest) {
   const config = payrexxConfiguration();
   const checkout = weeklyCheckoutConfiguration();
   const sandbox = checkout?.signingKey ? checkout : undefined;
-  const signingKey = sandbox?.signingKey ?? config.signingKey;
+  const live = weeklyLiveWebhookConfiguration();
+  const signingKey = sandbox?.signingKey ?? live?.signingKey ?? config.signingKey;
   if (!config.webhookEnabled || !signingKey || !databaseConnectionConfigured())
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });
   if (Number(request.headers.get('content-length') || '0') > 131072)
@@ -48,16 +51,22 @@ export async function POST(request: NextRequest) {
   const fields = recordFields(payload);
   let connection;
   try {
-    if (!sandbox) {
+    if (!sandbox && !live) {
       const result = await recordEvent(databasePool());
       return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
     }
     connection = await databasePool().connect();
     await connection.query('BEGIN');
     const result = await recordEvent(connection);
-    const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload, sandbox);
+    const premiumGranted = result.rowCount !== 0 &&
+      (sandbox ? await applyWeeklySandboxEvent(connection, payload, sandbox) :
+        live ? await applyWeeklyLiveEvent(connection, payload, live) : false);
     await connection.query('COMMIT');
-    after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));
+    if (sandbox) {
+      after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));
+    } else if (live) {
+      after(() => sendNextPayrexxWeeklyNotice().catch(() => console.warn('Motivationsboost weekly notice queue unavailable')));
+    }
     return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted });
   } catch {
     await connection?.query('ROLLBACK').catch(() => {});

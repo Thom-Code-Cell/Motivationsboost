@@ -95,9 +95,9 @@ export async function sendProductionGmail(message: OutboundEmail) {
   if (!config) throw new Error('Gmail-Produktionsversand ist nicht konfiguriert.');
   const id = createHash('sha256').update(message.idempotencyKey ?? JSON.stringify([message.to, message.subject, message.text])).digest('hex');
   const raw = encodeMime(message, id);
+  const token = await gmailAccessToken(config);
   if (!await reserveSend(id)) return;
 
-  const token = await gmailAccessToken(config);
   const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ raw }), redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(8000),

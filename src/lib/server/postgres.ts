@@ -8,6 +8,7 @@ export function databaseConnectionConfigured() {
 }
 
 function databaseConnectionString() {
+  if (process.env.VERCEL_ENV === 'production') return process.env.MOTIVATIONS_PRODUCTION_DATABASE_URL;
   if (process.env.VERCEL_ENV === 'preview' && process.env.MOTIVATIONS_NEON_BRANCH_PREVIEW === 'true') {
     // This candidate requires an explicit connection scoped to its isolated
     // branch. Do not fall back to project-wide marketplace or legacy settings.

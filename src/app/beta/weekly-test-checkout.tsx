@@ -1,12 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useProductLanguage } from '@/components/product-language';
 import { PLANS } from '@/lib/plans';
 import { productSupportEmail } from '@/lib/public-product';
+import { weeklyCheckoutCopy } from '@/lib/product-weekly-copy';
 
-type OrderStatus = 'pending' | 'gateway-created' | 'gateway-error' | 'paid' | 'cancelled' | 'refunded';
+type OrderStatus = 'pending' | 'gateway-created' | 'gateway-error' | 'paid' | 'cancelled' | 'refunded' | 'chargeback';
 type CheckoutState = {
   enabled: true;
+  sandbox?: boolean;
   termsVersion: string;
   orderStatus?: OrderStatus;
   active: boolean;
@@ -21,11 +24,16 @@ const statusMessages: Record<OrderStatus, string> = {
   paid: 'Payrexx hat die Testzahlung bestätigt.',
   cancelled: 'Die Testbestellung wurde abgebrochen oder ist abgelaufen.',
   refunded: 'Payrexx hat die vollständige Rückerstattung bestätigt.',
+  chargeback: 'Payrexx hat eine Rückbelastung gemeldet.',
 };
+const liveStatusKeys = { pending: 'pending', 'gateway-created': 'open', 'gateway-error': 'failed', paid: 'paid',
+  cancelled: 'cancelled', refunded: 'refunded', chargeback: 'chargeback' } as const;
 
 const checkoutPath = '/api/payrexx/checkout';
 
 export function WeeklyTestCheckout() {
+  const locale = useProductLanguage();
+  const copy = weeklyCheckoutCopy[locale];
   const [checkout, setCheckout] = useState<CheckoutState>();
   const [acceptedVersion, setAcceptedVersion] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -81,6 +89,7 @@ export function WeeklyTestCheckout() {
     return () => { request.abort(); window.clearInterval(timer); };
   }, [openForReconciliation, reconcile]);
   if (!checkout) return null;
+  const sandbox = checkout.sandbox !== false;
   const termsVersion = checkout.termsVersion;
   const needsReview = checkout.orderStatus === 'pending' ||
     (checkout.orderStatus === 'gateway-created' && !checkout.canResume);
@@ -95,32 +104,40 @@ export function WeeklyTestCheckout() {
       const response = await fetch(checkoutPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'weekly', termsVersion, acceptTerms: true }),
+        body: JSON.stringify({ plan: 'weekly', termsVersion, acceptTerms: true, ...(!sandbox && { locale }) }),
       });
       const data = await response.json() as { error?: string; url?: string };
       if (!response.ok || !data.url) throw new Error(data.error ?? 'Testcheckout derzeit nicht verfügbar.');
       window.location.assign(data.url);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Testcheckout derzeit nicht verfügbar.');
+      setMessage(sandbox ? (error instanceof Error ? error.message : 'Testcheckout derzeit nicht verfügbar.') : copy.unavailable);
     } finally {
       setLoading(false);
     }
   }
 
-  return <section id="testzahlung" aria-labelledby="testzahlung-titel" className="space-y-3 rounded-xl border p-5">
-    <h2 id="testzahlung-titel" className="text-xl font-semibold">Wochenpass im Payrexx-Test</h2>
-    <p>Simulierter Preis: CHF {(PLANS.weekly.amount / 100).toFixed(2)} für sieben Tage. Der Wochenpass verlängert sich nicht automatisch. Verwende ausschliesslich Payrexx-Testdaten.</p>
-    {checkout.orderStatus && <p role="status">{statusMessages[checkout.orderStatus]} {checkout.active && 'Dein Testzugang ist aktiv.'}</p>}
-    {needsReview && <p>Falls der Status offen bleibt, kontaktiere den <a className="underline" href={'mailto:' + productSupportEmail}>Support</a>.</p>}
+  const price = `CHF ${(PLANS.weekly.amount / 100).toFixed(2)}`;
+  const titleId = sandbox ? 'testzahlung-titel' : 'wochenpass-titel';
+  return <section id={sandbox ? 'testzahlung' : 'wochenpass'} aria-labelledby={titleId} className="space-y-3 rounded-xl border p-5">
+    <h2 id={titleId} className="text-xl font-semibold">{sandbox ? 'Wochenpass im Payrexx-Test' : copy.title}</h2>
+    {sandbox ? <p>Simulierter Preis: {price} für sieben Tage. Der Wochenpass verlängert sich nicht automatisch. Verwende ausschliesslich Payrexx-Testdaten.</p> :
+      <p><strong>{price}</strong> · {copy.description}</p>}
+    {checkout.orderStatus && <p role="status">{sandbox ? statusMessages[checkout.orderStatus] : copy[liveStatusKeys[checkout.orderStatus]]}
+      {checkout.active && ' ' + (sandbox ? 'Dein Testzugang ist aktiv.' : copy.active)}</p>}
+    {needsReview && (sandbox ?
+      <p>Falls der Status offen bleibt, kontaktiere den <a className="underline" href={'mailto:' + productSupportEmail}>Support</a>.</p> :
+      <p><a className="underline" href={'mailto:' + productSupportEmail}>{copy.support}</a></p>)}
     {showPayment && <form onSubmit={start} className="space-y-3">
       <label className="flex items-start gap-2"><input type="checkbox" checked={acceptedVersion === termsVersion} onChange={event => setAcceptedVersion(event.target.checked ? termsVersion : undefined)} />
-        <span>Ich habe die <a className="underline" href="/agb">Bedingungen der Testumgebung</a> gelesen und bestätige die Testbestellung.</span>
+        {sandbox ? <span>Ich habe die <a className="underline" href="/agb">Bedingungen der Testumgebung</a> gelesen und bestätige die Testbestellung.</span> :
+          <span>{copy.termsBefore} <a className="underline" href="/agb">{copy.terms}</a> {copy.termsAfter}</span>}
       </label>
       <button className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50" disabled={loading || acceptedVersion !== termsVersion}>
-        {checkout.canResume ? 'Payrexx-Testzahlung fortsetzen' : 'Payrexx-Testcheckout öffnen'}
+        {sandbox ? (checkout.canResume ? 'Payrexx-Testzahlung fortsetzen' : 'Payrexx-Testcheckout öffnen') :
+          (checkout.canResume ? copy.resume : copy.start)}
       </button>
     </form>}
-    <button type="button" className="underline" disabled={loading} onClick={() => void (checkout.canReconcile ? reconcile() : refresh())}>Zahlungsstatus aktualisieren</button>
+    <button type="button" className="underline" disabled={loading} onClick={() => void (checkout.canReconcile ? reconcile() : refresh())}>{sandbox ? 'Zahlungsstatus aktualisieren' : copy.refresh}</button>
     {message && <p role="alert">{message}</p>}
   </section>;
 }

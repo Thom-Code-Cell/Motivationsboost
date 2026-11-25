@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { productOrigin, productSummary, productSupportEmail, publicProductApproved } from '@/lib/public-product';
 import { PLANS } from '@/lib/plans';
 import { LandingNavigation } from './landing-navigation';
+import { ReleasedProductHome } from './released-product-home';
+import { weeklyLiveCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
 import './sites-landing.css';
 
 export function generateMetadata(): Metadata {
@@ -17,6 +19,7 @@ export function generateMetadata(): Metadata {
 }
 
 export default function ProductHome() {
+  if (publicProductApproved()) return <ReleasedProductHome weeklyAvailable={Boolean(weeklyLiveCheckoutConfiguration())} />;
   return <div id="start" className="motivationsboost-landing">
     <a className="skip" href="#inhalt">Zum Inhalt</a>
     <LandingNavigation />

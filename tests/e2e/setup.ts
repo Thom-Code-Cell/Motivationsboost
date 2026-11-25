@@ -29,6 +29,7 @@ export default async function setup() {
       '011_payrexx_test_notices.sql',
       '012_credit_and_product_costs.sql',
       '013_transactional_email_attempts.sql',
+      '014_payrexx_weekly_production.sql',
     ]) {
       const migration = await readFile(`migrations/${file}`, 'utf8');
       await database.query(migration);

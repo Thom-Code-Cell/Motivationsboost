@@ -16,7 +16,7 @@ This assessment records the state of connected tools and repository files; it is
 
 ## Before accepting real user data
 
-- Create and isolate a Production Neon database. Apply migrations `000`, `001`, `005`; add `002` only for webhook event storage and `004` only while preparing disabled Payrexx checkout.
+- Use the separate `production-motivationsboost` branch in the existing Frankfurt Neon project. On 25 November 2026, the previously existing branch was verified empty of app accounts and orders, and the relevant credit, cost, mail and weekly settlement migrations were applied. Put the pooled connection for this branch only in the server-side Production variable `MOTIVATIONS_PRODUCTION_DATABASE_URL`. The app rejects the legacy or Preview connection as a fallback in Vercel Production.
 - Configure a canonical HTTPS `APP_URL`/`BETTER_AUTH_URL`, a unique >=32-byte `BETTER_AUTH_SECRET`, the separate [Gmail API production transport](../scripts/google-workspace-mail/README.md), `BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true`, `NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED=true` and `NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED=true` in Production only.
 - Verify email verification, password reset, deletion confirmation, data export, retention/deletion behavior, and Neon cascades.
 - Confirm privacy disclosures, terms, processor agreements, actual processing countries and retention for Neon, Vercel, Google Workspace and any activated OpenAI and Payrexx paths.
@@ -24,7 +24,7 @@ This assessment records the state of connected tools and repository files; it is
 - Test application create, list, status update, reload, delete and export using fabricated accounts.
 - Review the guided letter against fabricated CV and job text. When OpenAI is enabled, confirm the configured model, data terms, CHF 10 monthly cost limit and failure behavior before use.
 - Check phone and tablet layouts, keyboard navigation, validation, error messages and network failure.
-- Keep Payrexx and Stripe disabled until isolated sandbox payment, signed webhook, entitlement, cancellation and refund flows pass.
+- Verify FREE under protection independently. Follow the [weekly Payrexx handover](PRODUCTION-HANDOVER-PAYREXX.md) for the first paid offer. Keep each remaining offer unavailable until its checkout, entitlement, cancellation and refund flows pass.
 
 ## Current Preview configuration
 

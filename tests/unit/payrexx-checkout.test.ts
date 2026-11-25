@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import { productOrigin } from '@/lib/public-product';
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), query: vi.fn(), connect: vi.fn(), checkoutQuery: vi.fn(), release: vi.fn(),
@@ -106,4 +107,41 @@ describe('isolated Payrexx checkout', () => {
     expect((await POST(request())).status).toBe(502);
     expect(mocks.query.mock.calls.some(([sql]) => sql.includes('UPDATE payment_orders'))).toBe(false);
   });
+});
+
+it('limits protected production checkout to the verified acceptance account and the weekly product', async () => {
+  const productionSettings = {
+    VERCEL_ENV: 'production', PAYREXX_WEEKLY_LIVE_CHECKOUT: 'true', PAYREXX_WEEKLY_LIVE_PSP_ID: '44',
+    PAYREXX_WEEKLY_LIVE_TERMS_VERSION: 'weekly-1', PAYREXX_WEEKLY_LIVE_ACCEPTANCE_EMAIL: 'tester@example.test',
+    NEXT_PUBLIC_SITE_URL: productOrigin, PUBLIC_SITE_LAUNCHED: 'false', PAYREXX_API_KEY: 'production-fixture',
+    PAYREXX_WEBHOOK_SIGNING_KEY: 'production-signing-fixture', EMAIL_TRANSPORT: 'gmail-api', GMAIL_API_CLIENT_ID: 'fixture-id',
+    GMAIL_API_CLIENT_SECRET: 'fixture-secret', GMAIL_API_REFRESH_TOKEN: 'fixture-token', MOTIVATIONS_PAID_AI_ENABLED: 'true',
+    MOTIVATIONS_AI_PRICE_APPROVED_UNTIL: new Date(Date.now() + 8 * 86400000).toISOString(),
+    MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS: '2000000', OPENAI_API_KEY: 'fixture-only',
+  };
+  for (const [name, value] of Object.entries(productionSettings)) vi.stubEnv(name, value);
+  const liveRequest = (plan = 'weekly') => new NextRequest(productOrigin + '/api/payrexx/checkout', {
+    method: 'POST', headers: { origin: productOrigin, host: 'motivationsboost.th-analytica.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ plan, termsVersion: 'weekly-1', acceptTerms: true, locale: 'fr' }),
+  });
+  mocks.session.mockResolvedValue({ user: { id: 'verified-test-user', email: 'other@example.test', emailVerified: true } });
+  expect((await POST(liveRequest())).status).toBe(503);
+  mocks.session.mockResolvedValue({ user: { id: 'verified-test-user', email: 'tester@example.test', emailVerified: false } });
+  expect((await POST(liveRequest())).status).toBe(503);
+  mocks.session.mockResolvedValue({ user: { id: 'verified-test-user', email: 'tester@example.test', emailVerified: true } });
+  expect((await POST(liveRequest('monthly'))).status).toBe(400);
+  vi.stubEnv('MOTIVATIONS_AI_PRICE_APPROVED_UNTIL', new Date(Date.now() + 3600000).toISOString());
+  expect((await POST(liveRequest())).status).toBe(503);
+  vi.stubEnv('MOTIVATIONS_AI_PRICE_APPROVED_UNTIL', productionSettings.MOTIVATIONS_AI_PRICE_APPROVED_UNTIL);
+  vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '');
+  expect((await POST(liveRequest())).status).toBe(503);
+  expect(external).not.toHaveBeenCalled();
+  vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '2000000');
+  external.mockResolvedValueOnce(Response.json({ data: [{ link: 'https://shared-live.payrexx.com/pay/synthetic', id: 123 }] }));
+  expect((await POST(liveRequest())).status).toBe(200);
+  const details = JSON.parse(external.mock.calls[0][1].body);
+  expect(details).toMatchObject({ amount: 890, currency: 'CHF', psp: [44], sku: 'motivationsboost-weekly', preAuthorization: false });
+  expect(details).not.toHaveProperty('subscriptionState');
+  expect(mocks.checkoutQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO'))?.[1])
+    .toEqual([details.referenceId, 'verified-test-user', 'weekly', 890, 'CHF', 'weekly-1', 44, 'fr']);
 });

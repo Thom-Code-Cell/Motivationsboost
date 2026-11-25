@@ -22,7 +22,8 @@ async function probe(target, path, shouldBeProtected) {
     let healthy = shouldBeProtected ? protectedGate : response.ok;
     if (healthy && !shouldBeProtected && path === '/api/health') {
       const payload = await response.json();
-      healthy = payload.status === 'configured' && payload.checks?.database === true && payload.checks?.databaseSchema === true;
+      healthy = payload.status === 'configured' && payload.checks?.database === true && payload.checks?.databaseSchema === true &&
+        payload.checks?.emailPasswordAuth === true && payload.checks?.transactionalEmail === true && payload.checks?.emailVerification === true;
     }
     await response.body?.cancel().catch(() => {});
     return { target: url.hostname + url.pathname, expected: shouldBeProtected ? 'protected' : 'healthy', status: response.status, healthy, latencyMs: Math.round(performance.now() - started) };

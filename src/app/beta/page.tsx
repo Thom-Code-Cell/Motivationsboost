@@ -386,7 +386,12 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     <section className="space-y-3 rounded-xl border p-5">
       <h2 className="text-xl font-semibold">{copy.privacy}</h2>
       <p className="text-sm text-slate-600">{copy.privacyIntro}</p>
-      <label className="block space-y-1"><span>{copy.privacyLanguage}</span><select className="w-full rounded-lg border p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option></select></label>
+      <div className="space-y-1">
+        <label htmlFor="application-privacy-language" className="block">{copy.privacyLanguage}</label>
+        <select id="application-privacy-language" className="w-full rounded-lg border p-2" value={noticeLanguage} onChange={event => setNoticeLanguage(event.target.value as PrivacyNoticeLanguage)}>
+          <option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option>
+        </select>
+      </div>
       <textarea aria-label={copy.privacyCopy} lang={noticeLanguage} className="w-full rounded-lg border p-3 text-sm text-slate-900" rows={5} readOnly value={applicationPrivacyNotices[noticeLanguage]} />
       <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={includePrivacyNotice} onChange={event => setIncludePrivacyNotice(event.target.checked)} /><span>{copy.privacyAttach}</span></label>
       <p className="text-xs text-slate-600">{copy.privacyLimits}</p>

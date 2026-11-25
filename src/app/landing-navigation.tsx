@@ -11,7 +11,7 @@ const navigationCopy = {
   it: ['Menu', 'Navigazione principale', 'Funzioni', 'Come funziona', 'I vantaggi', 'Privacy', 'Prezzi', 'Accedi', 'Prova gratis'],
 } as const;
 
-export function LandingNavigation() {
+export function LandingNavigation({ showGuides = true }: { showGuides?: boolean }) {
   const locale = useProductLanguage();
   const copy = navigationCopy[locale];
   const [expanded, setExpanded] = useState(false);
@@ -36,8 +36,8 @@ export function LandingNavigation() {
           }
         }}>
           <a href="#funktionen">{copy[2]}</a>
-          <a href="#ablauf">{copy[3]}</a>
-          <a href="#vorteile">{copy[4]}</a>
+          {showGuides && <><a href="#ablauf">{copy[3]}</a>
+          <a href="#vorteile">{copy[4]}</a></>}
           <a href="#datenschutz">{copy[5]}</a>
           <a href="#preise">{copy[6]}</a>
         </nav>

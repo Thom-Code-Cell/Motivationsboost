@@ -12,7 +12,7 @@ export function ContactEmail() {
   return <a href={`mailto:${CONTACT_EMAIL}`} className="break-all underline underline-offset-2 hover:text-primary">{CONTACT_EMAIL}</a>;
 }
 
-export function LegalContent({ document }: { document: 'impressum' | 'datenschutz' | 'agb' }) {
+export function LegalContent({ document, releasedTerms = false }: { document: 'impressum' | 'datenschutz' | 'agb'; releasedTerms?: boolean }) {
   if (document === 'impressum') {
     return <>
       <h2 className={h2}>Anbieter und Kontakt</h2>
@@ -59,17 +59,17 @@ export function LegalContent({ document }: { document: 'impressum' | 'datenschut
   }
 
   return <>
-    <p className={p}>Motivationsboost ist noch nicht öffentlich freigegeben. Der derzeitige Anwendungskern umfasst ein Benutzerkonto, eine Bewerbungsübersicht und einen bearbeitbaren Entwurf für ein Motivationsschreiben. Weitere Funktionen und ein kommerzielles Angebot werden erst nach separater Freigabe aktiviert.</p>
+    {!releasedTerms && <p className={p}>Motivationsboost ist noch nicht öffentlich freigegeben. Der derzeitige Anwendungskern umfasst ein Benutzerkonto, eine Bewerbungsübersicht und einen bearbeitbaren Entwurf für ein Motivationsschreiben. Weitere Funktionen und ein kommerzielles Angebot werden erst nach separater Freigabe aktiviert.</p>}
     <h2 className={h2}>1. Anbieter und Kontakt</h2>
     <p className={p}>Thomas Hullin, Oberriedstrasse 75, 3775 Lenk im Simmental, Schweiz. E-Mail: <ContactEmail />.</p>
     <h2 className={h2}>2. Leistungen</h2>
     <p className={p}>Die Anwendung unterstützt beim Erfassen von Bewerbungen und beim Erstellen sowie Bearbeiten eines Motivationsschreiben-Entwurfs. Ohne aktivierten KI-Anbieter erstellt sie eine geführte Vorlage aus den eingegebenen Angaben. Optionale KI-Funktionen dürfen nur nach gesonderter Aktivierung verwendet werden. Ein Lebenslauf- oder Interview-Coaching ist nicht Bestandteil des aktuell freigegebenen Anwendungskerns.</p>
     <h2 className={h2}>3. Registrierung und Verantwortung</h2>
     <p className={p}>Für personalisierte Funktionen ist eine Anmeldung erforderlich. KI-Ergebnisse sind Vorschläge und müssen vor der Weitergabe an Arbeitgeber auf Richtigkeit und Eignung geprüft werden. Die Anwendung garantiert weder eine Einladung noch eine Einstellung.</p>
-    <h2 className={h2}>4. Preise, Payrexx und Abonnemente</h2>
+    {!releasedTerms && <><h2 className={h2}>4. Preise, Payrexx und Abonnemente</h2>
     <p className={p}>Kostenpflichtige Angebote sind derzeit nicht freigeschaltet. Das geplante Zahlungssystem ist <strong>Payrexx</strong>, nicht Stripe. Konkrete Preise, Währungen, Leistungsgrenzen, Laufzeiten, Verlängerungen und allfällige Kündigungsfristen werden vor einem Vertragsabschluss eindeutig angezeigt. Der Wochenpass in der geschützten Testumgebung prüft einen simulierten Auftrag und sieben Tage Testzugang. Der simulierte Betrag ist kein Kaufpreis. Ein bezahlter Vertrag entsteht erst durch den separat freigegebenen Verkauf.</p>
     <h2 className={h2}>5. Kündigung und Rückerstattung</h2>
-    <p className={p}>Für künftige Abonnemente werden ein nachvollziehbarer Kündigungsweg und die geltenden gesetzlichen Rückerstattungsansprüche vor der Aktivierung veröffentlicht. Bei Fragen: <ContactEmail />.</p>
+    <p className={p}>Für künftige Abonnemente werden ein nachvollziehbarer Kündigungsweg und die geltenden gesetzlichen Rückerstattungsansprüche vor der Aktivierung veröffentlicht. Bei Fragen: <ContactEmail />.</p></>}
     <h2 className={h2}>6. Datenschutz und Verfügbarkeit</h2>
     <p className={p}>Unsere <Link href="/datenschutz" className="underline underline-offset-2">Datenschutzhinweise</Link> erklären die Verarbeitung personenbezogener Daten. Wartung, technische Fehler und Ausfälle externer Dienste sind möglich. Zwingende gesetzliche Ansprüche bleiben unberührt.</p>
     <h2 className={h2}>7. Recht</h2>
