@@ -1,6 +1,16 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ authorizeAI: vi.fn().mockResolvedValue({ uid: 'alice' }) }));
 vi.mock('@/lib/server/session', () => auth);
+vi.mock('@/lib/server/openai-client', async (importOriginal) => {
+  const client = await importOriginal<typeof import('@/lib/server/openai-client')>();
+  // These contract tests reach the mock provider after a synthetic reservation.
+  // The real unreserved transport is tested separately.
+  return {
+    ...client,
+    callOpenAI: (path: string, body: unknown) => client.callOpenAI(path, body, 'synthetic-reservation'),
+    callOpenAIForm: (path: string, body: FormData) => client.callOpenAIForm(path, body, 'synthetic-reservation'),
+  };
+});
 const cv = { personalInfo: { name: 'Thomas', email: '', phone: '', address: '' }, summary: 'Erfahrene Betriebsleitung', sections: [], skills: ['Personalführung'] };
 const context = { language: 'de', jobUrl: 'https://example.org/job', jobText: 'Wir suchen eine Betriebsleitung mit Erfahrung in Personalführung und Organisation.' };
 const flows: [string, string, object, object][] = [

@@ -1,103 +1,194 @@
+import { randomUUID } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
+import { openTestDatabase } from './setup';
 
-// The established workflow is intentionally tested in German regardless of the runner's locale.
 test.use({ locale: 'de-CH' });
-
-async function login(page: Page) {
-  const app = initializeApp({ apiKey: 'test-key', projectId: 'demo-motivationsboost', authDomain: 'demo-motivationsboost.firebaseapp.com', appId: 'test-app' });
+test.beforeEach(async () => {
+  // Separate tests share one loopback IP. Each scenario starts with a fresh test rate window.
+  const database = openTestDatabase();
   try {
-    const auth = getAuth(app); connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-    const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-    const unique = `${Date.now()}-${Math.random()}`;
-    const token = `${b64({ alg: 'none', typ: 'JWT' })}.${b64({ sub: unique, email: `${unique}@example.test`, name: 'Alice Test', email_verified: true, iss: 'https://accounts.google.com', aud: 'test-client' })}.`;
-    const result = await signInWithCredential(auth, GoogleAuthProvider.credential(token));
-    const serialized = JSON.stringify(result.user.toJSON());
-    await page.addInitScript(value => localStorage.setItem('firebase:authUser:test-key:[DEFAULT]', value), serialized);
-    await page.goto('/');
-    for (const title of ['Unsere Nutzungsbedingungen haben sich geändert', 'Unsere Datenschutzerklärung wurde aktualisiert']) {
-      const dialog = page.getByRole('dialog').filter({ has: page.getByText(title, { exact: true }) });
-      await expect(dialog).toBeVisible({ timeout: 30000 });
-      await dialog.locator('[data-radix-scroll-area-viewport]').evaluate(element => { element.scrollTop = element.scrollHeight; element.dispatchEvent(new Event('scroll', { bubbles: false })); });
-      const accept = dialog.getByRole('button').filter({ hasText: /akzeptiere|Akzeptieren|zustimmen/i });
-      await expect(accept).toBeEnabled(); await accept.click();
-    }
-    await expect(page.getByRole('button', { name: 'Drive verbinden', exact: true })).toBeVisible();
-  } finally { await deleteApp(app); }
+    await database.query('DELETE FROM "rateLimit"');
+  } finally {
+    await database.end();
+  }
+});
+
+async function createAccount(page: Page) {
+  await page.goto('/app');
+  await page.getByRole('button', { name: 'Neues Konto erstellen' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Synthetisches Konto');
+  const email = `e2e-${randomUUID()}@example.test`;
+  await page.getByLabel('E-Mail', { exact: true }).fill(email);
+  await page.getByLabel(/^Passwort/).fill('Synthetic-only-passphrase-25');
+  await page.getByRole('button', { name: 'Konto erstellen', exact: true }).click();
+  await expect(page.getByText('Angemeldet als Synthetisches Konto')).toBeVisible();
+  return email;
 }
-async function navigate(page: Page, name: string) {
-  await expect(page.getByRole('button', { name: 'Drive verbinden', exact: true })).toBeVisible({ timeout: 30000 });
-  const button = page.getByRole('button', { name, exact: true });
-  if ((page.viewportSize()?.width || 1280) < 768 && !(await button.first().isVisible())) await page.getByRole('button', { name: /Toggle Sidebar/i }).click();
-  await expect(button.first()).toBeVisible();
-  await button.first().click();
-  const overlay = page.locator('[data-state="open"][data-sidebar="sidebar"]');
-  if (await overlay.count()) await page.keyboard.press('Escape');
-}
-test('session, consent, persisted applications, core views and logout', async ({ page }) => {
-  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await login(page);
-  await navigate(page, 'Bewerbungsübersicht');
-  await page.getByRole('button', { name: /Bewerbung.*hinzufügen|Neue Bewerbung/ }).first().click();
-  await page.getByLabel('Jobtitel', { exact: true }).fill('Betriebsleitung');
-  await page.getByLabel('Firma', { exact: true }).fill('Test AG');
-  await page.getByLabel('Link zur Anzeige', { exact: true }).fill('https://example.org/job');
-  await page.getByRole('button', { name: /Speichern|Hinzufügen/, exact: true }).click();
-  await expect(page.getByText('Test AG', { exact: true })).toBeVisible();
+
+test('account session persists and exposes only its own application data', async ({ page, browser, baseURL }, testInfo) => {
+  const email = await createAccount(page);
+  await page.getByLabel('Stelle', { exact: true }).fill('Betriebsleitung');
+  await page.getByLabel('Unternehmen', { exact: true }).fill('Test AG');
+  await page.getByLabel('Link zum Inserat').fill('https://example.test/job');
+  await page.getByRole('button', { name: 'Bewerbung hinzufügen' }).click();
+  await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
   await page.reload();
-  await navigate(page, 'Bewerbungsübersicht');
-  await expect(page.getByText('Test AG', { exact: true })).toBeVisible();
-  for (const [nav, heading] of [['CV-Generator', 'CV-Generator aus Zeugnissen'], ['Motivationsschreiben', 'Motivationsschreiben-Generator'], ['Bewerbungsanalyse', 'ATS-Check'], ['Interview-Coach', 'Interview'], ['Dokumente', 'Dokumente und Arbeitszeugnisse'], ['Export', 'Export']]) {
-    await navigate(page, nav);
-    await expect(page.getByRole('main')).toContainText(heading);
-    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetischer-lebenslauf.txt', mimeType: 'text/plain',
+    buffer: Buffer.from('Reiner Testinhalt für die lokale Ablage.'),
+  });
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  const legacyBefore = await page.request.get('/api/v2/applications');
+  expect((await legacyBefore.json()).applications).toEqual([]);
+  expect((await page.request.post('/api/v2/applications', {
+    headers: { Origin: baseURL! }, data: { jobTitle: 'No central write' },
+  })).status()).toBe(410);
+  const database = openTestDatabase();
+  try {
+    await database.query(
+      `INSERT INTO applications (id, user_id, job_title, company, notes)
+       SELECT $1, id, 'Ältere Bewerbung', 'Synthetik AG', 'Erhaltene Notiz' FROM "user" WHERE email = $2`,
+      [randomUUID(), email],
+    );
+  } finally {
+    await database.end();
   }
-  await page.getByRole('button', { name: 'Konto öffnen' }).click();
-  await page.getByRole('menuitem', { name: 'Abmelden' }).click();
-  await expect(page.getByText('Drive verbinden', { exact: true })).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
-test('blocks unauthenticated admin and cross-site session requests', async ({ request }) => {
-  expect((await request.get('/api/admin-stats')).status()).toBe(403);
-  expect((await request.post('/api/session', { headers: { Origin: 'https://evil.example' }, data: { idToken: 'fake' } })).status()).toBe(403);
-  expect((await request.post('/api/stripe/checkout-session', { data: { userId: 'fake', priceId: 'fake' } })).status()).toBe(503);
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toBeVisible();
+  await expect(page.getByText('Erhaltene Notiz')).toBeVisible();
+  await page.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+  await expect(page.getByText('Ältere Bewerbung · Synthetik AG')).toHaveCount(1);
+  const passphrase = randomUUID();
+  await page.getByLabel('Sicherungs-Passphrase, optional').fill(passphrase);
+  const exportedWorkspace = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Arbeitsplatz sichern', exact: true }).click();
+  const backup = await exportedWorkspace;
+  expect(backup.suggestedFilename()).toBe('motivationsboost-arbeitsplatz.mbbackup');
+  if (testInfo.project.name === 'desktop' && process.env.MOTIVATIONS_LANDING_SCREENSHOT) {
+    await page.getByRole('heading', { name: 'Meine Bewerbungen' }).locator('..').screenshot({
+      path: process.env.MOTIVATIONS_LANDING_SCREENSHOT,
+      animations: 'disabled',
+    });
+  }
+  const other = await browser.newContext({ baseURL });
+  try {
+    const otherPage = await other.newPage();
+    await createAccount(otherPage);
+    await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await expect(otherPage.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toHaveCount(0);
+    const exported = await otherPage.request.get('/api/v2/account/export');
+    expect(exported.ok()).toBe(true);
+    expect((await exported.json()).applications).toEqual([]);
+    await otherPage.getByRole('button', { name: 'Bisherige Serverdaten übernehmen' }).click();
+    await expect(otherPage.getByRole('status')).toContainText('Vorhandene Serverdaten wurden');
+    await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill(randomUUID());
+    await otherPage.getByLabel('Arbeitsplatz wiederherstellen').setInputFiles((await backup.path())!);
+    await expect(otherPage.getByText('Sicherung konnte nicht gelesen werden. Prüfe Datei und Passphrase.')).toBeVisible();
+    await expect(otherPage.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+    await otherPage.getByLabel('Sicherungs-Passphrase, optional').fill(passphrase);
+    otherPage.once('dialog', dialog => void dialog.accept());
+    await otherPage.getByLabel('Arbeitsplatz wiederherstellen').setInputFiles((await backup.path())!);
+    await expect(otherPage.getByText('Betriebsleitung · Test AG')).toBeVisible();
+    await expect(otherPage.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  } finally {
+    await other.close();
+  }
+  await page.getByRole('button', { name: 'Abmelden' }).click();
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
+  expect((await page.request.get('/api/v2/account/export')).status()).toBe(401);
+  await createAccount(page);
+  await expect(page.getByText('Noch keine Bewerbungen erfasst.')).toBeVisible();
+  await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toHaveCount(0);
 });
 
-test('app language can be changed independently of document language', async ({ page }) => {
-  await login(page);
-  const interfacePicker = page.getByRole('combobox', { name: 'App-Sprache' });
-  await expect(interfacePicker).toBeVisible();
-  await interfacePicker.selectOption('en');
-  await expect(page.getByRole('button', { name: 'Connect Drive', exact: true })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Sprache des generierten Dokuments' }).first()).toBeVisible();
-  if ((page.viewportSize()?.width || 1280) < 768) {
-    await page.getByRole('button', { name: /Toggle Sidebar/i }).click();
-  }
-  await expect(page.getByRole('button', { name: 'Job search', exact: true })).toBeVisible();
+test('blocks anonymous access and cross-site application writes', async ({ request }) => {
+  expect((await request.get('/api/admin-stats')).status()).toBe(404);
+  expect((await request.post('/api/session', { data: {} })).status()).toBe(410);
+  expect((await request.get('/api/v2/applications')).status()).toBe(401);
+  expect((await request.post('/api/v2/applications', {
+    headers: { Origin: 'https://untrusted.example' }, data: {},
+  })).status()).toBe(403);
 });
 
-test('mobile legal pages are readable and show correct contact and company relationship', async ({ page }) => {
-  for (const [slug, heading] of [
-    ['impressum', 'Impressum'],
-    ['datenschutz', 'Datenschutzhinweise'],
-    ['agb', 'Nutzungsbedingungen'],
-  ]) {
+test('guided draft and optional translated notice are separate', async ({ page }) => {
+  await createAccount(page);
+  const externalRequests: string[] = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
+  });
+  await page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen').fill('Ich habe mehrere Jahre ein kleines Team koordiniert und Arbeitsabläufe dokumentiert.');
+  await page.getByLabel('Text der Stellenanzeige').fill('Gesucht wird eine verantwortungsvolle Person für die Koordination des Betriebs.');
+  await page.getByLabel('Warum interessiert dich diese Stelle?').fill('ich die praktische Teamarbeit unterstütze');
+  await page.getByLabel('Ein konkretes Beispiel aus deiner Erfahrung').fill('Ich habe eine Schichtplanung eingeführt');
+  await page.getByLabel('Was möchtest du zum Unternehmen beitragen?').fill('Die Abläufe gemeinsam mit dem Team verbessern');
+  await page.getByRole('button', { name: 'Motivationsschreiben erstellen' }).click();
+  await expect(page.getByText(/Vorlagenentwurf erstellt/)).toBeVisible();
+  expect(externalRequests).toEqual([]);
+  const draft = page.getByLabel('Motivationsschreiben bearbeiten');
+  await expect(draft).toHaveValue(/Schichtplanung/);
+  const originalDraft = await draft.inputValue();
+  const notice = page.getByLabel('Datenschutzhinweis zum Kopieren');
+  const germanNotice = await notice.inputValue();
+  await page.getByLabel('Sprache des Datenschutzhinweises').selectOption('en');
+  await expect(notice).not.toHaveValue(germanNotice);
+  await expect(page.getByText('Vorschau des angehängten Hinweises')).toHaveCount(0);
+  await page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ }).check();
+  await expect(page.getByText('Vorschau des angehängten Hinweises')).toBeVisible();
+  await expect(draft).toHaveValue(originalDraft);
+  await page.reload();
+  await expect(page.getByLabel('Motivationsschreiben bearbeiten')).toHaveValue(originalDraft);
+  await expect(page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ })).not.toBeChecked();
+});
+
+test('legal pages render without horizontal overflow', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Dein nächster Schritt.');
+  await expect(page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' })).toHaveAttribute('href', '/app');
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  const productImages = page.getByRole('main').getByRole('img');
+  for (const productImage of await productImages.all()) {
+    await productImage.scrollIntoViewIfNeeded();
+    await expect.poll(() => productImage.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  }
+  for (const [slug, heading] of [['impressum', 'Impressum'], ['datenschutz', 'Datenschutzhinweise'], ['agb', 'Nutzungsbedingungen']]) {
     await page.goto('/' + slug);
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
     await expect(page.getByRole('main')).toContainText('thomas@th-analytica.com');
     await expect(page.getByRole('link', { name: 'TH Analytica' }).first()).toHaveAttribute('href', 'https://th-analytica.com');
-    await expect(page.getByRole('main')).not.toContainText('thhullin@gmail.com');
-    await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   }
+  await page.goto('/about');
+  await expect(page.getByRole('heading', { name: 'Über Motivationsboost' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'TH Analytica' })).toHaveAttribute('href', 'https://th-analytica.com');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  expect(await page.locator('script[type="application/ld+json"]').textContent()).toContain('SoftwareApplication');
+  expect((await page.request.get('/llms.txt')).status()).toBe(404);
+  expect(await (await page.request.get('/robots.txt')).text()).toContain('Disallow: /');
 });
-test('legacy Stripe API cannot charge and Payrexx is disabled until approved', async ({ request }) => {
+
+test('landing page fits a landscape tablet and its application link opens the auth route', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Separate tablet viewport in the desktop browser.');
+  await page.setViewportSize({ width: 820, height: 1050 });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
+});
+
+test('checkout is disabled even when all three proposed plans are visible', async ({ request }) => {
   for (const path of ['/api/stripe/checkout-session', '/api/stripe/create-portal-session', '/api/stripe/webhook', '/api/payrexx/checkout']) {
-    expect((await request.post(path, { data: { plan: 'monthly', userId: 'fake', priceId: 'fake' } })).status()).toBe(503);
+    expect((await request.post(path, { data: { plan: 'monthly' } })).status()).toBe(503);
   }
-  const status = await request.get('/api/payrexx/plans');
-  expect(status.status()).toBe(200);
-  const data = await status.json();
+  const result = await request.get('/api/payrexx/plans');
+  expect(result.ok()).toBe(true);
+  const data = await result.json();
   expect(data.enabled).toBe(false);
-  expect(data.plans).toEqual([]);
+  expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly']);
 });

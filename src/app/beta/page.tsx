@@ -1,8 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { Applications } from './applications';
+import { LocalDocuments } from './local-documents';
+import { WorkspaceBackup } from './workspace-backup';
 import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
+import { readLocalRecord, updateLocalRecord } from '@/lib/local-workspace';
+import { guidedLetter, letterDraftInput, prepareExternalDraftInput } from '@/lib/letter-draft';
 
 const auth = createAuthClient();
 const fields = [
@@ -14,6 +18,18 @@ const fields = [
 ] as const;
 type Field = typeof fields[number][0];
 type BetaUser = { id: string; name?: string | null; email?: string | null };
+const emptyDraft: Record<Field, string> = { cv: '', job: '', motivation: '', example: '', contribution: '' };
+
+function restoredDraft(stored: unknown) {
+  if (!stored || typeof stored !== 'object') return { values: emptyDraft, letter: '' };
+  const result = stored as { values?: Partial<Record<Field, unknown>>; letter?: unknown };
+  const values = { ...emptyDraft };
+  for (const [field] of fields) {
+    const value = result.values?.[field];
+    if (typeof value === 'string') values[field] = value.slice(0, 12000);
+  }
+  return { values, letter: typeof result.letter === 'string' ? result.letter.slice(0, 30000) : '' };
+}
 
 export default function BetaPage() {
   return process.env.NEXT_PUBLIC_INTERNAL_TEST_MODE === 'true'
@@ -82,8 +98,9 @@ function AuthenticatedBetaPage() {
         {mode !== 'signup' && process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true' && <button type="button" className="underline" onClick={() => { setMode(mode === 'reset' ? 'signin' : 'reset'); setError(''); setNotice(''); }}>{mode === 'reset' ? 'Zur Anmeldung' : 'Passwort vergessen?'}</button>}
       </div>
     </form>
+    <footer className="flex flex-wrap gap-4 text-sm"><a className="underline" href="/">Zur Produktseite</a><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
   </main>;
-  return <BetaWorkspace
+  return <BetaWorkspace key={session.user.id}
     user={session.user}
     onSignOut={() => { void auth.signOut(); }}
   />;
@@ -100,13 +117,40 @@ function InternalNotice() {
 }
 
 function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; onSignOut: () => void; internal?: boolean }) {
-  const [values, setValues] = useState<Record<Field, string>>({ cv: '', job: '', motivation: '', example: '', contribution: '' });
+  const draftKey = `letter:${user.id}`;
+  const [values, setValues] = useState(emptyDraft);
   const [letter, setLetter] = useState('');
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const [allowExternalProcessing, setAllowExternalProcessing] = useState(false);
   const [includePrivacyNotice, setIncludePrivacyNotice] = useState(false);
   const [noticeLanguage, setNoticeLanguage] = useState<PrivacyNoticeLanguage>('de');
   const finalLetter = appendApplicationPrivacyNotice(letter, includePrivacyNotice, noticeLanguage);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void readLocalRecord(draftKey).then(stored => {
+      if (!active) return;
+      const draft = restoredDraft(stored);
+      setValues(draft.values);
+      setLetter(draft.letter);
+      setDraftReady(true);
+    }, () => {
+      if (active) setDraftError('Die lokale Zwischenspeicherung ist nicht verfügbar. Sichere wichtige Texte als Datei.');
+    });
+    return () => { active = false; };
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    let active = true;
+    void updateLocalRecord(draftKey, () => ({ values, letter })).catch(() => {
+      if (active) setDraftError('Der Entwurf konnte in diesem Browser nicht gesichert werden.');
+    });
+    return () => { active = false; };
+  }, [draftKey, draftReady, letter, values]);
   function downloadLetter() {
     const url = URL.createObjectURL(new Blob([finalLetter], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
@@ -114,9 +158,21 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async function generate(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setMessage(''); setLetter('');
+    event.preventDefault(); setBusy(true); setMessage('');
     try {
-      const res = await fetch('/api/v2/letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+      const validated = letterDraftInput.safeParse(values);
+      if (!validated.success) throw new Error('Bitte Lebenslauf, Stellenanzeige und persönliche Angaben vollständig ausfüllen.');
+      if (!internal && !allowExternalProcessing) {
+        setLetter(guidedLetter(validated.data));
+        setMessage('Vorlagenentwurf erstellt. Deine Eingaben wurden in diesem Schritt nur in deinem Browser verarbeitet.');
+        return;
+      }
+      const requestInput = internal ? validated.data : prepareExternalDraftInput(validated.data);
+      const res = await fetch('/api/v2/letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ ...requestInput, allowExternalProcessing }),
+      });
       const data = await res.json() as { error?: string; letter?: string; mode?: string; quota?: { used: number; limit: number } };
       if (!res.ok || !data.letter) throw new Error(data.error || 'Der Entwurf konnte nicht erstellt werden.');
       setLetter(data.letter);
@@ -133,17 +189,27 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       const password = window.prompt(emailEnabled ? 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Danach senden wir dir eine Bestätigungs-E-Mail zur Kontolöschung.' : 'Zur Bestätigung: Gib dein aktuelles Passwort ein. Dein Konto und die zugehörigen Daten werden gelöscht.');
       if (!password) return;
       try {
-        const response = await fetch('/api/auth/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, callbackURL: '/' }) });
+        const response = await fetch('/api/auth/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, callbackURL: '/app' }) });
         if (!response.ok) throw new Error('Die Löschung konnte nicht angefordert werden. Prüfe dein Passwort und versuche es erneut.');
         const result = await response.json() as { message?: string };
-        if (result.message === 'User deleted') { window.location.assign('/'); return; }
+        if (result.message === 'User deleted') { window.location.assign('/app'); return; }
         setMessage('Bitte bestätige die Kontolöschung über den Link in deinem Postfach.');
       } catch (error) { setMessage(error instanceof Error ? error.message : 'Kontolöschung fehlgeschlagen.'); }
       }}>Konto löschen</button><button className="underline" onClick={onSignOut}>Abmelden</button></div></div>
     <Applications userId={user.id} internal={internal} />
+    <LocalDocuments userId={user.id} />
     <form onSubmit={generate} className="space-y-4">
-      {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
+      <p className="text-sm">Deine Eingaben und dein Entwurf werden in diesem Browser zwischengespeichert.</p>
+      {draftError && <p role="alert">{draftError}</p>}
+      {fields.map(([id, label]) => <label key={id} className="block space-y-1"><span className="font-medium">{label}</span><textarea required maxLength={id === 'cv' || id === 'job' ? 12000 : id === 'example' ? 2000 : 1500} rows={id === 'cv' || id === 'job' ? 6 : 3} value={values[id]} onChange={event => setValues({ ...values, [id]: event.target.value })} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" /></label>)}
+      {!internal && <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowExternalProcessing} onChange={event => setAllowExternalProcessing(event.target.checked)} /><span>Meine Eingaben für diesen Entwurf an OpenAI senden, sofern der Dienst freigeschaltet ist. Entferne vorab Namen, Kontaktdaten und weitere Angaben, die für den Entwurf nicht erforderlich sind.</span></label>}
       <button disabled={busy} className="rounded-lg bg-slate-900 px-5 py-3 text-white disabled:opacity-50">{busy ? 'Entwurf wird erstellt …' : 'Motivationsschreiben erstellen'}</button>
+      <button type="button" className="ml-3 underline" onClick={() => {
+        if (window.confirm('Eingaben und Briefentwurf in diesem Browser löschen?')) {
+          setValues(emptyDraft);
+          setLetter('');
+        }
+      }}>Lokalen Entwurf löschen</button>
     </form>
     {message && <p role="status">{message}</p>}
     <section className="space-y-3 rounded-xl border p-5">
@@ -155,6 +221,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
       <p className="text-xs text-slate-600">Du kannst den Hinweis auch in deinen Lebenslauf kopieren. Er verhindert eine KI-Verarbeitung nicht technisch und garantiert keine menschliche Prüfung. Deine Auswahl bleibt in dieser Ansicht und wird nicht an den KI-Dienst gesendet.</p>
     </section>
     {letter && <section className="space-y-3 rounded-xl border p-5"><h2 className="text-xl font-semibold">Dein Entwurf</h2><p className="text-sm text-slate-600">Bitte prüfe alle Angaben und passe den Text an deine Worte an.</p><textarea aria-label="Motivationsschreiben bearbeiten" rows={18} className="w-full rounded-lg border border-slate-300 p-3 text-slate-900" value={letter} onChange={event => setLetter(event.target.value)} />{includePrivacyNotice && <div className="space-y-1"><p className="text-sm font-medium">Vorschau des angehängten Hinweises</p><p className="whitespace-pre-wrap text-sm">{applicationPrivacyNotices[noticeLanguage]}</p></div>}<button type="button" onClick={downloadLetter} className="rounded-lg border px-4 py-2">Als Textdatei herunterladen</button></section>}
-    <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
+    <WorkspaceBackup userId={user.id} />
+    <footer className="flex flex-wrap gap-4 border-t pt-5 text-sm"><a className="underline" href="/about">Über Motivationsboost</a><a className="underline" href="/datenschutz">Datenschutz</a><a className="underline" href="/agb">Nutzungsbedingungen</a><a className="underline" href="/impressum">Impressum</a></footer>
   </main>;
 }
