@@ -20,8 +20,8 @@
 .motivationsboost-landing .site-header{background:var(--white);border-bottom:1px solid #e3e8e4;position:relative;z-index:2}
 .motivationsboost-landing .header-inner,.motivationsboost-landing .header-menu,.motivationsboost-landing nav,.motivationsboost-landing .header-actions{display:flex;align-items:center}
 .motivationsboost-landing .header-inner{width:min(100% - 3rem, 89rem);min-height:76px;justify-content:space-between;gap:1.1rem}
-.motivationsboost-landing .header-menu{flex:1;justify-content:space-between;gap:1rem}
-.motivationsboost-landing nav{gap:clamp(.8rem,1.4vw,1.5rem);margin-inline:auto}
+.motivationsboost-landing .header-menu{flex:1;min-width:0;flex-wrap:wrap;justify-content:space-between;gap:.35rem 1rem}
+.motivationsboost-landing nav{flex-wrap:wrap;gap:0 clamp(.8rem,1.4vw,1.5rem);margin-inline:auto}
 .motivationsboost-landing nav a,.motivationsboost-landing .plain{padding:.58rem 0;text-decoration:none;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap;font-size:.9rem;font-weight:600}
 .motivationsboost-landing nav a:hover,.motivationsboost-landing .plain:hover{text-decoration:underline;text-underline-offset:4px}
 .motivationsboost-landing .brand{display:inline-flex;align-items:center;gap:.55rem;color:var(--petrol);text-decoration:none;font-weight:760;font-size:1.18rem;letter-spacing:-.045em;white-space:nowrap}
@@ -30,7 +30,7 @@
 .motivationsboost-landing .brand-icon::before,.motivationsboost-landing .brand-icon::after{content:"";position:absolute;display:block;background:var(--gold);width:2px;transform:rotate(38deg);border-radius:1px}
 .motivationsboost-landing .brand-icon::before{height:14px;left:17px;top:8px}
 .motivationsboost-landing .brand-icon::after{height:9px;left:12px;top:14px}
-.motivationsboost-landing .header-actions{gap:.85rem}
+.motivationsboost-landing .header-actions{flex-wrap:wrap;gap:.35rem .85rem}
 .motivationsboost-landing .plain,.motivationsboost-landing .menu-toggle{border:0;background:transparent;color:var(--petrol)}
 .motivationsboost-landing .menu-toggle{display:none;min-height:44px;font-weight:700}
 .motivationsboost-landing .language select{min-height:44px;max-width:100%;border:1px solid var(--rule);border-radius:7px;background:var(--white);color:var(--petrol);padding:.3rem .45rem;font-size:.86rem}
@@ -150,7 +150,7 @@
  .motivationsboost-landing .wrap{width:calc(100% - 3rem)}
  .motivationsboost-landing .header-menu{display:block}
  .motivationsboost-landing .header-menu nav{flex-wrap:wrap;gap:0 1rem}
- .motivationsboost-landing .header-actions{flex-wrap:wrap;margin-top:.45rem}
+ .motivationsboost-landing .header-actions{margin-top:.45rem}
  .motivationsboost-landing .hero-inner{gap:1.6rem}
  .motivationsboost-landing .hero h1{font-size:clamp(2.65rem,5.8vw,4.7rem)}
  .motivationsboost-landing .trust ul{grid-template-columns:repeat(2,1fr)}
