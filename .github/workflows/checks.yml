@@ -22,6 +22,12 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
+      - name: Audit and build the separate Payrexx webhook package
+        working-directory: webhook-only
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
+          npm run build
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:quality
