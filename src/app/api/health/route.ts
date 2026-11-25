@@ -15,7 +15,10 @@ export async function GET() {
       to_regclass('applications') IS NOT NULL AS applications,
       to_regclass('applicant_profiles') IS NOT NULL AS profiles,
       to_regclass('ai_usage') IS NOT NULL AS ai_usage,
-      to_regclass('ai_entitlements') IS NOT NULL AS ai_entitlements`);
+      to_regclass('ai_entitlements') IS NOT NULL AS ai_entitlements,
+      to_regclass('ai_credit_usage') IS NOT NULL AS credit_usage,
+      to_regclass('ai_product_spend') IS NOT NULL AS product_spend,
+      to_regclass('product_economic_postings') IS NOT NULL AS economics`);
     database = true;
     schema = Object.values(result.rows[0] as Record<string, boolean>).every(Boolean);
   } catch { /* report status without leaking connection details */ }

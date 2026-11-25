@@ -135,7 +135,7 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await createAccount(page);
   const externalRequests: string[] = [];
   page.on('request', request => {
-    if (request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
+    if (request.method() === 'POST' && request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
   });
   await page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen').fill('Ich habe mehrere Jahre ein kleines Team koordiniert und Arbeitsabläufe dokumentiert.');
   await page.getByLabel('Text der Stellenanzeige').fill('Gesucht wird eine verantwortungsvolle Person für die Koordination des Betriebs.');
@@ -229,7 +229,7 @@ test('landing page fits a landscape tablet and its application link opens the au
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
 });
 
-test('checkout is disabled even when all three proposed plans are visible', async ({ request }) => {
+test('checkout stays disabled with the approved offers in the catalogue', async ({ request }) => {
   for (const path of ['/api/stripe/checkout-session', '/api/stripe/create-portal-session', '/api/stripe/webhook', '/api/payrexx/checkout']) {
     expect((await request.post(path, { data: { plan: 'monthly' } })).status()).toBe(503);
   }
@@ -237,7 +237,7 @@ test('checkout is disabled even when all three proposed plans are visible', asyn
   expect(result.ok()).toBe(true);
   const data = await result.json();
   expect(data.enabled).toBe(false);
-  expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly']);
+  expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly', 'poweruser', 'credits_small', 'credits_large']);
 });
 
 test('uses the browser language until an explicit setting overrides it', async ({ browser, baseURL }) => {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { productOrigin, productSummary, publicProductApproved } from '@/lib/public-product';
+import { PLANS } from '@/lib/plans';
 import { LandingNavigation } from './landing-navigation';
 import './sites-landing.css';
 
@@ -150,12 +151,18 @@ export default function ProductHome() {
     </section>
 
     <section className="section wrap" id="preise">
-      <div className="section-heading"><p className="eyebrow">Preise</p><h2>Wähle den Zeitraum, der zu dir passt.</h2><p>Preise, Kontingente und Leistungsumfang sind vorläufig. Buchungen sind bis zur Verkaufsfreigabe geschlossen.</p></div>
+      <div className="section-heading"><p className="eyebrow">Preise</p><h2>Wähle den Zeitraum, der zu dir passt.</h2><p>Buchungen sind bis zur Verkaufsfreigabe geschlossen.</p></div>
       <div className="pricing">
-        <article><h3>Kostenloser Einstieg</h3><p className="price"><span>CHF</span> 0.00</p><p>Zum Kennenlernen.</p><Link className="button outline" href="/app">Kostenlos ausprobieren</Link></article>
-        <article><h3>Wochenpass</h3><p className="price"><span>CHF</span> 8.90</p><p>Für eine Woche.</p><button className="button outline" type="button" disabled>Wochenpass in Vorbereitung</button></article>
-        <article className="plan-highlight"><h3>Monatsabo</h3><p className="price"><span>CHF</span> 17.90</p><p>Pro Monat.</p><button className="button gold" type="button" disabled>Monatsabo in Vorbereitung</button></article>
-        <article><h3>Jahresabo</h3><p className="price"><span>CHF</span> 119.00</p><p>Pro Jahr.</p><button className="button outline" type="button" disabled>Jahresabo in Vorbereitung</button></article>
+        <article><h3>Kostenloser Einstieg</h3><p className="price"><span>CHF</span> 0.00</p><p>Lokale Funktionen · 0 KI-Credits</p><Link className="button outline" href="/app">Kostenlos ausprobieren</Link></article>
+        {Object.values(PLANS).map(plan => {
+          const highlight = plan.id === 'monthly';
+          return <article key={plan.id} className={highlight ? 'plan-highlight' : undefined}>
+            <h3>{plan.label}</h3>
+            <p className="price"><span>CHF</span> {(plan.amount / 100).toFixed(2)}</p>
+            <p>{plan.id === 'yearly' ? 'Pro Jahr' : plan.period} · {plan.limit} Credits{plan.id === 'yearly' ? ' je Monat' : ''}</p>
+            <button className={highlight ? 'button gold' : 'button outline'} type="button" disabled>{plan.label} in Vorbereitung</button>
+          </article>;
+        })}
       </div>
     </section>
 

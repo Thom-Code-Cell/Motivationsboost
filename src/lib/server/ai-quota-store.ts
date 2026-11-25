@@ -24,6 +24,7 @@ export async function reserveAiAction(userId: string, now = new Date()) {
   const start = row?.start instanceof Date ? row.start.toISOString() : row?.start;
   const end = row?.end instanceof Date ? row.end.toISOString() : row?.end;
   const quota = quotaFor(row ? { plan: row.plan, status: row.status, start, end } : undefined, now);
+  if (!quota.limit) throw new Error('KI-Limit für diesen Zeitraum erreicht.');
   const reserved = await database.query(
     `INSERT INTO ai_usage (user_id, period_key, actions) VALUES ($1, $2, 1)
      ON CONFLICT (user_id, period_key) DO UPDATE SET actions = ai_usage.actions + 1

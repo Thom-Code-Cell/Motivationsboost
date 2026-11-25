@@ -37,7 +37,7 @@ describe('atomic PostgreSQL AI quota', () => {
   it('rejects concurrent requests above the free account limit', async () => {
     const now = new Date('2026-11-09T12:00:00Z');
     const results = await Promise.allSettled(Array.from({ length: 10 }, () => reserveAiAction('bob', now)));
-    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(3);
-    expect(results.filter(result => result.status === 'rejected')).toHaveLength(7);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(0);
+    expect(results.filter(result => result.status === 'rejected')).toHaveLength(10);
   });
 });

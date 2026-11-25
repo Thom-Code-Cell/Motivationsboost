@@ -7,6 +7,12 @@ import { legalCopy, translatedLegal, type LegalDocument } from '@/lib/legal-tran
 
 const paths = ['impressum', 'datenschutz', 'agb'] as const;
 const dateLocales = { de: 'de-CH', en: 'en-GB', fr: 'fr-CH', it: 'it-CH' };
+const creditTerms = {
+  de: 'Vor einer KI-Aktion zeigt dir die Anwendung, wie viele Credits sie kostet. Du löst sie selbst aus. Bei zu wenig Guthaben bleibt die Aktion gesperrt. Es gibt keinen automatischen Credit-Nachkauf. Deine eigenen lokal gespeicherten Unterlagen bleiben unabhängig vom Guthaben zugänglich.',
+  en: 'Before you start an AI action, the app shows how many credits it costs. You choose whether to proceed. If your balance is too low, the action is unavailable. Credits are never purchased automatically. Your own locally stored documents remain accessible regardless of your balance.',
+  fr: 'Avant chaque action IA, l’application indique son coût en crédits. Vous choisissez si vous souhaitez la lancer. Si votre solde est insuffisant, l’action est indisponible. Aucun crédit supplémentaire n’est acheté automatiquement. Vos documents enregistrés localement restent accessibles quel que soit votre solde.',
+  it: 'Prima di ogni azione IA, l’app mostra quanti crediti costa. Decidi tu se avviarla. Se il saldo è insufficiente, l’azione non è disponibile. Non vengono acquistati crediti automaticamente. I tuoi documenti salvati localmente rimangono accessibili indipendentemente dal saldo.',
+} as const;
 
 export function LegalPageBody({ document, children, email, website }: {
   document: LegalDocument;
@@ -37,6 +43,7 @@ export function LegalPageBody({ document, children, email, website }: {
           <p className="mt-5 break-all text-sm">{copy.contact} <a className="underline" href={'mailto:' + email}>{email}</a></p>
           {document === 'datenschutz' && <p className="mt-4 text-sm"><a className="underline" href="https://developers.openai.com/api/docs/guides/your-data">OpenAI</a></p>}
         </>}
+        {document === 'agb' && <p className="mt-5 break-words text-base leading-relaxed text-foreground/85">{creditTerms[locale]}</p>}
       </article>
     </main>
     <footer className="mx-auto flex max-w-3xl flex-wrap gap-4 px-4 pb-8 text-sm sm:px-6">
