@@ -4,7 +4,7 @@ import { requireAppSession } from '@/lib/server/app-session';
 import { reserveAiAction } from '@/lib/server/ai-quota-store';
 import { AiSpendBlocked, DuplicateAiRequest, reserveAiSpend, settleAiSpend } from '@/lib/server/ai-spend-store';
 import { approvedTextModel, maximumLetterCostChfMicros, maximumOutputTokens, providerUsageCost } from '@/lib/ai-spend';
-import { callOpenAI, getOpenAIKey, getTextModel } from '@/lib/server/openai-client';
+import { callOpenAI, getOpenAIKey, getTextModel, OpenAIRequestError } from '@/lib/server/openai-client';
 import { isInternalTestMode } from '@/lib/server/internal-test';
 import { isRequestOriginAllowed } from '@/lib/security';
 import { guidedLetter, letterDraftInput, prepareExternalDraftInput } from '@/lib/letter-draft';
@@ -91,5 +91,12 @@ export async function POST(request: NextRequest) {
     const letter = result.output_text ?? result.output?.flatMap(item => item.type === 'message' ? (item.content ?? []).filter(part => part.type === 'output_text').map(part => part.text ?? '') : []).join('');
     if (!letter?.trim()) throw new Error('empty');
     return NextResponse.json({ letter: letter.trim(), quota }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch { return NextResponse.json({ error: 'Der Entwurf konnte nicht erstellt werden. Bitte später erneut versuchen.' }, { status: 502 }); }
+  } catch (error) {
+    if (process.env.VERCEL_ENV === 'preview') {
+      console.warn('OpenAI preview letter request failed', error instanceof OpenAIRequestError
+        ? { status: error.status, code: error.code }
+        : { status: null, code: 'invalid_provider_result' });
+    }
+    return NextResponse.json({ error: 'Der Entwurf konnte nicht erstellt werden. Bitte später erneut versuchen.' }, { status: 502 });
+  }
 }

@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ session: vi.fn(), reserve: vi.fn(), spend: vi.
 vi.mock('@/lib/server/app-session', () => ({ requireAppSession: mocks.session }));
 vi.mock('@/lib/server/ai-quota-store', () => ({ reserveAiAction: mocks.reserve }));
 vi.mock('@/lib/server/ai-spend-store', () => ({ AiSpendBlocked: class extends Error {}, DuplicateAiRequest: class extends Error {}, reserveAiSpend: mocks.spend, settleAiSpend: mocks.settle }));
-vi.mock('@/lib/server/openai-client', () => ({ getOpenAIKey: mocks.key, getTextModel: () => 'gpt-6.1-terra', callOpenAI: mocks.openai }));
+vi.mock('@/lib/server/openai-client', () => ({ getOpenAIKey: mocks.key, getTextModel: () => 'gpt-6.1-terra', callOpenAI: mocks.openai, OpenAIRequestError: class extends Error {} }));
 import { POST } from '@/app/api/v2/letter/route';
 const body = { cv: 'Erfahrung '.repeat(8), job: 'Stellenanzeige '.repeat(8), motivation: 'Ich arbeite gerne mit Menschen.', example: 'Ich führte ein Team und unterstützte es.', contribution: 'Ich helfe dem Team im Alltag.', allowExternalProcessing: true };
 const requestId = '39efda86-ae0b-48c7-b7fa-953ee479fa82';
