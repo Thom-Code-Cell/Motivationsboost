@@ -9,5 +9,8 @@ export const metadata = {
 };
 
 export default function LegalPage() {
-  return <LegalPageBody document="datenschutz" email={CONTACT_EMAIL} website={TH_ANALYTICA_URL} releasedProduct={publicProductApproved()}><LegalContent document="datenschutz" /></LegalPageBody>;
+  const releasedProduct = publicProductApproved();
+  return <LegalPageBody document="datenschutz" email={CONTACT_EMAIL} website={TH_ANALYTICA_URL} releasedProduct={releasedProduct}>
+    {!releasedProduct && <LegalContent document="datenschutz" />}
+  </LegalPageBody>;
 }
