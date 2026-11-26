@@ -26,7 +26,12 @@ export async function GET() {
     ]);
     database = true;
     schema = Object.values(result.rows[0] as Record<string, boolean>).every(Boolean);
-  } catch { /* report status without leaking connection details */ }
+  } catch (error) {
+    // Record a machine-readable failure without logging the connection or driver message.
+    const code = (error as { code?: unknown } | null)?.code;
+    const name = error instanceof TypeError ? 'invalid_configuration' : 'unavailable';
+    console.warn('Motivationsboost database health check failed', typeof code === 'string' && /^[A-Z0-9_]{2,30}$/.test(code) ? code : name);
+  }
   const production = process.env.VERCEL_ENV === 'production' || (process.env.NODE_ENV === 'production' && !process.env.VERCEL);
   const configuredOrigin = process.env.BETTER_AUTH_URL || process.env.APP_URL;
   const originReady = process.env.VERCEL_ENV === 'production' ? isCanonicalProductOrigin(configuredOrigin) :
