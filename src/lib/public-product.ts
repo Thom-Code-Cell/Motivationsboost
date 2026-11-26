@@ -21,6 +21,7 @@ export function publicProductMetadata(locale: ProductLocale): Metadata {
     description,
     robots: { index: approved, follow: approved },
     alternates: approved ? { canonical: productOrigin + productLanguagePaths[locale], languages: productLanguageAlternates } : undefined,
+    verification: approved && locale === 'de' ? { other: { 'msvalidate.01': 'C27A8B0AA4EE472D0D65799D568FBEDF' } } : undefined,
   };
 }
 
