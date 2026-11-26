@@ -1,8 +1,10 @@
 import { performance } from 'node:perf_hooks';
 
 const app = new URL('https://motivationsboost.th-analytica.com/');
-const preview = new URL('https://motivationsboost-preview-git-cod-454c05-thomas-hullins-projects.vercel.app/');
 const previewOnly = process.argv[2] !== 'production';
+const preview = new URL(previewOnly
+  ? 'https://motivationsboost-preview-git-cod-454c05-thomas-hullins-projects.vercel.app/'
+  : 'https://motivationsboost-preview-bsabqwj00-thomas-hullins-projects.vercel.app/');
 
 async function probe(target, path, shouldBeProtected) {
   const url = new URL(path, target);
@@ -25,6 +27,12 @@ async function probe(target, path, shouldBeProtected) {
       healthy = payload.status === 'configured' && payload.checks?.database === true && payload.checks?.databaseSchema === true &&
         payload.checks?.emailPasswordAuth === true && payload.checks?.transactionalEmail === true && payload.checks?.emailVerification === true;
     }
+    if (healthy && !shouldBeProtected && path === '/api/payrexx/plans') {
+      const payload = await response.json();
+      healthy = payload.enabled === false && payload.sandboxOnly === false &&
+        payload.free?.amount === 0 && payload.free?.limit === 0 &&
+        Array.isArray(payload.plans) && payload.plans.every(plan => plan.available === false);
+    }
     await response.body?.cancel().catch(() => {});
     return { target: url.hostname + url.pathname, expected: shouldBeProtected ? 'protected' : 'healthy', status: response.status, healthy, latencyMs: Math.round(performance.now() - started) };
   } catch {
@@ -33,6 +41,7 @@ async function probe(target, path, shouldBeProtected) {
 }
 
 const requirements = [[app, '/', previewOnly], [app, '/api/health', previewOnly], [preview, '/app', true]];
+if (!previewOnly) requirements.push([app, '/api/payrexx/plans', false]);
 let checks = await Promise.all(requirements.map(([url, path, protectedGate]) => probe(url, path, protectedGate)));
 if (checks.some(check => !check.healthy)) {
   await new Promise(resolve => setTimeout(resolve, 1500));

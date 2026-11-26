@@ -27,7 +27,12 @@ const nextConfig = {
       { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
       { key: 'X-DNS-Prefetch-Control', value: 'on' },
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-    ] }];
+    ] },
+      ...['/api/:path*', '/app/:path*', '/beta/:path*', '/reset-password'].map(source =>
+        ({ source, headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] })),
+      ...[['en', 'en'], ['fr', 'fr'], ['it', 'it']].map(([path, language]) =>
+        ({ source: '/' + path, headers: [{ key: 'Content-Language', value: language }] })),
+    ];
   },
   images: {
     remotePatterns: [

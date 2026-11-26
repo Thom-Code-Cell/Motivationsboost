@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { productOrigin, productSummary, productSupportEmail, publicProductApproved } from '@/lib/public-product';
+import { productSupportEmail, publicProductApproved, publicProductMetadata, publicProductSchema } from '@/lib/public-product';
 import { PLANS } from '@/lib/plans';
 import { LandingNavigation } from './landing-navigation';
 import { ReleasedProductHome } from './released-product-home';
@@ -9,17 +9,14 @@ import { weeklyLiveCheckoutConfiguration } from '@/lib/server/payrexx-checkout-c
 import './sites-landing.css';
 
 export function generateMetadata(): Metadata {
-  const approved = publicProductApproved();
-  return {
-    title: 'Motivationsboost | Dein nächster beruflicher Schritt',
-    description: productSummary,
-    robots: { index: approved, follow: approved },
-    alternates: approved ? { canonical: productOrigin } : undefined,
-  };
+  return publicProductMetadata('de');
 }
 
 export default function ProductHome() {
-  if (publicProductApproved()) return <ReleasedProductHome weeklyAvailable={Boolean(weeklyLiveCheckoutConfiguration())} />;
+  if (publicProductApproved()) return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(publicProductSchema('de')) }} />
+    <ReleasedProductHome weeklyAvailable={Boolean(weeklyLiveCheckoutConfiguration())} />
+  </>;
   return <div id="start" className="motivationsboost-landing">
     <a className="skip" href="#inhalt">Zum Inhalt</a>
     <LandingNavigation />

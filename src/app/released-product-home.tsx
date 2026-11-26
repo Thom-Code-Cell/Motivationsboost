@@ -5,13 +5,17 @@ import Link from 'next/link';
 import { useProductLanguage } from '@/components/product-language';
 import { legalCopy } from '@/lib/legal-translations';
 import { PLANS } from '@/lib/plans';
-import { productSupportEmail } from '@/lib/public-product';
+import { productLanguagePaths, productSupportEmail } from '@/lib/public-product';
+import { productLocales, type ProductLocale } from '@/lib/product-locale';
 import { weeklyCheckoutCopy } from '@/lib/product-weekly-copy';
 import { releasedLandingCopy } from '@/lib/released-landing-copy';
 import { LandingNavigation } from './landing-navigation';
 
-export function ReleasedProductHome({ weeklyAvailable }: { weeklyAvailable: boolean }) {
-  const locale = useProductLanguage();
+const languageNames = { de: 'Deutsch', en: 'English', fr: 'Français', it: 'Italiano' };
+
+export function ReleasedProductHome({ weeklyAvailable, fixedLocale }: { weeklyAvailable: boolean; fixedLocale?: ProductLocale }) {
+  const preferredLocale = useProductLanguage();
+  const locale = fixedLocale ?? preferredLocale;
   const copy = releasedLandingCopy[locale];
   const legal = legalCopy[locale];
   const weekly = weeklyCheckoutCopy[locale];
@@ -22,7 +26,7 @@ export function ReleasedProductHome({ weeklyAvailable }: { weeklyAvailable: bool
   ];
   return <div id="start" lang={locale} className="motivationsboost-landing">
     <a className="skip" href="#inhalt">{copy.skip}</a>
-    <LandingNavigation showGuides={false} />
+    <LandingNavigation showGuides={false} fixedLocale={fixedLocale} />
     <main id="inhalt">
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap hero-inner">
@@ -71,6 +75,11 @@ export function ReleasedProductHome({ weeklyAvailable }: { weeklyAvailable: bool
         <li><Link href="/datenschutz">{legal.datenschutz}</Link></li>
         <li><Link href="/agb">{legal.agb}</Link></li>
       </ul></div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-2">
+        {productLocales.map(language => <li key={language}>
+          <Link href={productLanguagePaths[language]} hrefLang={language} lang={language}>{languageNames[language]}</Link>
+        </li>)}
+      </ul>
     </div></footer>
   </div>;
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ProductLanguagePicker, useProductLanguage } from '@/components/product-language';
 import { useRef, useState } from 'react';
+import type { ProductLocale } from '@/lib/product-locale';
 
 const navigationCopy = {
   de: ['Menü', 'Hauptnavigation', 'Funktionen', 'So funktioniert’s', 'Deine Vorteile', 'Datenschutz', 'Preise', 'Anmelden', 'Kostenlos ausprobieren'],
@@ -11,8 +12,9 @@ const navigationCopy = {
   it: ['Menu', 'Navigazione principale', 'Funzioni', 'Come funziona', 'I vantaggi', 'Privacy', 'Prezzi', 'Accedi', 'Prova gratis'],
 } as const;
 
-export function LandingNavigation({ showGuides = true }: { showGuides?: boolean }) {
-  const locale = useProductLanguage();
+export function LandingNavigation({ showGuides = true, fixedLocale }: { showGuides?: boolean; fixedLocale?: ProductLocale }) {
+  const preferredLocale = useProductLanguage();
+  const locale = fixedLocale ?? preferredLocale;
   const copy = navigationCopy[locale];
   const [expanded, setExpanded] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -42,7 +44,7 @@ export function LandingNavigation({ showGuides = true }: { showGuides?: boolean 
           <a href="#preise">{copy[6]}</a>
         </nav>
         <div className="header-actions">
-          <ProductLanguagePicker />
+          {!fixedLocale && <ProductLanguagePicker />}
           <Link className="plain" href="/app">{copy[7]}</Link>
           <Link className="button button-small" href="/app">{copy[8]}</Link>
         </div>
