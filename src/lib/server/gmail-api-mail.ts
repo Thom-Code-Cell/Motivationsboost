@@ -28,11 +28,17 @@ async function gmailAccessToken(config: NonNullable<ReturnType<typeof production
     }), redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(8000),
   });
   const data = await response.json().catch(() => null) as {
-    access_token?: unknown; token_type?: unknown; expires_in?: unknown; scope?: unknown;
+    access_token?: unknown; token_type?: unknown; expires_in?: unknown; scope?: unknown; error?: unknown;
   } | null;
   if (!response.ok || typeof data?.access_token !== 'string' || typeof data.token_type !== 'string' ||
       data.token_type.toLowerCase() !== 'bearer' ||
       data.scope !== gmailSendScope || typeof data.expires_in !== 'number' || !Number.isFinite(data.expires_in)) {
+    const providerError = ['invalid_client', 'invalid_grant', 'invalid_request', 'invalid_scope', 'unauthorized_client']
+      .find(code => code === data?.error) ?? 'none';
+    console.warn('Motivationsboost Gmail token rejected', {
+      status: response.status, providerError, hasAccessToken: typeof data?.access_token === 'string',
+      scope: data?.scope == null ? 'absent' : data.scope === gmailSendScope ? 'send-only' : 'different',
+    });
     throw new Error('Gmail konnte den reinen Versandzugriff nicht bestätigen.');
   }
   cachedAccessToken = { token: data.access_token, expiresAt: Date.now() + Math.max(0, data.expires_in - 60) * 1000 };
