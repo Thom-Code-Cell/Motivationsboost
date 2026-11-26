@@ -10,6 +10,7 @@ import { getLanguageName } from '@/lib/document-languages';
  */
 
 import { authorizeAI } from '@/lib/server/session';
+import { groundCvDraft } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import { GenerateCvFromDocumentsOutputSchema, GenerateCvFromDocumentsInputSchema, type GenerateCvFromDocumentsOutput, type GenerateCvFromDocumentsInput } from '@/ai/schemas';
@@ -60,6 +61,6 @@ const generateCvFromDocumentsFlow = ai.defineFlow(
     const languageName = getLanguageName(input.language);
     const {output} = await prompt({...input, languageName});
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return groundCvDraft(output, input.documentTexts, input.language);
   }
 );

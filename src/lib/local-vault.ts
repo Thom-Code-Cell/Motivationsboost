@@ -1,10 +1,11 @@
 import { z } from 'zod/v3';
+import { storedEvidenceItem } from './letter-evidence';
 
 export const documentCategories = ['Lebenslauf', 'Arbeitszeugnis', 'Diplom oder Zertifikat', 'Bewerbungsfoto', 'Sonstige Bewerbungsunterlage'] as const;
 export const maximumLocalFileBytes = 20 * 1024 * 1024;
 export const maximumVaultBytes = 100 * 1024 * 1024;
-export const localFileName = z.string().min(1).max(255).regex(/\.(pdf|docx|txt|jpe?g|png|webp)$/i);
-const documentInfo = z.object({ id: z.string().uuid(), name: localFileName, category: z.enum(documentCategories) });
+export const localFileName = z.string().min(1).max(255).regex(/\.(pdf|docx|txt|jpe?g|png|webp|hei[cf])$/i);
+const documentInfo = z.object({ id: z.string().uuid(), name: localFileName, category: z.enum(documentCategories), extractedText: z.string().max(30_000).optional() });
 const localDocument = documentInfo.extend({ file: z.instanceof(Blob) });
 export type LocalDocument = z.infer<typeof localDocument>;
 export type LocalDocumentCategory = LocalDocument['category'];
@@ -39,6 +40,7 @@ const backupSchema = z.object({
       example: z.string().max(2000), contribution: z.string().max(1500),
     }).strict(),
     letter: z.string().max(30000),
+    evidence: z.array(storedEvidenceItem).max(12).optional(),
   }).strict(),
   documents: z.array(documentInfo.extend({ content: z.string().min(1).max(Math.ceil(maximumLocalFileBytes / 3) * 4) })),
 }).strict();

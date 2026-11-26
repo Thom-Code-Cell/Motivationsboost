@@ -32,3 +32,11 @@ The account flow supports email verification, password reset, deletion confirmat
 The Google/Firebase dashboard has been removed from the primary app route. The active application does not require Google sign-in, Google Drive, Google Fonts or Firebase. The previous rich dashboard modules remain in the repository as inactive legacy code and are not reachable from the primary route.
 
 See `docs/RELEASE-CHECKLIST.md` before any public launch. A successful build does not establish live database, email, AI-provider, privacy or payment acceptance. Production was not deployed or modified as part of this preparation.
+
+### Motivationsboost acceptance and operations
+
+For the isolated weekly sandbox checkout apply the migrations through 011 in order. Migration 011 queues a single test notice per paid or refunded order. Delivery is confined to Vercel Preview and requires a verified Resend sender plus an explicitly configured operator test address in PAYREXX_SANDBOX_NOTICE_RECIPIENT. Use EMAIL_REPLY_TO for an address the operator receives. The queue records acceptance by the mail provider. Confirm final inbox delivery independently.
+
+The protected synthetic AI acceptance requires the existing synthetic account ID and a time-limited MOTIVATIONS_ACCEPTANCE_APPROVED_UNTIL scoped to the preview branch. It reads the existing CHF-10 ledger. It cannot be enabled on Production. The optional OPENAI_LETTER_MODEL override still requires an approved model and the application spend gate.
+
+Run node scripts/probe-operations.mjs to check the current deployment-protection state. Run scripts/operations-status.sql read-only on the isolated Preview database for the aggregate report. These checks do not send test messages, place orders or call an inference API.

@@ -4,6 +4,8 @@ import Handlebars from 'handlebars';
 import { z, type ZodTypeAny } from 'zod/v3';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { callOpenAI } from '@/lib/server/openai-client';
+import { acceptanceContext } from '@/lib/server/ai-acceptance';
+import { previewTextModel } from '@/lib/ai-spend';
 
 type ResponseContent = { type?: string; text?: string; refusal?: string };
 type ResponseMessage = { type?: string; content?: ResponseContent[] };
@@ -11,11 +13,12 @@ type OpenAIResponse = { status?: string; output?: ResponseMessage[]; output_text
 
 async function generateJson(prompt: string, name: string, schema: Record<string, unknown>): Promise<string> {
   if (Buffer.byteLength(prompt, 'utf8') > 30000) throw new Error('Der Dokumenttext ist für die KI-Verarbeitung zu gross. Bitte kürzen.');
-  const model = process.env.OPENAI_MODEL || 'gpt-6.1-terra';
+  const model = acceptanceContext() ? previewTextModel : process.env.OPENAI_MODEL || 'gpt-6.1-terra';
   if (!/^gpt-[a-z0-9.-]+$/.test(model)) throw new Error('Ungültiges OpenAI-Modell.');
   const response = await callOpenAI('/responses', {
     model,
     store: false,
+    service_tier: 'default',
     input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }] }],
     text: { format: { type: 'json_schema', name, schema, strict: false } },
     max_output_tokens: 2048,

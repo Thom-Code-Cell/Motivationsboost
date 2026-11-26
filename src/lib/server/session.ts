@@ -1,13 +1,13 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { adminAuth, adminDb } from './firebase-admin';
 import { quotaFor } from '@/lib/ai-quota';
+import { acceptanceContext } from './ai-acceptance';
 
 export const SESSION_COOKIE = '__session';
 export async function requireSession() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) throw new Error('Bitte zuerst mit Google anmelden.');
-  try { return await adminAuth().verifyIdToken(token, true); }
+  try { const { adminAuth } = await import('./firebase-admin'); return await adminAuth().verifyIdToken(token, true); }
   catch { throw new Error('Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.'); }
 }
 export async function requireAdmin() {
@@ -17,11 +17,14 @@ export async function requireAdmin() {
   return session;
 }
 export async function authorizeAI(input: unknown, maxInputBytes = 2_000_000) {
+  const test = acceptanceContext();
+  if (test) return { uid: test.userId };
   const session = await requireSession();
   if (!process.env.OPENAI_API_KEY) throw new Error('Der KI-Dienst ist noch nicht konfiguriert.');
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes) throw new Error('Die Eingabe ist zu groß.');
   // A transaction enforces a shared limit across all instances and all AI functions.
   const hour = Math.floor(Date.now() / 3_600_000);
+  const { adminDb } = await import('./firebase-admin');
   const ref = adminDb().doc(`aiUsage/${session.uid}`);
   const entitlementRef = adminDb().doc(`aiEntitlements/${session.uid}`);
   await adminDb().runTransaction(async tx => {

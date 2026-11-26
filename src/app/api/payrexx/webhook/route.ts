@@ -1,9 +1,13 @@
 import { createHash } from 'node:crypto';
-import { NextRequest, NextResponse } from 'next/server';
-import { databasePool } from '@/lib/server/postgres';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { sendNextPayrexxTestNotice } from '@/lib/server/payrexx-test-notices';
+import { sendNextPayrexxWeeklyNotice } from '@/lib/server/payrexx-weekly-notices';
+import { databaseConnectionConfigured, databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
-import { applyWeeklySandboxEvent, weeklySandboxEnabled } from '@/lib/server/payrexx-weekly';
+import { weeklyCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
+import { applyWeeklyLiveEvent } from '@/lib/server/payrexx-weekly-live';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -25,14 +29,18 @@ function recordFields(payload: unknown) {
 
 export async function POST(request: NextRequest) {
   const config = payrexxConfiguration();
-  if (!config.webhookEnabled || !config.signingKey || !process.env.DATABASE_URL)
+  const checkout = weeklyCheckoutConfiguration();
+  const sandbox = checkout?.signingKey ? checkout : undefined;
+  const live = weeklyLiveWebhookConfiguration();
+  const signingKey = sandbox?.signingKey ?? live?.signingKey ?? config.signingKey;
+  if (!config.webhookEnabled || !signingKey || !databaseConnectionConfigured())
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });
   if (Number(request.headers.get('content-length') || '0') > 131072)
     return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
   const body = await request.text();
   if (Buffer.byteLength(body, 'utf8') > 131072) return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
   const signature = request.headers.get('x-webhook-signature') || '';
-  if (!verifyPayrexxWebhook(body, signature, config.signingKey))
+  if (!verifyPayrexxWebhook(body, signature, signingKey))
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   let payload: unknown;
   try { payload = JSON.parse(body); } catch {
@@ -43,15 +51,22 @@ export async function POST(request: NextRequest) {
   const fields = recordFields(payload);
   let connection;
   try {
-    if (!weeklySandboxEnabled()) {
+    if (!sandbox && !live) {
       const result = await recordEvent(databasePool());
       return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
     }
     connection = await databasePool().connect();
     await connection.query('BEGIN');
     const result = await recordEvent(connection);
-    const premiumGranted = result.rowCount !== 0 && await applyWeeklySandboxEvent(connection, payload);
+    const premiumGranted = result.rowCount !== 0 &&
+      (sandbox ? await applyWeeklySandboxEvent(connection, payload, sandbox) :
+        live ? await applyWeeklyLiveEvent(connection, payload, live) : false);
     await connection.query('COMMIT');
+    if (sandbox) {
+      after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));
+    } else if (live) {
+      after(() => sendNextPayrexxWeeklyNotice().catch(() => console.warn('Motivationsboost weekly notice queue unavailable')));
+    }
     return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted });
   } catch {
     await connection?.query('ROLLBACK').catch(() => {});

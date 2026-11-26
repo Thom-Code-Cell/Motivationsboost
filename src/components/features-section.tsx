@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, MessageSquareQuote, Linkedin, Bot, Search, Mail, Camera } from 'lucide-react';
+import { FileText, MessageSquareQuote, Linkedin, Bot, Mail } from 'lucide-react';
 
 const features = [
   {
@@ -14,11 +14,6 @@ const features = [
     icon: <MessageSquareQuote className="h-8 w-8 text-primary" />,
     title: "ATS-Analyse & Optimierung",
     description: "Lassen Sie Ihre Unterlagen wie von einem Bewerber-System prüfen und optimieren Sie sie für maximale Kompatibilität.",
-  },
-   {
-    icon: <Camera className="h-8 w-8 text-primary" />,
-    title: "KI-Bewerbungsfoto Studio",
-    description: "Verwandeln Sie ein einfaches Foto in ein professionelles Bewerbungsfoto – mit perfekter Kleidung, Hintergrund und Licht.",
   },
   {
     icon: <Bot className="h-8 w-8 text-primary" />,

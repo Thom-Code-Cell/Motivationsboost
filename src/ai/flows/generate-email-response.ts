@@ -11,6 +11,7 @@ import { getLanguageName } from '@/lib/document-languages';
  */
 
 import { authorizeAI } from '@/lib/server/session';
+import { groundedEmailDraft } from '@/lib/application-evidence';
 import {ai} from '@/ai/genkit';
 import {z} from 'zod/v3';
 import {
@@ -101,6 +102,6 @@ const generateEmailResponseFlow = ai.defineFlow(
         scenarioDescription
     });
     if (!output) throw new Error('Die KI hat kein verwertbares Ergebnis geliefert. Bitte erneut versuchen.');
-    return output;
+    return groundedEmailDraft(input);
   }
 );

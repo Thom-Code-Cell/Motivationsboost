@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import { ProductLanguageProvider } from '@/components/product-language';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="de" className="h-full">
       <body className="font-sans antialiased h-full">
-        {children}
+        <ProductLanguageProvider>{children}</ProductLanguageProvider>
         <Toaster />
       </body>
     </html>

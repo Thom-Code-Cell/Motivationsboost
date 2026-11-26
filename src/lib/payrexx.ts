@@ -24,7 +24,6 @@ export function payrexxConfiguration() {
   };
 }
 export function getPlan(id: PlanId) {
-  const plan = PLANS[id];
-  return { ...plan, interval: id === 'weekly' ? null : id === 'monthly' ? 'P1M' : 'P1Y' };
+  return PLANS[id];
 }
 export const verifyPayrexxWebhook = verifyPayrexxSignature;

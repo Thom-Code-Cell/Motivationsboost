@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
 import { test, expect, type Page } from '@playwright/test';
 import { openTestDatabase } from './setup';
 
@@ -30,10 +33,12 @@ test('account session persists and exposes only its own application data', async
   await page.getByLabel('Stelle', { exact: true }).fill('Betriebsleitung');
   await page.getByLabel('Unternehmen', { exact: true }).fill('Test AG');
   await page.getByLabel('Link zum Inserat').fill('https://example.test/job');
+  await page.getByLabel('Bewerbungsfrist (optional)').fill('2026-12-15');
   await page.getByRole('button', { name: 'Bewerbung hinzufügen' }).click();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
   await page.reload();
   await expect(page.getByText('Betriebsleitung · Test AG')).toBeVisible();
+  await expect(page.getByLabel('Frist für Betriebsleitung')).toHaveValue('2026-12-15');
   await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
     name: 'synthetischer-lebenslauf.txt', mimeType: 'text/plain',
     buffer: Buffer.from('Reiner Testinhalt für die lokale Ablage.'),
@@ -41,6 +46,17 @@ test('account session persists and exposes only its own application data', async
   await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
   await page.reload();
   await expect(page.getByText('synthetischer-lebenslauf.txt · Lebenslauf')).toBeVisible();
+  const camera = page.getByLabel('Unterlage fotografieren');
+  await expect(camera).toHaveAttribute('capture', 'environment');
+  await page.getByRole('combobox', { name: 'Kategorie', exact: true }).selectOption('Arbeitszeugnis');
+  await camera.setInputFiles({ name: 'kamera-test.heic', mimeType: 'image/heic', buffer: Buffer.from('synthetic local file') });
+  const evidence = page.getByLabel('Datei lokal hinzufügen');
+  await evidence.setInputFiles(['seite-1.txt', 'seite-2.txt'].map(name => ({ name, mimeType: 'text/plain', buffer: Buffer.from('synthetic') })));
+  await expect(page.getByText('seite-2.txt · Arbeitszeugnis')).toBeVisible();
+  await page.reload();
+  for (const name of ['kamera-test.heic', 'seite-1.txt', 'seite-2.txt']) {
+    await expect(page.getByText(name + ' · Arbeitszeugnis')).toBeVisible();
+  }
   const legacyBefore = await page.request.get('/api/v2/applications');
   expect((await legacyBefore.json()).applications).toEqual([]);
   expect((await page.request.post('/api/v2/applications', {
@@ -119,7 +135,7 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await createAccount(page);
   const externalRequests: string[] = [];
   page.on('request', request => {
-    if (request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
+    if (request.method() === 'POST' && request.url().endsWith('/api/v2/letter')) externalRequests.push(request.url());
   });
   await page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen').fill('Ich habe mehrere Jahre ein kleines Team koordiniert und Arbeitsabläufe dokumentiert.');
   await page.getByLabel('Text der Stellenanzeige').fill('Gesucht wird eine verantwortungsvolle Person für die Koordination des Betriebs.');
@@ -140,6 +156,22 @@ test('guided draft and optional translated notice are separate', async ({ page }
   await page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ }).check();
   await expect(page.getByText('Vorschau des angehängten Hinweises')).toBeVisible();
   await expect(draft).toHaveValue(originalDraft);
+  for (const [format, label] of [['txt', 'Als Textdatei herunterladen'], ['pdf', 'Als PDF herunterladen'], ['docx', 'Als Word-Datei herunterladen']]) {
+    const pendingDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: label }).click();
+    const download = await pendingDownload;
+    expect(download.suggestedFilename()).toBe('motivationsschreiben.' + format);
+    const data = await readFile(await download.path());
+    if (format === 'txt') expect(data.toString()).toContain(originalDraft);
+    if (format === 'pdf') expect(data.subarray(0, 5).toString()).toBe('%PDF-');
+    if (format === 'docx') {
+      const zip = await JSZip.loadAsync(data);
+      const xml = await zip.file('word/document.xml')?.async('string');
+      expect(xml).toContain('Schichtplanung');
+      expect(xml).toContain('human');
+    }
+  }
+  expect(externalRequests).toEqual([]);
   await page.reload();
   await expect(page.getByLabel('Motivationsschreiben bearbeiten')).toHaveValue(originalDraft);
   await expect(page.getByRole('checkbox', { name: /Datenschutzhinweis beim Herunterladen/ })).not.toBeChecked();
@@ -148,9 +180,23 @@ test('guided draft and optional translated notice are separate', async ({ page }
 test('legal pages render without horizontal overflow', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Dein nächster Schritt.');
-  await expect(page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' })).toHaveAttribute('href', '/app');
+  const menu = page.getByRole('button', { name: 'Menü' });
+  if (await menu.isVisible()) await menu.click();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Kostenlos ausprobieren' })).toHaveAttribute('href', '/app');
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await expect.poll(() => page.evaluate(() => {
+    const overflow = document.documentElement.scrollWidth - window.innerWidth;
+    if (overflow <= 1) return { overflow: false };
+    const outsideViewport = [...document.querySelectorAll('body *')].filter(element => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.width > 0 && bounds.right > window.innerWidth + 1;
+    }).slice(0, 8).map(element => ({
+      element: element.tagName,
+      className: element.getAttribute('class'),
+      right: Math.round(element.getBoundingClientRect().right),
+    }));
+    return { overflow: true, viewportWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, outsideViewport };
+  })).toEqual({ overflow: false });
   const productImages = page.getByRole('main').getByRole('img');
   for (const productImage of await productImages.all()) {
     await productImage.scrollIntoViewIfNeeded();
@@ -174,15 +220,16 @@ test('legal pages render without horizontal overflow', async ({ page }) => {
 
 test('landing page fits a landscape tablet and its application link opens the auth route', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Separate tablet viewport in the desktop browser.');
-  await page.setViewportSize({ width: 820, height: 1050 });
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  await page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Zur Anwendung' }).click();
+  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('banner').getByRole('link', { name: 'Kostenlos ausprobieren' }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
 });
 
-test('checkout is disabled even when all three proposed plans are visible', async ({ request }) => {
+test('checkout stays disabled with the approved offers in the catalogue', async ({ request }) => {
   for (const path of ['/api/stripe/checkout-session', '/api/stripe/create-portal-session', '/api/stripe/webhook', '/api/payrexx/checkout']) {
     expect((await request.post(path, { data: { plan: 'monthly' } })).status()).toBe(503);
   }
@@ -190,5 +237,132 @@ test('checkout is disabled even when all three proposed plans are visible', asyn
   expect(result.ok()).toBe(true);
   const data = await result.json();
   expect(data.enabled).toBe(false);
-  expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly']);
+  expect(data.plans.map(({ id }: { id: string }) => id)).toEqual(['weekly', 'monthly', 'yearly', 'poweruser', 'credits_small', 'credits_large']);
+});
+
+test('uses the browser language until an explicit setting overrides it', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, locale: 'fr-CH' });
+  try {
+    const page = await context.newPage();
+    await page.goto('/app');
+    await expect(page.getByRole('button', { name: 'Se connecter', exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Langue', exact: true }).selectOption('it');
+    await expect(page.getByRole('button', { name: 'Accedi', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Accedi', exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Lingua', exact: true }).selectOption('');
+    await expect(page.getByRole('button', { name: 'Se connecter', exact: true })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('localizes the signed-in workspace and keeps the reset link language', async ({ page }) => {
+  await createAccount(page);
+  const translations = [
+    ['Sprache', 'en', 'My applications', 'Create cover letter', 'Privacy notice language'],
+    ['Language', 'fr', 'Mes candidatures', 'Créer une lettre de motivation', 'Langue de l’avis de confidentialité'],
+    ['Langue', 'it', 'Le mie candidature', 'Crea la lettera di motivazione', 'Lingua dell’informativa sulla privacy'],
+  ];
+  for (const [picker, locale, applications, draft, privacy] of translations) {
+    await page.getByRole('combobox', { name: picker, exact: true }).selectOption(locale);
+    await expect(page.getByRole('main')).toHaveAttribute('lang', locale);
+    await expect(page.getByRole('heading', { name: applications, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: draft, exact: true })).toBeVisible();
+    await expect(page.getByLabel(privacy, { exact: true })).toHaveValue(locale);
+  }
+  await page.goto('/reset-password?lang=fr&token=synthetic');
+  await expect(page.getByRole('heading', { name: 'Choisir un nouveau mot de passe' })).toBeVisible();
+  await expect(page.getByLabel('Nouveau mot de passe')).toHaveAttribute('type', 'password');
+});
+
+test('recognises and reviews a synthetic scan on the device', async ({ page, baseURL }) => {
+  await createAccount(page);
+  const canvas = await page.evaluate(() => {
+    const image = document.createElement('canvas');
+    image.width = 1100;
+    image.height = 350;
+    const context = image.getContext('2d')!;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, image.width, image.height);
+    context.fillStyle = '#111';
+    context.font = '48px Arial';
+    context.fillText('Arbeitszeugnis Musterbetrieb', 40, 90);
+    context.fillText('Koordination der Schichtplanung', 40, 170);
+    return image.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetisches-zeugnis.png', mimeType: 'image/png', buffer: Buffer.from(canvas, 'base64'),
+  });
+  const outside = new Set<string>();
+  page.context().on('request', request => {
+    const url = new URL(request.url());
+    if (url.protocol.startsWith('http') && url.origin !== new URL(baseURL!).origin) outside.add(url.origin);
+    if (request.method() === 'POST') outside.add(request.method() + ' ' + url.pathname);
+  });
+  await page.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await page.getByRole('button', { name: 'Text erkennen', exact: true }).click();
+  const recognised = page.getByRole('textbox', { name: 'Erkannter Text' });
+  await expect(recognised).toHaveValue(/Schichtplanung/, { timeout: 45000 });
+  await page.getByRole('button', { name: 'Text speichern', exact: true }).click();
+  await expect(page.getByText('Der Text wurde gespeichert.')).toBeVisible();
+  await page.getByRole('button', { name: 'Als Beleg in den Entwurf übernehmen', exact: true }).click();
+  await expect(page.getByLabel('Lebenslauf und nachgewiesene Erfahrungen')).toHaveValue(/Schichtplanung/);
+  expect([...outside]).toEqual([]);
+  await page.reload();
+  await page.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await expect(recognised).toHaveValue(/Schichtplanung/);
+  const pdf = new jsPDF({ orientation: 'landscape' });
+  for (let index = 0; index < 2; index++) {
+    if (index) pdf.addPage();
+    pdf.addImage('data:image/png;base64,' + canvas, 'PNG', 15, 15, 250, 80);
+  }
+  await page.getByLabel('Datei lokal hinzufügen').setInputFiles({
+    name: 'synthetischer-scan.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf.output('arraybuffer')),
+  });
+  const scanRow = page.getByRole('listitem').filter({ hasText: 'synthetischer-scan.pdf' });
+  await scanRow.getByRole('button', { name: 'Texterkennung öffnen', exact: true }).click();
+  await scanRow.getByRole('button', { name: 'Text erkennen', exact: true }).click();
+  await expect(scanRow.getByRole('textbox', { name: 'Erkannter Text' })).toHaveValue(/Schichtplanung[\s\S]*Schichtplanung/, { timeout: 45000 });
+  expect([...outside]).toEqual([]);
+});
+
+test('automatically reconciles an open weekly test payment', async ({ page }) => {
+  let checked = false;
+  await page.route('**/api/payrexx/checkout', route => route.fulfill({
+    json: {
+      enabled: true, termsVersion: 'synthetic-test', canReconcile: true,
+      orderStatus: checked ? 'paid' : 'gateway-created', active: checked, canResume: !checked,
+    },
+  }));
+  await page.route('**/api/payrexx/checkout/reconcile', async route => {
+    expect(route.request().method()).toBe('POST');
+    checked = true;
+    await route.fulfill({ json: { ok: true } });
+  });
+
+  await createAccount(page);
+  await expect(page.getByText(/Dein Testzugang ist aktiv/)).toBeVisible();
+  expect(checked).toBe(true);
+});
+
+test('legal documents follow the selected language across all three pages', async ({ page }) => {
+  const expected = {
+    de: ['Impressum', 'Datenschutzhinweise', 'Nutzungsbedingungen'],
+    en: ['Legal notice', 'Privacy notice', 'Terms of use'],
+    fr: ['Mentions légales', 'Avis de confidentialité', 'Conditions d’utilisation'],
+    it: ['Note legali', 'Informativa sulla privacy', 'Condizioni d’uso'],
+  };
+  const slugs = ['impressum', 'datenschutz', 'agb'];
+  await page.goto('/impressum');
+  for (const [language, titles] of Object.entries(expected)) {
+    await page.getByRole('combobox').selectOption(language);
+    for (const [index, slug] of slugs.entries()) {
+      await page.goto('/' + slug);
+      await expect(page.getByRole('heading', { level: 1, name: titles[index], exact: true })).toBeVisible();
+      await expect(page.locator('div[lang="' + language + '"]').filter({ has: page.getByRole('main') })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'thomas@th-analytica.com' }).first()).toBeVisible();
+    }
+    await page.goto('/impressum');
+  }
 });
