@@ -6,7 +6,7 @@ import { payrexxConfiguration } from '../payrexx';
 import { productOrigin, publicProductApproved } from '../public-product';
 import { productionGmailConfiguration } from './gmail-api-mail';
 import { commercialAiBudgetLimit } from './ai-spend-store';
-import { hasCurrentAiApproval } from './openai-client';
+import { hasCurrentAiApproval, openAIKeyConfigured } from './openai-client';
 import type { OneTimePlan } from '../plans';
 
 export function creditPackTerms(plan: Exclude<OneTimePlan, 'weekly'>) {
@@ -56,6 +56,6 @@ export function weeklyLiveCheckoutConfiguration(verifiedEmail?: string) {
       !(publicCheckout || acceptance) ||
       process.env.EMAIL_TRANSPORT !== 'gmail-api' || !productionGmailConfiguration() ||
       !commercialAiBudgetLimit() || !hasCurrentAiApproval(Date.now() + weeklyAccessWindowMs) ||
-      !process.env.OPENAI_API_KEY?.trim()) return null;
+      !openAIKeyConfigured()) return null;
   return { ...live, key: billing.key, termsVersion: approvedTerms.data, pollingEnabled: true as const, acceptanceOnly: !publicCheckout };
 }

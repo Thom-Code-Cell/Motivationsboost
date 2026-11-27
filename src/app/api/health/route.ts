@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { databasePool } from '@/lib/server/postgres';
+import { openAIKeyConfigured } from '@/lib/server/openai-client';
 import { emailDeliveryConfigured } from '@/lib/server/email';
 import { isCanonicalProductOrigin } from '@/lib/public-product';
 export async function GET() {
@@ -43,7 +44,7 @@ export async function GET() {
     emailPasswordAuth: Boolean(process.env.BETTER_AUTH_SECRET && Buffer.byteLength(process.env.BETTER_AUTH_SECRET, 'utf8') >= 32 && originReady),
     transactionalEmail: emailDeliveryConfigured() && (!production || process.env.NEXT_PUBLIC_TRANSACTIONAL_EMAIL_ENABLED === 'true'),
     emailVerification: emailVerificationRequired && (!production || (process.env.BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION === 'true' && process.env.NEXT_PUBLIC_EMAIL_VERIFICATION_REQUIRED === 'true')),
-    aiProvider: Boolean(process.env.OPENAI_API_KEY),
+    aiProvider: openAIKeyConfigured(),
   };
   const ready = database && schema && checks.emailPasswordAuth && (!production || (checks.transactionalEmail && checks.emailVerification));
   return NextResponse.json({ status: ready ? 'configured' : 'degraded', checks, liveServicesVerified: false }, { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });

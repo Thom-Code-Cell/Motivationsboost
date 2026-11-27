@@ -23,8 +23,17 @@ export function getTextModel(purpose?: 'letter'): string {
   return process.env.OPENAI_MODEL?.trim() || 'gpt-6.1-terra';
 }
 
+function configuredOpenAIKey() {
+  return process.env.OPENAI_API_KEY?.trim() ||
+    (process.env.VERCEL_ENV === 'production' ? process.env.open_ai_api_key?.trim() : undefined);
+}
+
+export function openAIKeyConfigured() {
+  return Boolean(configuredOpenAIKey());
+}
+
 export function getOpenAIKey(): string {
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const key = configuredOpenAIKey();
   if (!key) throw new Error('OpenAI ist noch nicht konfiguriert. OPENAI_API_KEY fehlt auf dem Server.');
   return key;
 }
