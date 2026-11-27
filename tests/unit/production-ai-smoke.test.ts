@@ -10,7 +10,7 @@ vi.mock('@/lib/server/openai-client', () => ({
   callOpenAI: mocks.openai, getOpenAIKey: () => 'synthetic-fixture', hasCurrentAiApproval: () => true,
   OpenAIRequestError: class OpenAIRequestError extends Error {},
 }));
-import { POST } from '@/app/api/v2/acceptance/production/route';
+import { GET, POST } from '@/app/api/v2/acceptance/production/route';
 
 const origin = 'https://motivationsboost.th-analytica.com';
 function request(from = origin) {
@@ -49,4 +49,11 @@ it('reserves bounded production spend, verifies the structured output and settle
   expect(mocks.reserve.mock.calls[0][2]).toBeLessThan(10000);
   expect(mocks.openai.mock.calls[0][1]).toMatchObject({ model: 'gpt-6-luna', store: false, max_output_tokens: 64 });
   expect(mocks.settle).toHaveBeenCalledWith('synthetic-reservation', 28);
+});
+
+it('exposes the test form only to the verified operator and never starts a test on GET', async () => {
+  expect(await (await GET()).text()).toContain('Synthetischen KI-Test ausführen');
+  mocks.session.mockResolvedValueOnce(null);
+  expect((await GET()).status).toBe(404);
+  expect(mocks.openai).not.toHaveBeenCalled();
 });

@@ -6,23 +6,44 @@ import { commercialTextModel, maximumLetterCostChfMicros, providerUsageCost } fr
 import { callOpenAI, getOpenAIKey, hasCurrentAiApproval, OpenAIRequestError } from '@/lib/server/openai-client';
 import { isRequestOriginAllowed } from '@/lib/security';
 
-const noStore = { headers: { 'Cache-Control': 'no-store' } };
+const noStore = { headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' } };
 const instructions = 'Return only the selected synthetic evidence identifier.';
 const input = 'The example applicant coordinates invoices. Select the matching identifier: invoice-1 or travel-2.';
 const maxOutput = 64;
 
-export async function POST(request: NextRequest) {
+function currentTest() {
   const email = process.env.MOTIVATIONS_PRODUCTION_SMOKE_EMAIL?.toLowerCase();
-  const approval = process.env.MOTIVATIONS_PRODUCTION_SMOKE_UNTIL ?? '';
-  const deadline = Date.parse(approval);
+  const deadline = Date.parse(process.env.MOTIVATIONS_PRODUCTION_SMOKE_UNTIL ?? '');
   if (process.env.VERCEL_ENV !== 'production' || !email || !Number.isFinite(deadline) ||
-      deadline <= Date.now() || !hasCurrentAiApproval()) return new NextResponse(null, { ...noStore, status: 404 });
-  if (!isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), true))
-    return new NextResponse(null, { ...noStore, status: 403 });
+      deadline <= Date.now() || !hasCurrentAiApproval()) return null;
+  return { email, deadline };
+}
+
+async function verifiedTestUser(email: string) {
   const session = await requireAppSession().catch(() => null);
   const user = session?.user;
-  if (!user || !('emailVerified' in user) || user.emailVerified !== true || user.email.toLowerCase() !== email)
-    return new NextResponse(null, { ...noStore, status: 404 });
+  if (user && 'emailVerified' in user && user.emailVerified === true && user.email.toLowerCase() === email) return user;
+}
+
+export async function GET() {
+  const test = currentTest();
+  if (!test || !await verifiedTestUser(test.email)) return new NextResponse(null, { ...noStore, status: 404 });
+  return new NextResponse('<!doctype html><html lang="de"><meta charset="utf-8"><title>Motivationsboost · KI-Abnahme</title>' +
+    '<h1>Einmalige KI-Abnahme</h1><p>Dieser Test sendet eine synthetische Eingabe. Es wird keine Zahlung ausgelöst.</p>' +
+    '<form method="post"><button type="submit">Synthetischen KI-Test ausführen</button></form></html>', {
+    headers: { ...noStore.headers, 'Content-Type': 'text/html; charset=utf-8',
+      'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const test = currentTest();
+  if (!test) return new NextResponse(null, { ...noStore, status: 404 });
+  if (!isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), true))
+    return new NextResponse(null, { ...noStore, status: 403 });
+  const user = await verifiedTestUser(test.email);
+  if (!user) return new NextResponse(null, { ...noStore, status: 404 });
+  const { deadline } = test;
   try { getOpenAIKey(); } catch { return NextResponse.json({ ok: false, code: 'provider-unconfigured' }, { ...noStore, status: 503 }); }
 
   const hash = createHash('sha256').update('motivationsboost-production-smoke-v1:' + deadline).digest('hex');
