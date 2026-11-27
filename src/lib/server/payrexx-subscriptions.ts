@@ -37,7 +37,7 @@ type LiveSubscription = { instance: string; pspId: number };
 
 export async function applyLiveSubscriptionTransaction(
   db: PoolClient, payload: unknown, config: LiveSubscription,
-): Promise<{ matched: boolean; granted: boolean }> {
+): Promise<{ matched: boolean; granted: boolean; authorizedReference?: string }> {
   const ignored = { matched: false, granted: false };
   const parsed = subscriptionTransaction.safeParse(payload);
   if (!parsed.success) return ignored;
@@ -87,7 +87,7 @@ async function bindTokenization(db: PoolClient, orderReference: string, event: S
     if (!duplicate.rowCount) return ignored;
   }
   await db.query('UPDATE payment_orders SET gateway_url = NULL, updated_at = now() WHERE reference_id = $1', [orderReference]);
-  return { matched: true, granted: false };
+  return { matched: true, granted: false, authorizedReference: orderReference };
 }
 
 async function settleSubscriptionPeriod(db: PoolClient, orderReference: string, owner: string,

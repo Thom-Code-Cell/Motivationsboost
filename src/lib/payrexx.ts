@@ -13,8 +13,9 @@ export function payrexxConfiguration() {
     if (url.protocol === 'https:' && url.pathname === '/' && !url.username && !url.password) verifiedOrigin = url.origin;
   } catch { /* absent final canonical domain */ }
   return {
-    // Mandatory second switch: do not accept real money until webhook-to-entitlement reconciliation and refund/cancel flows are live-tested.
-    enabled: process.env.PAYREXX_PAYMENTS_ENABLED === 'true' && process.env.PAYREXX_BILLING_VALIDATED === 'true',
+    // The merchant approves the launch independently of provider events.
+    // Each paid order still requires a matching live payment before fulfilment.
+    enabled: process.env.PAYREXX_PAYMENTS_ENABLED === 'true',
     // Webhook receipt is configured independently; it never enables checkout or grants entitlements.
     webhookEnabled: process.env.PAYREXX_WEBHOOK_ENABLED === 'true',
     instance: /^[a-z0-9][a-z0-9-]{1,62}$/i.test(instance) ? instance : '',

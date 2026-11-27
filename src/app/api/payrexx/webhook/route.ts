@@ -11,6 +11,7 @@ import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
 import { applyWeeklyLiveEvent } from '@/lib/server/payrexx-weekly-live';
 import { applyLiveSubscriptionTransaction } from '@/lib/server/payrexx-subscriptions';
 import { reconcileLiveGatewayNotification } from '@/lib/server/payrexx-sandbox-status';
+import { requestNextPayrexxSubscriptionCharge, subscriptionRenewalConfiguration } from '@/lib/server/payrexx-subscription-renewal';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -74,6 +75,12 @@ export async function POST(request: NextRequest) {
         await connection.query('COMMIT');
         if (subscription.matched) {
           after(() => sendNextPayrexxWeeklyNotice().catch(() => console.warn('Motivationsboost payment notice queue unavailable')));
+        }
+        if (receipt?.rowCount && subscription.authorizedReference) {
+          const renewal = subscriptionRenewalConfiguration();
+          const anchor = subscription.authorizedReference;
+          if (renewal) after(() => requestNextPayrexxSubscriptionCharge(renewal, anchor)
+            .then(() => undefined).catch(() => console.warn('Motivationsboost first payment requires reconciliation')));
         }
         return NextResponse.json({
           accepted: true, ignored: !subscription.matched, duplicate: receipt?.rowCount === 0, premiumGranted: subscription.granted,

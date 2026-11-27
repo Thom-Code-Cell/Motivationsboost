@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { approvedWeeklyTermsPath } from '@/lib/approved-weekly-terms';
+import { approvedCommercialTermsPath } from '@/lib/approved-commercial-terms';
 import { useProductLanguage } from '@/components/product-language';
 import { creditPackPlans, PLANS, type OneTimePlan } from '@/lib/plans';
 import { productSupportEmail } from '@/lib/public-product';
@@ -144,7 +145,7 @@ function OneTimeCheckout({ plan }: { plan: OneTimePlan }) {
     {showPayment && <form onSubmit={start} className="space-y-3">
       <label className="flex items-start gap-2"><input type="checkbox" checked={acceptedVersion === termsVersion} onChange={event => setAcceptedVersion(event.target.checked ? termsVersion : undefined)} />
         {sandbox ? <span>Ich habe die <a className="underline" href="/agb">Bedingungen der Testumgebung</a> gelesen und bestätige die Testbestellung.</span> :
-          <span>{copy.termsBefore} <a className="underline" href={weekly ? approvedWeeklyTermsPath : '/agb#zusatzcredits'}>{weekly ? copy.terms : labels[3]}</a>{weekly && ' ' + copy.termsAfter}</span>}
+          <span>{copy.termsBefore} <a className="underline" href={weekly ? approvedWeeklyTermsPath : approvedCommercialTermsPath + '#zusatzcredits'}>{weekly ? copy.terms : labels[3]}</a>{weekly && ' ' + copy.termsAfter}</span>}
       </label>
       <button className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50" disabled={loading || acceptedVersion !== termsVersion}>
         {sandbox ? (checkout.canResume ? 'Payrexx-Testzahlung fortsetzen' : 'Payrexx-Testcheckout öffnen') :

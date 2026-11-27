@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useProductLanguage } from '@/components/product-language';
 import { PLANS, type RecurringPlan } from '@/lib/plans';
+import { approvedCommercialTermsPath } from '@/lib/approved-commercial-terms';
 
 const copy = {
   de: { title: 'Abonnements', labels: ['Monatsabo', 'Jahresabo', 'Poweruser PLUS'], month: 'pro Monat', year: 'pro Jahr',
@@ -101,7 +102,7 @@ export function SubscriptionCheckout() {
       return <form key={offer.plan} className="space-y-2 border-t pt-3" onSubmit={event => void submit(event, offer)}>
         <h3 className="font-semibold">{labels.labels[labelIndex[offer.plan]]}</h3>
         <p>CHF {(plan.amount / 100).toFixed(2)} {plan.interval === 'P1Y' ? labels.year : labels.month} · {plan.limit} {labels.credits}</p>
-        <p><a className="underline" href="/agb">{labels.terms}</a></p>
+        <p><a className="underline" href={approvedCommercialTermsPath + '#abonnemente'}>{labels.terms}</a></p>
         <label className="flex items-start gap-2"><input type="checkbox" checked={consent === key}
           onChange={event => setConsent(event.target.checked ? key : '')} />{labels.consent}</label>
         <button disabled={busy || consent !== key} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">{labels.start}</button>

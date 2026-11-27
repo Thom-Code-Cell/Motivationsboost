@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
 import { payrexxCatalog } from '@/lib/server/payrexx-catalog';
+import { payrexxCardMethods } from '@/lib/server/payrexx-margin';
 import { getPlan } from '@/lib/payrexx';
 import { oneTimePlans } from '@/lib/plans';
 import { canFundOneTimePayrexxOrder } from '@/lib/server/payrexx-credit-funding';
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         amount: plan.amount, currency: plan.currency, referenceId, validity: weeklyGatewayValidityMinutes,
         psp: [config.pspId],
-        ...(!config.sandbox && config.acceptanceOnly && { pm: ['twint'] }),
+        ...(!config.sandbox && { pm: config.acceptanceOnly ? ['twint'] : [...payrexxCardMethods, 'twint'] }),
         purpose: config.sandbox ? 'Motivationsboost Wochenpass (Test)' : `Motivationsboost ${plan.label}`,
         ...(!config.sandbox && { sku: payrexxCatalog[plan.id].sku, preAuthorization: false, reservation: false }),
         successRedirectUrl: config.origin + '/app?payment=pending',

@@ -8,11 +8,15 @@ import { productionGmailConfiguration } from './gmail-api-mail';
 import { commercialAiBudgetLimit } from './ai-spend-store';
 import { hasCurrentAiApproval, openAIKeyConfigured } from './openai-client';
 import type { OneTimePlan } from '../plans';
+import { approvedCreditPackTermsVersion } from '../approved-commercial-terms';
+import { approvedWeeklyTermsVersion } from '../approved-weekly-terms';
+import { meetsPayrexxMinimumMargin } from './payrexx-margin';
 
 export function creditPackTerms(plan: Exclude<OneTimePlan, 'weekly'>) {
   const enabled = plan === 'credits_small' ? process.env.PAYREXX_CREDITS_SMALL_ENABLED : process.env.PAYREXX_CREDITS_LARGE_ENABLED;
   const approved = termsVersion.safeParse(process.env.PAYREXX_CREDIT_PACK_TERMS_VERSION);
-  return enabled === 'true' && approved.success ? approved.data : undefined;
+  return enabled === 'true' && approved.success && approved.data === approvedCreditPackTermsVersion &&
+    meetsPayrexxMinimumMargin(plan) ? approved.data : undefined;
 }
 
 export const termsVersion = z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/);
@@ -58,8 +62,8 @@ export function weeklyLiveCheckoutConfiguration(verifiedEmail?: string) {
   const acceptanceRecipient = process.env.PAYREXX_WEEKLY_LIVE_ACCEPTANCE_EMAIL?.toLowerCase();
   const publicCheckout = billing.enabled && publicProductApproved();
   const acceptance = Boolean(acceptanceRecipient && verifiedEmail?.toLowerCase() === acceptanceRecipient);
-  if (!live || !approvedTerms.success || process.env.PAYREXX_WEEKLY_LIVE_CHECKOUT !== 'true' ||
-      !(publicCheckout || acceptance) ||
+  if (!live || !approvedTerms.success || approvedTerms.data !== approvedWeeklyTermsVersion || process.env.PAYREXX_WEEKLY_LIVE_CHECKOUT !== 'true' ||
+      !(publicCheckout || acceptance) || (publicCheckout && !meetsPayrexxMinimumMargin('weekly')) ||
       process.env.EMAIL_TRANSPORT !== 'gmail-api' || !productionGmailConfiguration() ||
       !commercialAiBudgetLimit() || !hasCurrentAiApproval(Date.now() + weeklyAccessWindowMs) ||
       !openAIKeyConfigured()) return null;

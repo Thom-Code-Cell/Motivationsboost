@@ -2,12 +2,14 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v3';
 import { payrexxConfiguration } from '../payrexx';
-import { chfMicrosPerCredit, PLANS, recurringPlans, type RecurringPlan } from '../plans';
+import { PLANS, recurringPlans, type RecurringPlan } from '../plans';
+import { approvedSubscriptionTermsVersion } from '../approved-commercial-terms';
 import { commercialAiBudgetLimit } from './ai-spend-store';
 import { hasCurrentAiApproval, openAIKeyConfigured } from './openai-client';
 import { termsVersion, weeklyLiveWebhookConfiguration } from './payrexx-checkout-config';
 import { canFundPayrexxSubscriptionPeriod } from './payrexx-credit-funding';
 import { databasePool } from './postgres';
+import { meetsPayrexxMinimumMargin } from './payrexx-margin';
 import { applyLiveSubscriptionTransaction } from './payrexx-subscriptions';
 
 type DueSubscription = {
@@ -21,8 +23,6 @@ type DueSubscription = {
   due: boolean;
 };
 
-const unsignedInteger = z.string().regex(/^\d{1,6}$/).transform(Number);
-
 export function subscriptionTerms(plan: RecurringPlan) {
   const enabled = {
     monthly: process.env.PAYREXX_MONTHLY_ENABLED,
@@ -30,24 +30,14 @@ export function subscriptionTerms(plan: RecurringPlan) {
     poweruser: process.env.PAYREXX_POWERUSER_ENABLED,
   }[plan];
   const terms = termsVersion.safeParse(process.env.PAYREXX_SUBSCRIPTION_TERMS_VERSION);
-  return enabled === 'true' && terms.success && canMeetSubscriptionMargin(plan) ? terms.data : undefined;
-}
-
-function canMeetSubscriptionMargin(plan: RecurringPlan) {
-  const rate = unsignedInteger.safeParse(process.env.PAYREXX_SUBSCRIPTION_MAX_FEE_BPS);
-  const fixed = unsignedInteger.safeParse(process.env.PAYREXX_SUBSCRIPTION_MAX_FEE_CENTS);
-  if (!rate.success || !fixed.success) return false;
-  const { amount, limit, interval } = PLANS[plan];
-  const credits = limit * (interval === 'P1Y' ? 12 : 1);
-  const fees = Math.ceil(amount * rate.data / 10_000) + fixed.data;
-  const maxCostMicros = fees * 10_000 + credits * chfMicrosPerCredit;
-  return maxCostMicros * 5 <= amount * 10_000;
+  return enabled === 'true' && terms.success && terms.data === approvedSubscriptionTermsVersion &&
+    meetsPayrexxMinimumMargin(plan) ? terms.data : undefined;
 }
 
 export function subscriptionRenewalConfiguration() {
   const live = weeklyLiveWebhookConfiguration();
   const billing = payrexxConfiguration();
-  if (process.env.PAYREXX_SUBSCRIPTION_RENEWAL_ENABLED !== 'true' || !live || !billing.enabled ||
+  if (process.env.PAYREXX_SUBSCRIPTION_RENEWAL_ENABLED !== 'true' || !process.env.CRON_SECRET || !live || !billing.enabled ||
       !billing.key || billing.key === process.env.PAYREXX_SANDBOX_API_KEY ||
       !commercialAiBudgetLimit() || !openAIKeyConfigured() || !hasCurrentAiApproval()) return null;
   return { ...live, key: billing.key };
@@ -62,18 +52,29 @@ export function subscriptionPeriodEnd(plan: RecurringPlan, startsAt: Date) {
   return endsAt;
 }
 
-async function claimDueSubscription(pspId: number) {
+export function availableSubscriptionOffers(checkoutValidityMinutes: number) {
+  if (!subscriptionRenewalConfiguration()) return [];
+  const latestStart = new Date(Date.now() + checkoutValidityMinutes * 60_000);
+  return recurringPlans.flatMap(plan => {
+    const approved = subscriptionTerms(plan);
+    return approved && hasCurrentAiApproval(subscriptionPeriodEnd(plan, latestStart).getTime())
+      ? [{ plan, termsVersion: approved }] : [];
+  });
+}
+
+async function claimDueSubscription(pspId: number, anchor?: string) {
   const pool = databasePool();
   const { rows: candidates } = await pool.query<{ reference_id: string; user_id: string }>(`
     SELECT s.reference_id, anchor.user_id
     FROM payrexx_subscriptions s JOIN payment_orders anchor ON anchor.reference_id = s.reference_id
     WHERE s.renewal_enabled AND anchor.live_psp_id = $1 AND NOT anchor.sandbox
+      AND ($2::uuid IS NULL OR s.reference_id = $2)
       AND NOT EXISTS (
         SELECT 1 FROM payrexx_subscription_periods p JOIN payment_orders o ON o.reference_id = p.order_reference
         WHERE p.subscription_reference = s.reference_id AND
           (o.status = 'pending' OR (o.status = 'paid' AND p.ends_at > now()))
       )
-    ORDER BY s.authorized_at, s.reference_id LIMIT 12`, [pspId]);
+    ORDER BY s.authorized_at, s.reference_id LIMIT 12`, [pspId, anchor ?? null]);
 
   for (const candidate of candidates) {
     const db = await pool.connect();
@@ -125,8 +126,8 @@ async function claimDueSubscription(pspId: number) {
   }
 }
 
-export async function requestNextPayrexxSubscriptionCharge(config: NonNullable<ReturnType<typeof subscriptionRenewalConfiguration>>) {
-  const cycle = await claimDueSubscription(config.pspId);
+export async function requestNextPayrexxSubscriptionCharge(config: NonNullable<ReturnType<typeof subscriptionRenewalConfiguration>>, anchor?: string) {
+  const cycle = await claimDueSubscription(config.pspId, anchor);
   if (!cycle) return 'none';
   // referenceId is a reconciliation identifier. Payrexx does not document it as
   // an idempotency key here, so an uncertain submission must never be replayed.

@@ -8,10 +8,11 @@ import { isRequestOriginAllowed } from '@/lib/security';
 import { requireAppSession } from '@/lib/server/app-session';
 import { hasCurrentAiApproval } from '@/lib/server/openai-client';
 import { payrexxCatalog } from '@/lib/server/payrexx-catalog';
+import { payrexxCardMethods } from '@/lib/server/payrexx-margin';
 import { termsVersion, weeklyGatewayValidityMinutes } from '@/lib/server/payrexx-checkout-config';
 import { trustedSandboxGateway } from '@/lib/server/payrexx-checkout-order';
 import { canFundPayrexxSubscriptionPeriod } from '@/lib/server/payrexx-credit-funding';
-import { subscriptionPeriodEnd, subscriptionRenewalConfiguration, subscriptionTerms } from '@/lib/server/payrexx-subscription-renewal';
+import { availableSubscriptionOffers, subscriptionPeriodEnd, subscriptionRenewalConfiguration, subscriptionTerms } from '@/lib/server/payrexx-subscription-renewal';
 import { databasePool } from '@/lib/server/postgres';
 
 const startSchema = z.object({
@@ -45,12 +46,7 @@ export async function GET() {
       FROM payment_orders o LEFT JOIN payrexx_subscriptions s USING (reference_id)
       WHERE o.user_id = $1 AND o.subscription_anchor AND NOT o.sandbox
       ORDER BY o.created_at DESC LIMIT 1`, [user.id]);
-    const config = subscriptionRenewalConfiguration();
-    const offers = config ? recurringPlans.flatMap(plan => {
-      const approved = subscriptionTerms(plan);
-      const through = subscriptionPeriodEnd(plan, new Date(Date.now() + weeklyGatewayValidityMinutes * 60_000));
-      return approved && hasCurrentAiApproval(through.getTime()) ? [{ plan, termsVersion: approved }] : [];
-    }) : [];
+    const offers = availableSubscriptionOffers(weeklyGatewayValidityMinutes);
     return reply({ offers, current });
   } catch {
     return reply({ offers: [] });
@@ -133,7 +129,7 @@ export async function POST(request: NextRequest) {
       headers: { 'X-API-KEY': config.key, Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
         amount: plan.amount, currency: plan.currency, referenceId: reference, validity: weeklyGatewayValidityMinutes,
-        psp: [config.pspId], pm: ['visa', 'mastercard'], purpose: `Motivationsboost ${plan.label}`,
+        psp: [config.pspId], pm: payrexxCardMethods, purpose: `Motivationsboost ${plan.label}`,
         sku: payrexxCatalog[plan.id].sku, preAuthorization: true, reservation: false, chargeOnAuthorization: false,
         successRedirectUrl: config.origin + '/app?payment=pending',
         cancelRedirectUrl: config.origin + '/app?payment=cancelled',

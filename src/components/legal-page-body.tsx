@@ -7,6 +7,7 @@ import { legalCopy, translatedLegal, type LegalDocument } from '@/lib/legal-tran
 import { stagedTermsCopy } from '@/lib/weekly-terms-copy';
 import { releasedPrivacyCopy, releasedPrivacySources } from '@/lib/released-privacy-copy';
 import { approvedWeeklyTermsPath, approvedWeeklyTermsVersion } from '@/lib/approved-weekly-terms';
+import { approvedCommercialTermsPath } from '@/lib/approved-commercial-terms';
 import { productSupportEmail } from '@/lib/public-product';
 
 const paths = ['impressum', 'datenschutz', 'agb'] as const;
@@ -81,7 +82,7 @@ export function LegalPageBody({ document, children, email, website, releasedProd
         {content}
         {document === 'agb' && releasedTerms && <p className="mt-5" lang="de"><Link className="underline" href={approvedWeeklyTermsPath}>
           Wochenpass-Nutzungsbedingungen {approvedWeeklyTermsVersion}
-        </Link></p>}
+        </Link><br /><Link className="underline" href={approvedCommercialTermsPath}>Bedingungen für Zusatzcredits und Abonnemente</Link></p>}
         {releasedTerms && (weeklyTermsVersion ? <section className="mt-7 space-y-3">
           <h2 className="text-xl font-semibold">{release.heading}</h2>
           <p>{release.weekly}</p>
