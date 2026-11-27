@@ -10,6 +10,7 @@ import { termsVersion, weeklyLiveWebhookConfiguration } from './payrexx-checkout
 import { canFundPayrexxSubscriptionPeriod } from './payrexx-credit-funding';
 import { databasePool } from './postgres';
 import { meetsPayrexxMinimumMargin } from './payrexx-margin';
+import { addBillingMonths } from '../billing-period';
 import { applyLiveSubscriptionTransaction } from './payrexx-subscriptions';
 
 type DueSubscription = {
@@ -44,12 +45,7 @@ export function subscriptionRenewalConfiguration() {
 }
 
 export function subscriptionPeriodEnd(plan: RecurringPlan, startsAt: Date) {
-  const months = PLANS[plan].interval === 'P1Y' ? 12 : 1;
-  const endsAt = new Date(Date.UTC(startsAt.getUTCFullYear(), startsAt.getUTCMonth() + months, 1,
-    startsAt.getUTCHours(), startsAt.getUTCMinutes(), startsAt.getUTCSeconds(), startsAt.getUTCMilliseconds()));
-  const lastDay = new Date(Date.UTC(endsAt.getUTCFullYear(), endsAt.getUTCMonth() + 1, 0)).getUTCDate();
-  endsAt.setUTCDate(Math.min(startsAt.getUTCDate(), lastDay));
-  return endsAt;
+  return addBillingMonths(startsAt, PLANS[plan].interval === 'P1Y' ? 12 : 1);
 }
 
 export function availableSubscriptionOffers(checkoutValidityMinutes: number) {

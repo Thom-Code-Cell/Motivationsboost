@@ -10,22 +10,22 @@ const copy = {
     credits: 'Credits pro Monat', consent: 'Ich akzeptiere die Abo-Bedingungen und stimme den wiederkehrenden Zahlungen zu.',
     terms: 'AGB lesen', start: 'Bei Payrexx autorisieren', pending: 'Zahlung wird geprüft.', renew: 'Automatische Verlängerung aktiv.',
     active: 'Bezahlt bis', cancel: 'Weitere Verlängerungen kündigen', cancelled: 'Weitere Verlängerungen sind deaktiviert.',
-    refresh: 'Status aktualisieren', error: 'Die Abo-Anfrage konnte nicht abgeschlossen werden.' },
+    refresh: 'Status aktualisieren', empty: 'Für dieses Konto besteht kein Abonnement.', error: 'Die Abo-Anfrage konnte nicht abgeschlossen werden.' },
   en: { title: 'Subscriptions', labels: ['Monthly subscription', 'Annual subscription', 'Poweruser PLUS'], month: 'per month', year: 'per year',
     credits: 'credits per month', consent: 'I accept the subscription terms and agree to the recurring payments.',
     terms: 'Read the terms', start: 'Authorize with Payrexx', pending: 'Payment is being reconciled.', renew: 'Automatic renewal is on.',
     active: 'Paid through', cancel: 'Cancel future renewals', cancelled: 'Future renewals are off.',
-    refresh: 'Refresh status', error: 'The subscription request could not be completed.' },
+    refresh: 'Refresh status', empty: 'This account has no subscription.', error: 'The subscription request could not be completed.' },
   fr: { title: 'Abonnements', labels: ['Abonnement mensuel', 'Abonnement annuel', 'Poweruser PLUS'], month: 'par mois', year: 'par an',
     credits: 'crédits par mois', consent: 'J’accepte les conditions de l’abonnement et les paiements récurrents.',
     terms: 'Lire les conditions', start: 'Autoriser avec Payrexx', pending: 'Vérification du paiement en cours.', renew: 'Renouvellement automatique actif.',
     active: 'Payé jusqu’au', cancel: 'Annuler les prochains renouvellements', cancelled: 'Les prochains renouvellements sont désactivés.',
-    refresh: 'Actualiser le statut', error: 'La demande d’abonnement n’a pas pu être traitée.' },
+    refresh: 'Actualiser le statut', empty: 'Ce compte n’a aucun abonnement.', error: 'La demande d’abonnement n’a pas pu être traitée.' },
   it: { title: 'Abbonamenti', labels: ['Abbonamento mensile', 'Abbonamento annuale', 'Poweruser PLUS'], month: 'al mese', year: 'all’anno',
     credits: 'crediti al mese', consent: 'Accetto le condizioni di abbonamento e acconsento ai pagamenti ricorrenti.',
     terms: 'Leggi le condizioni', start: 'Autorizza con Payrexx', pending: 'Verifica del pagamento in corso.', renew: 'Rinnovo automatico attivo.',
     active: 'Pagato fino al', cancel: 'Annulla i prossimi rinnovi', cancelled: 'I prossimi rinnovi sono disattivati.',
-    refresh: 'Aggiorna lo stato', error: 'Impossibile completare la richiesta di abbonamento.' },
+    refresh: 'Aggiorna lo stato', empty: 'Questo account non ha un abbonamento.', error: 'Impossibile completare la richiesta di abbonamento.' },
 } as const;
 
 const labelIndex = { monthly: 0, yearly: 1, poweruser: 2 } as const;
@@ -42,6 +42,8 @@ export function SubscriptionCheckout() {
   const [consent, setConsent] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [requestedSection, setRequestedSection] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
       const response = await fetch(endpoint, { cache: 'no-store', signal });
@@ -52,15 +54,23 @@ export function SubscriptionCheckout() {
       setError(false);
     } catch {
       if (!signal?.aborted) setError(true);
+    } finally {
+      if (!signal?.aborted) setLoaded(true);
     }
   }, []);
   useEffect(() => {
     const controller = new AbortController();
+    const anchor = window.location.hash.slice(1);
+    if (anchor === 'abonnement' || Object.hasOwn(labelIndex, anchor)) setRequestedSection(anchor);
     void refresh(controller.signal);
     return () => controller.abort();
   }, [refresh]);
 
-  if (!offers.length && !current) return null;
+  useEffect(() => {
+    if (loaded && requestedSection) (document.getElementById(requestedSection) ?? document.getElementById('abonnement'))?.scrollIntoView();
+  }, [loaded, requestedSection]);
+
+  if (!offers.length && !current && !requestedSection) return null;
 
   async function submit(event: FormEvent, offer?: Offer) {
     event.preventDefault();
@@ -73,8 +83,11 @@ export function SubscriptionCheckout() {
         body: JSON.stringify(offer ? { action: 'start', ...offer, acceptTerms: true, locale: language } : { action: 'cancel' }),
       });
       if (!response.ok) throw new Error('Unavailable');
-      const { url } = await response.json() as { url?: string };
+      const { url, cancelled } = await response.json() as { url?: string; cancelled?: boolean };
       if (offer && url) window.location.assign(url);
+      else if (cancelled) setCurrent(previous => previous && {
+        ...previous, status: 'cancelled', renewalEnabled: false, cancelledAt: previous.cancelledAt ?? new Date().toISOString(),
+      });
       else await refresh();
     } catch {
       setError(true);
@@ -83,8 +96,9 @@ export function SubscriptionCheckout() {
     }
   }
 
-  return <section aria-labelledby="subscriptions-title" className="space-y-3 rounded-xl border p-5">
+  return <section id="abonnement" aria-labelledby="subscriptions-title" className="scroll-mt-24 space-y-3 rounded-xl border p-5">
     <h2 id="subscriptions-title" className="text-xl font-semibold">{labels.title}</h2>
+    {loaded && !error && requestedSection === 'abonnement' && !current && <p>{labels.empty}</p>}
     {current && <div className="space-y-2">
       <p>{labels.labels[labelIndex[current.plan]]}</p>
       {current.paymentPending && <p role="status">{labels.pending}</p>}
@@ -99,7 +113,7 @@ export function SubscriptionCheckout() {
       (current.renewalEnabled === null && current.status === 'gateway-created')) && offers.map(offer => {
       const plan = PLANS[offer.plan];
       const key = offer.plan + '/' + offer.termsVersion;
-      return <form key={offer.plan} className="space-y-2 border-t pt-3" onSubmit={event => void submit(event, offer)}>
+      return <form id={offer.plan} key={offer.plan} className="scroll-mt-24 space-y-2 border-t pt-3" onSubmit={event => void submit(event, offer)}>
         <h3 className="font-semibold">{labels.labels[labelIndex[offer.plan]]}</h3>
         <p>CHF {(plan.amount / 100).toFixed(2)} {plan.interval === 'P1Y' ? labels.year : labels.month} · {plan.limit} {labels.credits}</p>
         <p><a className="underline" href={approvedCommercialTermsPath + '#abonnemente'}>{labels.terms}</a></p>

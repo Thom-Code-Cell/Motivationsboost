@@ -76,6 +76,12 @@ function OneTimeCheckout({ plan }: { plan: OneTimePlan }) {
     return () => request.abort();
   }, [refresh]);
 
+  const sectionId = checkout?.sandbox !== false ? 'testzahlung' : weekly ? 'wochenpass' : plan;
+  const visible = Boolean(checkout);
+  useEffect(() => {
+    if (visible && window.location.hash === '#' + sectionId) document.getElementById(sectionId)?.scrollIntoView();
+  }, [sectionId, visible]);
+
   const reconcile = useCallback(async (signal?: AbortSignal) => {
     if (reconciling.current || signal?.aborted) return;
     reconciling.current = true;
@@ -133,7 +139,7 @@ function OneTimeCheckout({ plan }: { plan: OneTimePlan }) {
 
   const price = `CHF ${(PLANS[plan].amount / 100).toFixed(2)}`;
   const titleId = sandbox ? 'testzahlung-titel' : `${plan}-titel`;
-  return <section id={sandbox ? 'testzahlung' : weekly ? 'wochenpass' : plan} aria-labelledby={titleId} className="space-y-3 rounded-xl border p-5">
+  return <section id={sectionId} aria-labelledby={titleId} className="scroll-mt-24 space-y-3 rounded-xl border p-5">
     <h2 id={titleId} className="text-xl font-semibold">{sandbox ? 'Wochenpass im Payrexx-Test' : weekly ? copy.title : labels[plan === 'credits_small' ? 0 : 1]}</h2>
     {sandbox ? <p>Simulierter Preis: {price} für sieben Tage. Der Wochenpass verlängert sich nicht automatisch. Verwende ausschliesslich Payrexx-Testdaten.</p> :
       <p><strong>{price}</strong> · {weekly ? copy.description : `${PLANS[plan].limit} ${labels[2]}`}</p>}

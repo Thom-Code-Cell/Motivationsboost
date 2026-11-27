@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { creditPackPlans, FREE_PLAN, PLANS } from '@/lib/plans';
+import { FREE_PLAN, PLANS } from '@/lib/plans';
 import { publicProductApproved } from '@/lib/public-product';
-import { creditPackTerms, weeklyCheckoutConfiguration, weeklyGatewayValidityMinutes, weeklyLiveCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
-import { availableSubscriptionOffers } from '@/lib/server/payrexx-subscription-renewal';
+import { weeklyCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { publicPayrexxPlans } from '@/lib/server/public-payrexx-plans';
 export async function GET() {
   const sandbox = Boolean(weeklyCheckoutConfiguration());
-  const live = Boolean(weeklyLiveCheckoutConfiguration());
-  const livePacks = live ? creditPackPlans.filter(plan => creditPackTerms(plan)) : [];
-  const liveSubscriptions = publicProductApproved() ? availableSubscriptionOffers(weeklyGatewayValidityMinutes).map(offer => offer.plan) : [];
-  const livePlans = [...(live ? ['weekly' as const] : []), ...livePacks, ...liveSubscriptions];
+  const livePlans = publicPayrexxPlans();
   const available = sandbox || livePlans.length > 0;
   const plans = publicProductApproved() ? livePlans.map(plan => PLANS[plan]) : Object.values(PLANS);
   return NextResponse.json({

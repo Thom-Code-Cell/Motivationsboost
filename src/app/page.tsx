@@ -5,8 +5,10 @@ import { productSupportEmail, publicProductApproved, publicProductMetadata, publ
 import { PLANS } from '@/lib/plans';
 import { LandingNavigation } from './landing-navigation';
 import { ReleasedProductHome } from './released-product-home';
-import { weeklyLiveCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { publicPayrexxPlans } from '@/lib/server/public-payrexx-plans';
 import './sites-landing.css';
+
+export const revalidate = 60;
 
 export function generateMetadata(): Metadata {
   return publicProductMetadata('de');
@@ -15,7 +17,7 @@ export function generateMetadata(): Metadata {
 export default function ProductHome() {
   if (publicProductApproved()) return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(publicProductSchema('de')) }} />
-    <ReleasedProductHome weeklyAvailable={Boolean(weeklyLiveCheckoutConfiguration())} />
+    <ReleasedProductHome offers={publicPayrexxPlans()} />
   </>;
   return <div id="start" className="motivationsboost-landing">
     <a className="skip" href="#inhalt">Zum Inhalt</a>

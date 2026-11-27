@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useProductLanguage } from '@/components/product-language';
 import { legalCopy } from '@/lib/legal-translations';
-import { PLANS } from '@/lib/plans';
+import { PLANS, type PlanId } from '@/lib/plans';
 import { productLanguagePaths, productSupportEmail } from '@/lib/public-product';
 import { productLocales, type ProductLocale } from '@/lib/product-locale';
 import { weeklyCheckoutCopy } from '@/lib/product-weekly-copy';
@@ -12,13 +12,28 @@ import { releasedLandingCopy } from '@/lib/released-landing-copy';
 import { LandingNavigation } from './landing-navigation';
 
 const languageNames = { de: 'Deutsch', en: 'English', fr: 'Français', it: 'Italiano' };
+const planCopy = {
+  de: { monthly: 'Monatsabo', yearly: 'Jahresabo', credits_small: 'Zusatzpaket klein', credits_large: 'Zusatzpaket gross',
+    month: 'pro Monat', year: 'pro Jahr', once: 'einmalig', credits: 'KI-Credits', renew: 'Verlängert sich automatisch.',
+    start: 'Im Konto auswählen', manage: 'Abo verwalten und kündigen' },
+  en: { monthly: 'Monthly subscription', yearly: 'Annual subscription', credits_small: 'Small credit pack', credits_large: 'Large credit pack',
+    month: 'per month', year: 'per year', once: 'one-time', credits: 'AI credits', renew: 'Renews automatically.',
+    start: 'Select in your account', manage: 'Manage or cancel a subscription' },
+  fr: { monthly: 'Abonnement mensuel', yearly: 'Abonnement annuel', credits_small: 'Petit pack de crédits', credits_large: 'Grand pack de crédits',
+    month: 'par mois', year: 'par an', once: 'paiement unique', credits: 'crédits IA', renew: 'Renouvellement automatique.',
+    start: 'Choisir dans votre compte', manage: 'Gérer ou résilier un abonnement' },
+  it: { monthly: 'Abbonamento mensile', yearly: 'Abbonamento annuale', credits_small: 'Pacchetto crediti piccolo', credits_large: 'Pacchetto crediti grande',
+    month: 'al mese', year: 'all’anno', once: 'pagamento unico', credits: 'crediti IA', renew: 'Rinnovo automatico.',
+    start: 'Scegli nel tuo account', manage: 'Gestisci o disdici un abbonamento' },
+} as const;
 
-export function ReleasedProductHome({ weeklyAvailable, fixedLocale }: { weeklyAvailable: boolean; fixedLocale?: ProductLocale }) {
+export function ReleasedProductHome({ offers, fixedLocale }: { offers: PlanId[]; fixedLocale?: ProductLocale }) {
   const preferredLocale = useProductLanguage();
   const locale = fixedLocale ?? preferredLocale;
   const copy = releasedLandingCopy[locale];
   const legal = legalCopy[locale];
   const weekly = weeklyCheckoutCopy[locale];
+  const plans = planCopy[locale];
   const features = [
     ['▥', copy.organise, copy.organiseText],
     ['▤', copy.extract, copy.extractText],
@@ -58,10 +73,19 @@ export function ReleasedProductHome({ weeklyAvailable, fixedLocale }: { weeklyAv
         <div className="section-heading"><h2>{copy.pricing}</h2></div>
         <div className="pricing">
           <article><h3>FREE</h3><p className="price"><span>CHF</span> 0.00</p><p>{copy.freeDescription}</p><Link className="button outline" href="/app">{copy.free}</Link></article>
-          {weeklyAvailable && <article className="plan-highlight">
-            <h3>{weekly.title}</h3><p className="price"><span>CHF</span> {(PLANS.weekly.amount / 100).toFixed(2)}</p>
-            <p>{weekly.description}</p><Link className="button gold" href="/app#wochenpass">{copy.purchase}</Link>
-          </article>}
+          {offers.map(id => {
+            const plan = PLANS[id];
+            const label = id === 'weekly' ? weekly.title : id === 'poweruser' ? plan.label : plans[id];
+            const period = plan.interval === 'P1Y' ? plans.year : plan.interval ? plans.month : plans.once;
+            return <article key={id} className={id === 'weekly' ? 'plan-highlight' : undefined}>
+              <h3>{label}</h3><p className="price"><span>CHF</span> {(plan.amount / 100).toFixed(2)}</p>
+              <p>{id === 'weekly' ? weekly.description :
+                <>{period} · {plan.limit} {plans.credits}{plan.interval && <> {plans.month}. {plans.renew}</>}</>}</p>
+              <Link className={id === 'weekly' ? 'button gold' : 'button outline'} href={'/app#' + (id === 'weekly' ? 'wochenpass' : id)}>
+                {id === 'weekly' ? copy.purchase : plans.start}
+              </Link>
+            </article>;
+          })}
         </div>
       </section>
     </main>
@@ -74,6 +98,7 @@ export function ReleasedProductHome({ weeklyAvailable, fixedLocale }: { weeklyAv
         <li><Link href="/impressum">{legal.impressum}</Link></li>
         <li><Link href="/datenschutz">{legal.datenschutz}</Link></li>
         <li><Link href="/agb">{legal.agb}</Link></li>
+        <li><Link href="/app#abonnement">{plans.manage}</Link></li>
       </ul></div>
       <ul className="flex flex-wrap gap-x-4 gap-y-2">
         {productLocales.map(language => <li key={language}>

@@ -1,4 +1,5 @@
 import { acceptanceContext, hasCurrentAcceptanceApproval, recordAcceptance, reserveAcceptance } from './ai-acceptance';
+import { addBillingMonths, weeklyGatewayValidityMinutes } from '../billing-period';
 
 // Server-only OpenAI API transport. Never expose OPENAI_API_KEY to client components.
 
@@ -40,8 +41,14 @@ export function getOpenAIKey(): string {
 
 export function hasCurrentAiApproval(now = Date.now()): boolean {
   if (acceptanceContext()) return hasCurrentAcceptanceApproval(now);
+  if (process.env.MOTIVATIONS_PAID_AI_ENABLED !== 'true') return false;
+  if (process.env.VERCEL_ENV === 'production' && process.env.MOTIVATIONS_AI_PRICE_APPROVAL_MODE === 'rolling-12-months') {
+    // Include the gateway validity before measuring the longest paid period.
+    const latestOrderStart = new Date(Date.now() + weeklyGatewayValidityMinutes * 60_000);
+    return now <= addBillingMonths(latestOrderStart, 12).getTime();
+  }
   const expires = Date.parse(process.env.MOTIVATIONS_AI_PRICE_APPROVED_UNTIL ?? '');
-  return process.env.MOTIVATIONS_PAID_AI_ENABLED === 'true' && Number.isFinite(expires) && now < expires;
+  return Number.isFinite(expires) && now < expires;
 }
 
 function requireReservedAiCall(reservation?: string) {

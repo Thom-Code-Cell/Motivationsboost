@@ -11,6 +11,8 @@ import type { OneTimePlan } from '../plans';
 import { approvedCreditPackTermsVersion } from '../approved-commercial-terms';
 import { approvedWeeklyTermsVersion } from '../approved-weekly-terms';
 import { meetsPayrexxMinimumMargin } from './payrexx-margin';
+import { weeklyGatewayValidityMinutes } from '../billing-period';
+export { weeklyGatewayValidityMinutes } from '../billing-period';
 
 export function creditPackTerms(plan: Exclude<OneTimePlan, 'weekly'>) {
   const enabled = plan === 'credits_small' ? process.env.PAYREXX_CREDITS_SMALL_ENABLED : process.env.PAYREXX_CREDITS_LARGE_ENABLED;
@@ -21,7 +23,6 @@ export function creditPackTerms(plan: Exclude<OneTimePlan, 'weekly'>) {
 
 export const termsVersion = z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/);
 const providerId = z.string().regex(/^[1-9]\d{0,8}$/).transform(Number);
-export const weeklyGatewayValidityMinutes = 25;
 const weeklyAccessWindowMs = (7 * 24 * 60 + weeklyGatewayValidityMinutes) * 60_000;
 
 export function weeklyCheckoutConfiguration() {

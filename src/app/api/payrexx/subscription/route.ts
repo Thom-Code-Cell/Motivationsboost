@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
 import { PLANS, recurringPlans } from '@/lib/plans';
 import { productLocales } from '@/lib/product-locale';
-import { publicProductApproved } from '@/lib/public-product';
+import { isCanonicalProductOrigin, publicProductApproved } from '@/lib/public-product';
 import { isRequestOriginAllowed } from '@/lib/security';
 import { requireAppSession } from '@/lib/server/app-session';
 import { hasCurrentAiApproval } from '@/lib/server/openai-client';
@@ -32,11 +32,17 @@ async function subscriptionSchemaReady() {
   return Boolean(schema?.ready);
 }
 
+function subscriptionManagementConfigured() {
+  return process.env.VERCEL_ENV === 'production' && isCanonicalProductOrigin(process.env.NEXT_PUBLIC_SITE_URL);
+}
+
 export async function GET() {
-  if (!publicProductApproved()) return reply({ offers: [] });
+  if (!subscriptionManagementConfigured()) return reply({ offers: [] });
+  const session = await requireAppSession().catch(() => null);
+  if (!session) return reply({ offers: [] });
+  const { user } = session;
   try {
-    const { user } = await requireAppSession();
-    if (!('emailVerified' in user) || !user.emailVerified || !await subscriptionSchemaReady()) return reply({ offers: [] });
+    if (!await subscriptionSchemaReady()) return reply({ error: 'Abos sind derzeit nicht verfügbar.' }, 503);
     const { rows: [current] } = await databasePool().query(`
       SELECT o.plan, o.status, s.renewal_enabled AS "renewalEnabled", s.cancellation_requested_at AS "cancelledAt",
         EXISTS (SELECT 1 FROM payrexx_subscription_periods p JOIN payment_orders cycle ON cycle.reference_id = p.order_reference
@@ -45,24 +51,26 @@ export async function GET() {
           WHERE p.subscription_reference = o.reference_id AND cycle.status = 'paid' AND p.ends_at > now()) AS "paidUntil"
       FROM payment_orders o LEFT JOIN payrexx_subscriptions s USING (reference_id)
       WHERE o.user_id = $1 AND o.subscription_anchor AND NOT o.sandbox
-      ORDER BY o.created_at DESC LIMIT 1`, [user.id]);
-    const offers = availableSubscriptionOffers(weeklyGatewayValidityMinutes);
+      ORDER BY (s.renewal_enabled IS TRUE OR o.status IN ('pending', 'gateway-created')) DESC, o.created_at DESC LIMIT 1`, [user.id]);
+    const offers = publicProductApproved() && 'emailVerified' in user && user.emailVerified
+      ? availableSubscriptionOffers(weeklyGatewayValidityMinutes) : [];
     return reply({ offers, current });
   } catch {
-    return reply({ offers: [] });
+    return reply({ error: 'Abos sind derzeit nicht verfügbar.' }, 503);
   }
 }
 
 export async function POST(request: NextRequest) {
-  if (!publicProductApproved() || !isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), process.env.NODE_ENV === 'production'))
+  if (!subscriptionManagementConfigured() || !isRequestOriginAllowed(request.headers.get('origin'), request.headers.get('host'), process.env.NODE_ENV === 'production'))
     return reply({ error: 'Ungültiger Ursprung.' }, 403);
   const session = await requireAppSession().catch(() => null);
-  if (!session || !('emailVerified' in session.user) || !session.user.emailVerified)
-    return reply({ error: 'Bitte anmelden.' }, 401);
+  if (!session) return reply({ error: 'Bitte anmelden.' }, 401);
   const body = await request.json().catch(() => null);
   const start = startSchema.safeParse(body);
   const cancels = cancellationSchema.safeParse(body).success;
   if (!start.success && !cancels) return reply({ error: 'Ungültige Anfrage.' }, 400);
+  if (start.success && (!publicProductApproved() || !('emailVerified' in session.user) || !session.user.emailVerified))
+    return reply({ error: 'Für neue Abos ist eine bestätigte E-Mail-Adresse erforderlich.' }, 403);
   if (!await subscriptionSchemaReady().catch(() => false)) return reply({ error: 'Abos sind derzeit nicht verfügbar.' }, 503);
 
   const pool = databasePool();

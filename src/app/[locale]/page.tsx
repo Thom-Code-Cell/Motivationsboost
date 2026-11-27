@@ -2,10 +2,11 @@ import { redirect } from 'next/navigation';
 import { ReleasedProductHome } from '../released-product-home';
 import { isProductLocale, productLocales } from '@/lib/product-locale';
 import { publicProductApproved, publicProductMetadata, publicProductSchema } from '@/lib/public-product';
-import { weeklyLiveCheckoutConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { publicPayrexxPlans } from '@/lib/server/public-payrexx-plans';
 import '../sites-landing.css';
 
 export const dynamicParams = false;
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return [...productLocales, 'ar', 'es', 'pt', 'nl'].map(locale => ({ locale }));
@@ -24,6 +25,6 @@ export default async function LocalizedPublicPage({ params }: Props) {
   if (!publicProductApproved() || !isProductLocale(locale) || locale === 'de') redirect('/');
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(publicProductSchema(locale)) }} />
-    <ReleasedProductHome fixedLocale={locale} weeklyAvailable={Boolean(weeklyLiveCheckoutConfiguration())} />
+    <ReleasedProductHome fixedLocale={locale} offers={publicPayrexxPlans()} />
   </>;
 }
