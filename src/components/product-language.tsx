@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { isProductLocale, preferredProductLocale, productLocales, type ProductLocale } from '@/lib/product-locale';
 
@@ -11,6 +12,7 @@ type Settings = { locale: ProductLocale; override: ProductLocale | ''; setOverri
 const LocaleContext = createContext<Settings>({ locale: 'de', override: '', setOverride: () => {} });
 
 export function ProductLanguageProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [system, setSystem] = useState<ProductLocale>('de');
   const [override, setOverride] = useState<ProductLocale | ''>('');
   useEffect(() => {
@@ -23,6 +25,10 @@ export function ProductLanguageProvider({ children }: { children: ReactNode }) {
     window.addEventListener('languagechange', update);
     return () => window.removeEventListener('languagechange', update);
   }, []);
+  useEffect(() => {
+    const routeLocale = pathname?.slice(1);
+    document.documentElement.lang = routeLocale && isProductLocale(routeLocale) ? routeLocale : override || system;
+  }, [pathname, override, system]);
   return <LocaleContext.Provider value={{ locale: override || system, override, setOverride(value) {
     setOverride(value);
     try {

@@ -1,5 +1,6 @@
 import 'server-only';
 import { z } from 'zod/v3';
+import type { OneTimePlan } from '../plans';
 import { databasePool } from './postgres';
 import { applyWeeklySandboxEvent } from './payrexx-weekly';
 import { applyWeeklyLiveEvent } from './payrexx-weekly-live';
@@ -49,21 +50,21 @@ export function reconcileSandboxGateway(userId: string, config: GatewayConfigura
   return reconcileWeeklyGateway(userId, config, true);
 }
 
-export function reconcileLiveGateway(userId: string, config: GatewayConfiguration) {
-  return reconcileWeeklyGateway(userId, config, false);
+export function reconcileLiveGateway(userId: string, config: GatewayConfiguration, plan: OneTimePlan = 'weekly') {
+  return reconcileWeeklyGateway(userId, config, false, plan);
 }
 
-async function reconcileWeeklyGateway(userId: string, config: GatewayConfiguration, sandbox: boolean) {
+async function reconcileWeeklyGateway(userId: string, config: GatewayConfiguration, sandbox: boolean, plan: OneTimePlan = 'weekly') {
   const pool = databasePool();
   const claim = await pool.query<{ reference_id: string; payrexx_gateway_id: number }>(
     `UPDATE payment_orders SET payrexx_status_checked_at = now()
      WHERE reference_id = (
        SELECT reference_id FROM payment_orders WHERE user_id = $1 AND ${sandbox ? 'sandbox AND sandbox_psp_id' : 'NOT sandbox AND live_psp_id'} = $2
-       AND plan = 'weekly' AND status IN ('gateway-created', 'paid') AND payrexx_gateway_id IS NOT NULL
+       AND plan = $3 AND status IN ('gateway-created', 'paid') AND payrexx_gateway_id IS NOT NULL
        ORDER BY (status = 'gateway-created') DESC, created_at DESC LIMIT 1
      )
      AND (payrexx_status_checked_at IS NULL OR payrexx_status_checked_at < now() - interval '15 seconds')
-     RETURNING reference_id, payrexx_gateway_id`, [userId, config.pspId],
+     RETURNING reference_id, payrexx_gateway_id`, [userId, config.pspId, plan],
   );
   const order = claim.rows[0];
   if (!order) return;

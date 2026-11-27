@@ -4,6 +4,7 @@ import { sendNextPayrexxTestNotice } from '@/lib/server/payrexx-test-notices';
 import { sendNextPayrexxWeeklyNotice } from '@/lib/server/payrexx-weekly-notices';
 import { databaseConnectionConfigured, databasePool } from '@/lib/server/postgres';
 import { payrexxConfiguration, verifyPayrexxWebhook } from '@/lib/payrexx';
+import { oneTimePlans } from '@/lib/plans';
 import { payrexxReferenceId } from '@/lib/payrexx-reference';
 import { weeklyCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
 import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
   const sandbox = checkout?.signingKey ? checkout : undefined;
   const live = weeklyLiveWebhookConfiguration();
   const signingKey = sandbox?.signingKey ?? live?.signingKey ?? config.signingKey;
-  if (!config.webhookEnabled || !signingKey || !databaseConnectionConfigured())
+  if (!config.webhookEnabled || !signingKey || !databaseConnectionConfigured() ||
+      (process.env.VERCEL_ENV === 'production' && !live))
     return NextResponse.json({ error: 'Payrexx nicht aktiv.' }, { status: 503 });
   if (Number(request.headers.get('content-length') || '0') > 131072)
     return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
@@ -57,6 +59,19 @@ export async function POST(request: NextRequest) {
     }
     connection = await databasePool().connect();
     await connection.query('BEGIN');
+    if (live) {
+      const order = referenceId && fields.resourceType === 'transaction' ? (await connection.query<{
+        status: string;
+      }>(`SELECT status FROM payment_orders WHERE reference_id = $1
+        AND NOT sandbox AND live_psp_id = $2 AND plan = ANY($3::text[])`,
+      [referenceId, live.pspId, [...oneTimePlans]])).rows[0] : undefined;
+      if (!order) {
+        await connection.query('COMMIT');
+        return NextResponse.json({ accepted: true, ignored: true, premiumGranted: false });
+      }
+      // A provider event can arrive before the Gateway identifier is written.
+      if (order.status === 'pending') throw new Error('Matching gateway has not been bound yet');
+    }
     const result = await recordEvent(connection);
     const premiumGranted = result.rowCount !== 0 &&
       (sandbox ? await applyWeeklySandboxEvent(connection, payload, sandbox) :

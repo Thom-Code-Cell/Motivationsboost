@@ -36,9 +36,13 @@ beforeEach(() => {
   mocks.query.mockImplementation(async (sql: string) => ({
     rows: [], rowCount: sql.includes('UPDATE payment_orders') ? 1 : 0,
   }));
-  mocks.checkoutQuery.mockImplementation(async (sql: string) => ({
-    rows: [], rowCount: /SELECT id FROM|INSERT INTO/.test(sql) ? 1 : 0,
-  }));
+  mocks.checkoutQuery.mockImplementation(async (sql: string) => {
+    if (sql.includes(' AS ready')) return { rows: [{ ready: true }], rowCount: 1 };
+    if (sql.includes(' AS month')) return { rows: [{ month: '2026-11-01' }], rowCount: 1 };
+    if (sql.includes('SELECT committed_micros')) return { rows: [{ committed_micros: '0', halted: false }], rowCount: 1 };
+    if (sql.includes(' AS outstanding')) return { rows: [{ outstanding: '0' }], rowCount: 1 };
+    return { rows: [], rowCount: /SELECT id FROM|INSERT INTO/.test(sql) ? 1 : 0 };
+  });
   external.mockResolvedValue(new Response(JSON.stringify({ data: [{ link: 'https://shared-live.payrexx.com/pay/test' }] })));
 });
 afterEach(() => {
@@ -58,7 +62,7 @@ describe('isolated Payrexx checkout', () => {
     const body = JSON.parse(options.body);
     expect(body).toMatchObject({ amount: 890, currency: 'CHF', psp: [27] });
     expect(body).not.toHaveProperty('subscriptionState');
-    expect(mocks.checkoutQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO'))?.[1])
+    expect(mocks.checkoutQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO payment_orders'))?.[1])
       .toEqual([body.referenceId, 'verified-test-user', 'weekly', 890, 'CHF', 'sandbox-1', 27]);
   });
 
@@ -79,14 +83,14 @@ describe('isolated Payrexx checkout', () => {
     expect((await POST(request({ plan: 'weekly', termsVersion: 'sandbox-0', acceptTerms: true }))).status).toBe(400);
     mocks.session.mockRejectedValue(new Error('Signed out'));
     expect((await POST(request())).status).toBe(401);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(new NextRequest(origin + '/api/payrexx/checkout'))).status).toBe(401);
     expect(external).not.toHaveBeenCalled();
   });
 
   it('only returns account-owned status without exposing gateway URLs or order identifiers', async () => {
     mocks.query.mockResolvedValueOnce({ rows: [{ reference_id: 'private', status: 'paid', gateway_url: 'private' }], rowCount: 1 });
     mocks.query.mockResolvedValueOnce({ rows: [{}], rowCount: 1 });
-    expect(await (await GET()).json()).toEqual({ enabled: true, orderStatus: 'paid', active: true, canResume: false, canReconcile: false, termsVersion: 'sandbox-1' });
+    expect(await (await GET(new NextRequest(origin + '/api/payrexx/checkout'))).json()).toEqual({ enabled: true, orderStatus: 'paid', active: true, canResume: false, canReconcile: false, termsVersion: 'sandbox-1' });
     expect(mocks.query.mock.calls.every(([, args]) => args[0] === 'verified-test-user')).toBe(true);
   });
 
@@ -120,9 +124,9 @@ it('limits protected production checkout to the verified acceptance account and 
     MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS: '2000000', OPENAI_API_KEY: 'fixture-only',
   };
   for (const [name, value] of Object.entries(productionSettings)) vi.stubEnv(name, value);
-  const liveRequest = (plan = 'weekly') => new NextRequest(productOrigin + '/api/payrexx/checkout', {
+  const liveRequest = (plan = 'weekly', terms = 'weekly-1') => new NextRequest(productOrigin + '/api/payrexx/checkout', {
     method: 'POST', headers: { origin: productOrigin, host: 'motivationsboost.th-analytica.com', 'content-type': 'application/json' },
-    body: JSON.stringify({ plan, termsVersion: 'weekly-1', acceptTerms: true, locale: 'fr' }),
+    body: JSON.stringify({ plan, termsVersion: terms, acceptTerms: true, locale: 'fr' }),
   });
   mocks.session.mockResolvedValue({ user: { id: 'verified-test-user', email: 'other@example.test', emailVerified: true } });
   expect((await POST(liveRequest())).status).toBe(503);
@@ -137,11 +141,32 @@ it('limits protected production checkout to the verified acceptance account and 
   expect((await POST(liveRequest())).status).toBe(503);
   expect(external).not.toHaveBeenCalled();
   vi.stubEnv('MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS', '2000000');
+  mocks.checkoutQuery.mockImplementationOnce(async () => ({ rowCount: 0 }))
+    .mockImplementationOnce(async () => ({ rowCount: 1 }))
+    .mockImplementationOnce(async () => ({ rowCount: 0 }))
+    .mockImplementationOnce(async () => ({ rowCount: 1 }));
+  expect((await POST(liveRequest())).status).toBe(409);
+  expect(external).not.toHaveBeenCalled();
   external.mockResolvedValueOnce(Response.json({ data: [{ link: 'https://shared-live.payrexx.com/pay/synthetic', id: 123 }] }));
   expect((await POST(liveRequest())).status).toBe(200);
   const details = JSON.parse(external.mock.calls[0][1].body);
-  expect(details).toMatchObject({ amount: 890, currency: 'CHF', psp: [44], sku: 'motivationsboost-weekly', preAuthorization: false });
+  expect(details).toMatchObject({ amount: 890, currency: 'CHF', psp: [44], pm: ['twint'], sku: 'motivationsboost-weekly', preAuthorization: false });
   expect(details).not.toHaveProperty('subscriptionState');
-  expect(mocks.checkoutQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO'))?.[1])
+  expect(mocks.checkoutQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO payment_orders'))?.[1])
     .toEqual([details.referenceId, 'verified-test-user', 'weekly', 890, 'CHF', 'weekly-1', 44, 'fr']);
+
+  vi.stubEnv('PAYREXX_CREDITS_SMALL_ENABLED', 'true');
+  vi.stubEnv('PAYREXX_CREDIT_PACK_TERMS_VERSION', 'pack-1');
+  expect((await POST(liveRequest('credits_small', 'pack-1'))).status).toBe(400);
+
+  vi.stubEnv('PUBLIC_SITE_LAUNCHED', 'true');
+  vi.stubEnv('PAYREXX_PAYMENTS_ENABLED', 'true');
+  vi.stubEnv('PAYREXX_BILLING_VALIDATED', 'true');
+  expect((await POST(liveRequest('credits_large', 'pack-1'))).status).toBe(400);
+  expect((await POST(liveRequest('credits_small', 'weekly-1'))).status).toBe(400);
+  external.mockResolvedValueOnce(Response.json({ data: [{ link: 'https://shared-live.payrexx.com/pay/synthetic-pack', id: 125 }] }));
+  expect((await POST(liveRequest('credits_small', 'pack-1'))).status).toBe(200);
+  const pack = JSON.parse(external.mock.calls[1][1].body);
+  expect(pack).toMatchObject({ amount: 990, currency: 'CHF', psp: [44], sku: 'motivationsboost-credits-small' });
+  expect(pack).not.toHaveProperty('subscriptionState');
 });

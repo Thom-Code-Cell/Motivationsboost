@@ -1,5 +1,6 @@
 import 'server-only';
 import { databasePool } from './postgres';
+import type { OneTimePlan } from '../plans';
 
 export type SandboxOrder = {
   reference_id: string;
@@ -24,12 +25,12 @@ export async function latestSandboxOrder(userId: string): Promise<SandboxOrder |
   return result.rows[0];
 }
 
-export async function latestLiveOrder(userId: string): Promise<LiveOrder | undefined> {
+export async function latestLiveOrder(userId: string, plan: OneTimePlan = 'weekly'): Promise<LiveOrder | undefined> {
   const result = await databasePool().query<LiveOrder>(
     `SELECT reference_id, status, gateway_url, gateway_expires_at, live_psp_id FROM payment_orders
-     WHERE user_id = $1 AND NOT sandbox AND plan = 'weekly' AND live_psp_id IS NOT NULL
+     WHERE user_id = $1 AND NOT sandbox AND plan = $2 AND live_psp_id IS NOT NULL
      ORDER BY (status IN ('pending', 'gateway-created')) DESC, created_at DESC LIMIT 1`,
-    [userId],
+    [userId, plan],
   );
   return result.rows[0];
 }

@@ -7,18 +7,30 @@ import { chfMicrosPerCredit } from '@/lib/plans';
 export class AiSpendBlocked extends Error {}
 export class DuplicateAiRequest extends Error {}
 
+const approvedMonthlyProductionLimitMicros = 10_000_000;
+
 export function commercialAiBudgetLimit() {
   const raw = process.env.MOTIVATIONS_PRODUCT_AI_MONTHLY_LIMIT_MICROS;
   const limit = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
-  return Number.isSafeInteger(limit) && limit > 0 ? limit : 0;
+  return Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, approvedMonthlyProductionLimitMicros) : 0;
 }
 
 export async function reserveAiSpend(userId: string, requestId: string, amount: number, charge?: { credits: number; sandbox: boolean }) {
+  return reserveSpend(userId, requestId, amount, charge);
+}
+
+export function reserveProductionAiSmoke(userId: string, requestId: string, amount: number) {
+  if (amount > 10_000) throw new AiSpendBlocked();
+  return reserveSpend(userId, requestId, amount, undefined, true);
+}
+
+async function reserveSpend(userId: string, requestId: string, amount: number,
+  charge?: { credits: number; sandbox: boolean }, productionSmoke = false) {
   if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 10_000_000) throw new AiSpendBlocked();
   if (charge && (!Number.isSafeInteger(charge.credits) || charge.credits <= 0 || amount > charge.credits * chfMicrosPerCredit)) {
     throw new AiSpendBlocked();
   }
-  const commercial = charge && !charge.sandbox;
+  const commercial = productionSmoke || (charge && !charge.sandbox);
   const limit = commercial ? commercialAiBudgetLimit() : 10_000_000;
   if (limit < amount) throw new AiSpendBlocked();
   const db = await databasePool().connect();
@@ -46,6 +58,12 @@ export async function reserveAiSpend(userId: string, requestId: string, amount: 
       [amount],
     );
     if (!reserved.rowCount) throw new AiSpendBlocked();
+    if (productionSmoke) {
+      const committedSales = await db.query(
+        "SELECT 1 FROM payment_orders WHERE NOT sandbox AND status IN ('pending', 'gateway-created', 'paid') LIMIT 1",
+      );
+      if (committedSales.rowCount) throw new AiSpendBlocked();
+    }
     if (charge) await reserveCredits(db, userId, id, charge.credits, charge.sandbox);
     await db.query('COMMIT');
     return id;

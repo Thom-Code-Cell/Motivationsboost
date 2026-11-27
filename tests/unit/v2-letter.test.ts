@@ -31,7 +31,8 @@ describe('authenticated letter generation', () => {
     expect(mocks.spend.mock.invocationCallOrder[0]).toBeLessThan(mocks.openai.mock.invocationCallOrder[0]);
     expect(mocks.openai.mock.calls[0][1].input).not.toContain(body.cv);
     expect(mocks.openai.mock.calls[0][1].input).not.toContain(body.contribution);
-    expect(mocks.settle).toHaveBeenCalledWith('receipt', 2200);
+    expect(mocks.openai.mock.calls[0][1]).toMatchObject({ model: 'gpt-6-luna', reasoning: { effort: 'none' } });
+    expect(mocks.settle).toHaveBeenCalledWith('receipt', 726);
     expect(await response.json()).toMatchObject({ letter: expect.stringContaining(body.example), mode: 'evidence-selection' });
   });
   it('returns a clearly labelled guided draft without consuming AI quota when the key is missing', async () => {

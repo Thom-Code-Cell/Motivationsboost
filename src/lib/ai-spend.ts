@@ -1,17 +1,21 @@
 export const approvedTextModel = 'gpt-6.1-terra';
 export const previewTextModel = 'gpt-4.1-mini';
-export type ApprovedTextModel = typeof approvedTextModel | typeof previewTextModel;
+export const commercialTextModel = 'gpt-6-luna';
+export type ApprovedTextModel = typeof approvedTextModel | typeof previewTextModel | typeof commercialTextModel;
 export const maximumOutputTokens = 2048;
 
 const standardRates = {
   [approvedTextModel]: { input: 10, output: 50 },
   [previewTextModel]: { input: 4, output: 16 },
+  [commercialTextModel]: { input: 1, output: 5 },
 } as const;
 
-// Standard prices in tenths of a USD per million tokens. Reserve CHF 1.10 per USD.
+// Standard prices in tenths of a USD per million tokens. Reserve CHF 1.10 per USD
+// and a further 10% for the commercial model's possible regional-processing premium.
 export function textCostChfMicros(inputTokens: number, outputTokens: number, model: ApprovedTextModel = approvedTextModel) {
   const { input, output } = standardRates[model];
-  return Math.ceil((input * inputTokens + output * outputTokens) * 11 / 100);
+  const reserve = model === commercialTextModel ? 121 : 110;
+  return Math.ceil((input * inputTokens + output * outputTokens) * reserve / 1000);
 }
 
 export function maximumLetterCostChfMicros(input: string, instructions: string, model: ApprovedTextModel = approvedTextModel, outputLimit = maximumOutputTokens) {

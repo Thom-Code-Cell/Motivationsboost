@@ -29,7 +29,7 @@ afterEach(() => { vi.resetAllMocks(); vi.unstubAllGlobals(); });
 
 it('surveys only a claimed owned gateway and submits a matching provider transaction to sandbox verification', async () => {
   await reconcileSandboxGateway('user-1', config);
-  expect(mocks.claim.mock.calls[0][1]).toEqual(['user-1', 27]);
+  expect(mocks.claim.mock.calls[0][1]).toEqual(['user-1', 27, 'weekly']);
   expect(mocks.claim.mock.calls[0][0]).toContain("interval '15 seconds'");
   expect(external.mock.calls.map(([url]) => url)).toEqual([
     'https://api.payrexx.com/v1.19/Gateway/101/?instance=shared-live',

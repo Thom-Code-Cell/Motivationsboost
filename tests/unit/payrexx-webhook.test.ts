@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 import { NextRequest } from 'next/server';
 
-const mocks = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock('@/lib/server/postgres', () => ({ databaseConnectionConfigured: () => Boolean(process.env.DATABASE_URL), databasePool: () => ({ query: mocks.query }) }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), connect: vi.fn(), release: vi.fn() }));
+vi.mock('@/lib/server/postgres', () => ({ databaseConnectionConfigured: () => Boolean(process.env.DATABASE_URL), databasePool: () => ({ query: mocks.query, connect: mocks.connect }) }));
 import { POST } from '@/app/api/payrexx/webhook/route';
 
 const signingKey = 'a'.repeat(64);
@@ -31,6 +31,7 @@ afterEach(() => {
   delete process.env.PAYREXX_WEBHOOK_ENABLED;
   delete process.env.PAYREXX_WEBHOOK_SIGNING_KEY;
   delete process.env.DATABASE_URL;
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -65,5 +66,29 @@ describe('Payrexx webhook receiver', () => {
     delete process.env.DATABASE_URL;
     expect((await POST(request())).status).toBe(503);
     expect(mocks.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('production merchant isolation', () => {
+  beforeEach(() => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('PAYREXX_INSTANCE', 'th-analytica');
+    vi.stubEnv('PAYREXX_WEEKLY_LIVE_PSP_ID', '44');
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://motivationsboost.th-analytica.com');
+    mocks.connect.mockResolvedValue({ query: mocks.query, release: mocks.release });
+  });
+
+  it('does not journal a signed transaction that has no owned live order', async () => {
+    mocks.query.mockResolvedValueOnce({}).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({});
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ignored: true });
+    expect(mocks.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO'))).toBe(false);
+  });
+
+  it('requests retry without journalling a matching order before gateway binding', async () => {
+    mocks.query.mockResolvedValueOnce({}).mockResolvedValueOnce({ rows: [{ status: 'pending' }] }).mockResolvedValueOnce({});
+    expect((await POST(request())).status).toBe(503);
+    expect(mocks.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO'))).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { maximumLetterCostChfMicros, providerUsageCost, textCostChfMicros, previewTextModel } from '@/lib/ai-spend';
+import { commercialTextModel, maximumLetterCostChfMicros, providerUsageCost, textCostChfMicros, previewTextModel } from '@/lib/ai-spend';
 
 const mocks = vi.hoisted(() => ({ pool: undefined as Pool | undefined }));
 vi.mock('@/lib/server/postgres', () => ({ databasePool: () => mocks.pool }));
@@ -139,4 +139,10 @@ describe.skipIf(!connection)('PostgreSQL spend reservations', () => {
     const settled = await mocks.pool!.query(readFileSync('scripts/product-economics.sql', 'utf8'));
     expect(settled.rows[0]).toMatchObject({ plan: 'portfolio', status: 'below_80_percent', operating_margin_pct: '70.00', operator_closed: false });
   });
+});
+
+it('reserves commercial model costs at standard rates plus regional and FX buffers', () => {
+  expect(textCostChfMicros(1000, 1000, commercialTextModel)).toBe(726);
+  const reservation = Math.ceil(maximumLetterCostChfMicros('x'.repeat(40000), 'x'.repeat(2000), commercialTextModel, 128) * 1.25);
+  expect(reservation).toBeLessThan(30000);
 });

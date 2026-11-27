@@ -7,6 +7,9 @@ export const PLANS = {
   credits_large: { id: 'credits_large', amount: 1990, currency: 'CHF', label: 'Zusatzpaket gross', limit: 100, period: 'Einmalig', interval: null },
 } as const;
 export type PlanId = keyof typeof PLANS;
+export const creditPackPlans = ['credits_small', 'credits_large'] as const;
+export const oneTimePlans = ['weekly', ...creditPackPlans] as const;
+export type OneTimePlan = typeof oneTimePlans[number];
 export const FREE_PLAN = { amount: 0, limit: 0 } as const;
 export const chfMicrosPerCredit = 10_000;
 export const letterCredits = 3;

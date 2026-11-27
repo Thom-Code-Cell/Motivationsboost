@@ -1,6 +1,6 @@
 import 'server-only';
 import { isProductLocale } from '@/lib/product-locale';
-import { PLANS } from '@/lib/plans';
+import { PLANS, type OneTimePlan } from '@/lib/plans';
 import { databasePool } from './postgres';
 import { emailDeliveryConfigured, sendTransactionalEmail } from './email';
 
@@ -28,7 +28,16 @@ const noticeCopy = {
   },
 } as const;
 
+const creditPackCopy = {
+  de: ['Zahlung für Zusatzcredits bestätigt', 'Zusatzcredits rückerstattet', 'Zahlung für Zusatzcredits zurückbelastet'],
+  en: ['Credit pack payment confirmed', 'Credit pack refunded', 'Credit pack payment reversed'],
+  fr: ['Paiement des crédits supplémentaires confirmé', 'Pack de crédits remboursé', 'Paiement des crédits annulé'],
+  it: ['Pagamento dei crediti aggiuntivi confermato', 'Pacchetto crediti rimborsato', 'Pagamento dei crediti stornato'],
+} as const;
+const noticeIndex = { paid: 0, refunded: 1, chargeback: 2 } as const;
+
 type WeeklyNotice = {
+  plan: OneTimePlan;
   order_reference: string;
   kind: keyof typeof noticeCopy.de;
   attempts: number;
@@ -41,11 +50,11 @@ export async function sendNextPayrexxWeeklyNotice() {
   const db = databasePool();
   const result = await db.query<WeeklyNotice>(`
     WITH next_notice AS (
-      SELECT n.order_reference, n.kind, u.email, p.customer_locale
+      SELECT n.order_reference, n.kind, u.email, p.customer_locale, p.plan
       FROM payrexx_weekly_notices n
       JOIN payment_orders p ON p.reference_id = n.order_reference
       JOIN "user" u ON u.id = p.user_id AND u."emailVerified" = true
-      WHERE NOT p.sandbox AND p.plan = 'weekly' AND p.live_psp_id IS NOT NULL
+      WHERE NOT p.sandbox AND p.plan IN ('weekly', 'credits_small', 'credits_large') AND p.live_psp_id IS NOT NULL
         AND n.sent_at IS NULL AND n.attempts < 8 AND n.next_attempt_at <= now()
         AND n.queued_at > now() - interval '24 hours'
       ORDER BY n.queued_at, n.order_reference
@@ -53,15 +62,18 @@ export async function sendNextPayrexxWeeklyNotice() {
     )
     UPDATE payrexx_weekly_notices n SET attempts = n.attempts + 1, next_attempt_at = now() + interval '15 minutes'
     FROM next_notice x WHERE n.order_reference = x.order_reference AND n.kind = x.kind
-    RETURNING n.order_reference, n.kind, n.attempts, x.email, x.customer_locale`);
+    RETURNING n.order_reference, n.kind, n.attempts, x.email, x.customer_locale, x.plan`);
   const notice = result.rows[0];
   if (!notice) return;
   const locale = notice.customer_locale && isProductLocale(notice.customer_locale) ? notice.customer_locale : 'de';
-  const [subject, text] = noticeCopy[locale][notice.kind];
+  const plan = PLANS[notice.plan];
+  const packSubject = creditPackCopy[locale][noticeIndex[notice.kind]];
+  const [subject, text] = notice.plan === 'weekly' ? noticeCopy[locale][notice.kind]
+    : [packSubject, `${packSubject}. CHF ${(plan.amount / 100).toFixed(2)}. https://motivationsboost.th-analytica.com/app`];
   try {
     await sendTransactionalEmail({
       to: notice.email, subject: `Motivationsboost · ${subject}`, text,
-      idempotencyKey: `motivationsboost-weekly/${notice.order_reference}/${notice.kind}`,
+      idempotencyKey: `motivationsboost-${notice.plan}/${notice.order_reference}/${notice.kind}`,
     });
     await db.query(`UPDATE payrexx_weekly_notices SET sent_at = now()
       WHERE order_reference = $1 AND kind = $2 AND attempts = $3 AND sent_at IS NULL`, [notice.order_reference, notice.kind, notice.attempts]);

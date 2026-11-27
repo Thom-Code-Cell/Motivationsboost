@@ -30,6 +30,7 @@ export default async function setup() {
       '012_credit_and_product_costs.sql',
       '013_transactional_email_attempts.sql',
       '014_payrexx_weekly_production.sql',
+      '015_payrexx_credit_packs.sql',
     ]) {
       const migration = await readFile(`migrations/${file}`, 'utf8');
       await database.query(migration);

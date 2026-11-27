@@ -2,14 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
 import { getPlan } from '@/lib/payrexx';
+import { oneTimePlans } from '@/lib/plans';
+import { canFundOneTimePayrexxOrder } from '@/lib/server/payrexx-credit-funding';
 import { databasePool } from '@/lib/server/postgres';
 import { requireAppSession } from '@/lib/server/app-session';
 import { isRequestOriginAllowed } from '@/lib/security';
 import { productLocales } from '@/lib/product-locale';
-import { termsVersion, weeklyCheckoutConfiguration, weeklyGatewayValidityMinutes, weeklyLiveCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
+import { creditPackTerms, termsVersion, weeklyCheckoutConfiguration, weeklyGatewayValidityMinutes, weeklyLiveCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
 import { latestLiveOrder, latestSandboxOrder, resumableSandboxGateway, trustedSandboxGateway } from '@/lib/server/payrexx-checkout-order';
 
-const bodySchema = z.object({ plan: z.literal('weekly'), termsVersion, acceptTerms: z.literal(true), locale: z.enum(productLocales).optional() }).strict();
+const bodySchema = z.object({ plan: z.enum(oneTimePlans), termsVersion, acceptTerms: z.literal(true), locale: z.enum(productLocales).optional() }).strict();
 const gatewayData = z.object({ link: z.string().url(), id: z.number().int().positive().max(2147483647).optional() });
 
 function reply(body: object, status = 200) {
@@ -23,22 +25,27 @@ function checkoutForUser(user: Awaited<ReturnType<typeof requireAppSession>>['us
   return weeklyLiveCheckoutConfiguration(user.email);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const selected = z.enum(oneTimePlans).safeParse(request.nextUrl.searchParams.get('plan') ?? 'weekly');
+  if (!selected.success) return reply({ enabled: false });
   if (!weeklyCheckoutConfiguration() && !weeklyLiveWebhookConfiguration()) return reply({ enabled: false });
   let user;
   try { user = (await requireAppSession()).user; }
   catch { return reply({ error: 'Bitte anmelden.' }, 401); }
   const config = checkoutForUser(user);
   if (!config) return reply({ enabled: false });
+  const plan = selected.data;
+  const approvedTerms = plan === 'weekly' ? config.termsVersion : !config.sandbox && !config.acceptanceOnly && creditPackTerms(plan);
+  if (!approvedTerms) return reply({ enabled: false });
 
   try {
-    const order = await (config.sandbox ? latestSandboxOrder(user.id) : latestLiveOrder(user.id));
+    const order = await (config.sandbox ? latestSandboxOrder(user.id) : latestLiveOrder(user.id, plan));
     const url = resumableSandboxGateway(order, config);
-    const active = await databasePool().query(
+    const active = plan === 'weekly' && await databasePool().query(
       "SELECT 1 FROM ai_entitlements WHERE user_id = $1 AND status = 'active' AND ends_at > now()", [user.id],
     );
-    return reply({ enabled: true, ...(!config.sandbox && { sandbox: false }), termsVersion: config.termsVersion, orderStatus: order?.status,
-      active: Boolean(active.rowCount), canResume: Boolean(url),
+    return reply({ enabled: true, ...(!config.sandbox && { sandbox: false }), termsVersion: approvedTerms, orderStatus: order?.status,
+      active: Boolean(active && active.rowCount), canResume: Boolean(url),
       canReconcile: config.pollingEnabled && (order?.status === 'gateway-created' || order?.status === 'paid') });
   } catch {
     return reply({ error: 'Zahlungsstatus derzeit nicht verfügbar.' }, 503);
@@ -59,16 +66,18 @@ export async function POST(request: NextRequest) {
   const userId = user.id;
 
   const data = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!data.success || data.data.termsVersion !== config.termsVersion)
+  const requestedPlan = data.success ? data.data.plan : 'weekly';
+  const approvedTerms = requestedPlan === 'weekly' ? config.termsVersion : !config.sandbox && !config.acceptanceOnly && creditPackTerms(requestedPlan);
+  if (!data.success || !approvedTerms || data.data.termsVersion !== approvedTerms)
     return reply({ error: config.sandbox ? 'Bitte bestätige die gültigen Testbedingungen und wähle den Wochenpass.' :
       'Bitte bestätige die gültigen Bedingungen und wähle den Wochenpass.' }, 400);
 
-  const previous = await (config.sandbox ? latestSandboxOrder(userId) : latestLiveOrder(userId)).catch(() => null);
+  const previous = await (config.sandbox ? latestSandboxOrder(userId) : latestLiveOrder(userId, requestedPlan)).catch(() => null);
   if (previous === null) return reply({ error: 'Zahlungsstatus derzeit nicht verfügbar.' }, 503);
   const previousUrl = resumableSandboxGateway(previous, config);
   if (previousUrl) return reply({ url: previousUrl });
 
-  const plan = getPlan('weekly');
+  const plan = getPlan(requestedPlan);
   const referenceId = randomUUID();
   const database = databasePool();
   const started = await database.connect().catch(() => null);
@@ -77,14 +86,27 @@ export async function POST(request: NextRequest) {
     await started.query('BEGIN');
     const owner = await started.query('SELECT id FROM "user" WHERE id = $1 FOR UPDATE', [userId]);
     if (!owner.rowCount) throw new Error('Order owner unavailable');
-    const active = await started.query(
+    const active = requestedPlan === 'weekly' && await started.query(
       "SELECT 1 FROM ai_entitlements WHERE user_id = $1 AND status = 'active' AND ends_at > now()", [userId],
     );
-    if (active.rowCount) {
+    if (active && active.rowCount) {
       await started.query('ROLLBACK');
       return reply({ error: 'Du hast bereits einen aktiven Zugang.' }, 409);
     }
-    const orderValues = [referenceId, userId, plan.id, plan.amount, plan.currency, config.termsVersion, config.pspId];
+    if (!config.sandbox && config.acceptanceOnly) {
+      const completed = await started.query(`SELECT 1 FROM payment_orders
+        WHERE user_id = $1 AND NOT sandbox AND plan = 'weekly'
+        AND live_psp_id = $2 AND status IN ('paid', 'refunded', 'chargeback') LIMIT 1`, [userId, config.pspId]);
+      if (completed.rowCount) {
+        await started.query('ROLLBACK');
+        return reply({ error: 'Die Live-Abnahme wurde bereits durchgeführt.' }, 409);
+      }
+    }
+    if (!config.sandbox && !await canFundOneTimePayrexxOrder(started, requestedPlan)) {
+      await started.query('ROLLBACK');
+      return reply({ error: 'Neue Bestellungen sind wegen des KI-Kostenlimits vorübergehend geschlossen.' }, 503);
+    }
+    const orderValues = [referenceId, userId, plan.id, plan.amount, plan.currency, approvedTerms, config.pspId];
     const inserted = config.sandbox ? await started.query(
       `INSERT INTO payment_orders (reference_id, user_id, plan, amount, currency, status, accepted_terms_version, accepted_terms_at, sandbox, sandbox_psp_id)
        VALUES ($1, $2, $3, $4, $5, 'pending', $6, now(), true, $7)
@@ -112,8 +134,9 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         amount: plan.amount, currency: plan.currency, referenceId, validity: weeklyGatewayValidityMinutes,
         psp: [config.pspId],
-        purpose: config.sandbox ? 'Motivationsboost Wochenpass (Test)' : 'Motivationsboost Wochenpass',
-        ...(!config.sandbox && { sku: 'motivationsboost-weekly', preAuthorization: false, reservation: false }),
+        ...(!config.sandbox && config.acceptanceOnly && { pm: ['twint'] }),
+        purpose: config.sandbox ? 'Motivationsboost Wochenpass (Test)' : `Motivationsboost ${plan.label}`,
+        ...(!config.sandbox && { sku: `motivationsboost-${plan.id.replace('_', '-')}`, preAuthorization: false, reservation: false }),
         successRedirectUrl: config.origin + '/app?payment=pending',
         cancelRedirectUrl: config.origin + '/app?payment=cancelled',
         failedRedirectUrl: config.origin + '/app?payment=failed',

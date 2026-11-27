@@ -3,7 +3,7 @@ import { z } from 'zod/v3';
 import { requireAppSession } from '@/lib/server/app-session';
 import { reserveAiAction } from '@/lib/server/ai-quota-store';
 import { AiSpendBlocked, commercialAiBudgetLimit, DuplicateAiRequest, reserveAiSpend, settleAiSpend } from '@/lib/server/ai-spend-store';
-import { maximumLetterCostChfMicros, previewTextModel, providerTokenCounts, providerUsageCost } from '@/lib/ai-spend';
+import { commercialTextModel, maximumLetterCostChfMicros, previewTextModel, providerTokenCounts, providerUsageCost } from '@/lib/ai-spend';
 import { callOpenAI, getOpenAIKey, hasCurrentAiApproval, OpenAIRequestError } from '@/lib/server/openai-client';
 import { creditBalance, InsufficientCredits } from '@/lib/server/ai-credits';
 import { isInternalTestMode } from '@/lib/server/internal-test';
@@ -27,7 +27,7 @@ function paidAiModel() {
   if (!sandbox() && !commercialAiBudgetLimit()) return null;
   if (!hasCurrentAiApproval() || (!sandbox() && process.env.NODE_ENV === 'production' && !publicProductApproved())) return null;
   try { getOpenAIKey(); } catch { return null; }
-  return previewTextModel;
+  return sandbox() ? previewTextModel : commercialTextModel;
 }
 
 export async function GET() {
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
     const started = Date.now();
     const response = await callOpenAI('/responses', {
       model, store: false, service_tier: 'default',
+      ...(model === commercialTextModel && { reasoning: { effort: 'none' } }),
       max_output_tokens: selectionOutputTokens, instructions: selectionInstructions, input, text: { format: selectionFormat },
     }, spendId);
     const result = await response.json() as { status?: string; usage?: unknown; output_text?: string; output?: Array<{type?: string; content?: Array<{type?: string; text?: string}>}> };
