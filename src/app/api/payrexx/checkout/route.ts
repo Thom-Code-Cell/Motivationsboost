@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v3';
+import { payrexxCatalog } from '@/lib/server/payrexx-catalog';
 import { getPlan } from '@/lib/payrexx';
 import { oneTimePlans } from '@/lib/plans';
 import { canFundOneTimePayrexxOrder } from '@/lib/server/payrexx-credit-funding';
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
         psp: [config.pspId],
         ...(!config.sandbox && config.acceptanceOnly && { pm: ['twint'] }),
         purpose: config.sandbox ? 'Motivationsboost Wochenpass (Test)' : `Motivationsboost ${plan.label}`,
-        ...(!config.sandbox && { sku: `motivationsboost-${plan.id.replace('_', '-')}`, preAuthorization: false, reservation: false }),
+        ...(!config.sandbox && { sku: payrexxCatalog[plan.id].sku, preAuthorization: false, reservation: false }),
         successRedirectUrl: config.origin + '/app?payment=pending',
         cancelRedirectUrl: config.origin + '/app?payment=cancelled',
         failedRedirectUrl: config.origin + '/app?payment=failed',

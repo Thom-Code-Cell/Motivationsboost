@@ -23,6 +23,7 @@ const transactionSchema = z.object({
     referenceId: z.string().uuid().nullish(),
     paymentRequestId: identifier.nullish(),
     currencyAlpha3: z.string(),
+    products: z.array(z.object({ sku: z.string().nullish() })).nullish(),
     totalAmount: z.number().int(),
     originalAmount: z.number().int().positive(),
     refundedAmount: z.number().int().nonnegative().nullish(),
@@ -96,6 +97,7 @@ async function reconcileWeeklyGateway(userId: string, config: GatewayConfigurati
       invoice: {
         referenceId: parsed.invoice.referenceId,
         currency: parsed.invoice.currencyAlpha3,
+        products: parsed.invoice.products,
         originalAmount: parsed.invoice.originalAmount,
         refundedAmount: parsed.invoice.refundedAmount ?? undefined,
         test: sandbox,

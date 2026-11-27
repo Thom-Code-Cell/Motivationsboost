@@ -1,6 +1,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { z } from 'zod/v3';
+import { payrexxCatalog } from './payrexx-catalog';
 import { PLANS, oneTimePlans, type OneTimePlan } from '@/lib/plans';
 
 const transactionId = z.union([z.string().min(1).max(128), z.number().int().positive()]).transform(String);
@@ -21,6 +22,7 @@ const liveEvent = z.object({
       paymentRequestId: z.number().int().positive().nullish(),
       currency: z.literal('CHF'),
       test: z.union([z.literal(false), z.literal(0)]),
+      products: z.array(z.object({ sku: z.string().nullish() })).nullish(),
       originalAmount: z.number().int().positive(),
       refundedAmount: z.number().int().nonnegative().nullish(),
     }),
@@ -57,7 +59,9 @@ export async function applyWeeklyLiveEvent(db: PoolClient, payload: unknown, exp
     `SELECT user_id, plan, status, payrexx_gateway_id, payrexx_transaction_id FROM payment_orders
      WHERE ${orderMatch} AND user_id = $5 FOR UPDATE`, [...identifiers, owner.user_id],
   );
-  if (!order || PLANS[order.plan].amount !== invoice.originalAmount || (invoice.paymentRequestId != null && invoice.paymentRequestId !== order.payrexx_gateway_id)) return false;
+  if (!order || PLANS[order.plan].amount !== invoice.originalAmount ||
+      (invoice.paymentRequestId != null && invoice.paymentRequestId !== order.payrexx_gateway_id) ||
+      invoice.products?.some(product => product.sku && product.sku !== payrexxCatalog[order.plan].sku)) return false;
 
   if (transaction.status === 'expired' || transaction.status === 'cancelled') {
     if (invoice.paymentRequestId !== order.payrexx_gateway_id) return false;

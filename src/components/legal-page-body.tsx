@@ -6,6 +6,7 @@ import { ProductLanguagePicker, useProductLanguage } from './product-language';
 import { legalCopy, translatedLegal, type LegalDocument } from '@/lib/legal-translations';
 import { stagedTermsCopy } from '@/lib/weekly-terms-copy';
 import { releasedPrivacyCopy, releasedPrivacySources } from '@/lib/released-privacy-copy';
+import { approvedWeeklyTermsPath, approvedWeeklyTermsVersion } from '@/lib/approved-weekly-terms';
 import { productSupportEmail } from '@/lib/public-product';
 
 const paths = ['impressum', 'datenschutz', 'agb'] as const;
@@ -78,6 +79,9 @@ export function LegalPageBody({ document, children, email, website, releasedProd
         <p className="mt-2 text-sm text-muted-foreground">{copy.date} {date}</p>
         {releasedTerms && <p className="mt-3 text-base leading-relaxed">{release.intro}</p>}
         {content}
+        {document === 'agb' && releasedTerms && <p className="mt-5" lang="de"><Link className="underline" href={approvedWeeklyTermsPath}>
+          Wochenpass-Nutzungsbedingungen {approvedWeeklyTermsVersion}
+        </Link></p>}
         {releasedTerms && (weeklyTermsVersion ? <section className="mt-7 space-y-3">
           <h2 className="text-xl font-semibold">{release.heading}</h2>
           <p>{release.weekly}</p>
