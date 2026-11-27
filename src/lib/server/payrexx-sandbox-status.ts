@@ -16,6 +16,7 @@ const transactionSchema = z.object({
   uuid: z.string().min(1).max(128),
   originalTransactionUuid: z.union([z.string().min(1).max(128), z.number().int().positive()]).nullish(),
   status: z.string(),
+  amount: z.number().int().optional(),
   mode: z.string(),
   pspId: identifier,
   paymentType: z.string().nullish(),
@@ -46,6 +47,71 @@ async function payrexxGet(instance: string, key: string, resource: 'Gateway' | '
 }
 
 type GatewayConfiguration = { instance: string; pspId: number; key: string };
+type MatchedGateway = { reference_id: string; payrexx_gateway_id: number };
+type RestTransaction = z.infer<typeof transactionSchema>;
+
+function normalizeGatewayTransaction(parsed: RestTransaction, order: MatchedGateway, config: GatewayConfiguration, sandbox: boolean) {
+  const references = [parsed.referenceId, parsed.invoice.referenceId].filter(value => value != null);
+  if (!references.length || references.some(value => value !== order.reference_id) ||
+      (parsed.invoice.paymentRequestId != null && parsed.invoice.paymentRequestId !== order.payrexx_gateway_id) ||
+      parsed.mode !== (sandbox ? 'TEST' : 'LIVE') || parsed.pspId !== config.pspId ||
+      (parsed.invoice.test != null && Boolean(parsed.invoice.test) !== sandbox)) return null;
+  return {
+    uuid: parsed.uuid,
+    ...(!sandbox && { instance: { name: config.instance }, originalTransactionUuid: parsed.originalTransactionUuid }),
+    referenceId: parsed.referenceId,
+    status: parsed.status,
+    mode: parsed.mode,
+    pspId: parsed.pspId,
+    paymentType: parsed.paymentType,
+    amount: parsed.amount ?? parsed.invoice.totalAmount,
+    invoice: {
+      referenceId: parsed.invoice.referenceId,
+      currency: parsed.invoice.currencyAlpha3,
+      products: parsed.invoice.products,
+      originalAmount: parsed.invoice.originalAmount,
+      refundedAmount: parsed.invoice.refundedAmount ?? undefined,
+      test: sandbox,
+      ...(!sandbox && { paymentRequestId: order.payrexx_gateway_id }),
+    },
+  };
+}
+
+const liveIdentity = z.object({ transaction: z.object({
+  id: identifier,
+  uuid: z.string().min(1).max(128),
+  originalTransactionUuid: z.union([z.string().min(1).max(128), identifier]).nullish(),
+  status: z.enum(['confirmed', 'refunded', 'chargeback', 'expired', 'cancelled']),
+  mode: z.literal('LIVE'),
+  instance: z.object({ name: z.string() }),
+  pspId: identifier,
+}) });
+
+export async function reconcileLiveGatewayNotification(payload: unknown, order: MatchedGateway, config: GatewayConfiguration) {
+  const identity = liveIdentity.safeParse(payload);
+  if (!identity.success) return null;
+  const event = identity.data.transaction;
+  if (event.pspId !== config.pspId || event.instance.name.toLowerCase() !== config.instance.toLowerCase()) return null;
+  const current = transactionSchema.parse(await payrexxGet(config.instance, config.key, 'Transaction', event.id));
+  if (current.id !== event.id || current.uuid !== event.uuid) return null;
+  const normalized = normalizeGatewayTransaction(current, order, config, false);
+  if (!normalized) return null;
+  if (current.invoice.paymentRequestId == null) {
+    const gateway = gatewaySchema.parse(await payrexxGet(config.instance, config.key, 'Gateway', order.payrexx_gateway_id));
+    if (gateway.id !== order.payrexx_gateway_id ||
+        !gateway.invoices.some(invoice => invoice.transactions.some(transaction => transaction.id === event.id))) return null;
+  }
+  // The provider can briefly lag behind the signed callback. Preserve the
+  // notification for retry instead of recording an eventual refund as handled.
+  if ((event.status === 'refunded' || event.status === 'chargeback') &&
+      !['refunded', 'chargeback'].includes(current.status)) throw new Error('Payrexx reversal has not propagated yet');
+  if (event.status === 'confirmed' && !['confirmed', 'refunded', 'chargeback'].includes(current.status))
+    throw new Error('Payrexx confirmation has not propagated yet');
+  return { transaction: {
+    ...normalized,
+    originalTransactionUuid: normalized.originalTransactionUuid ?? event.originalTransactionUuid,
+  } };
+}
 
 export function reconcileSandboxGateway(userId: string, config: GatewayConfiguration) {
   return reconcileWeeklyGateway(userId, config, true);
@@ -80,30 +146,7 @@ async function reconcileWeeklyGateway(userId: string, config: GatewayConfigurati
   const transactions = await Promise.all(ids.map(async id => {
     const body = await payrexxGet(config.instance, config.key, 'Transaction', id);
     const parsed = transactionSchema.parse(body);
-    if (parsed.id !== id || (parsed.referenceId ?? parsed.invoice.referenceId) !== order.reference_id ||
-        (parsed.invoice.paymentRequestId != null && parsed.invoice.paymentRequestId !== order.payrexx_gateway_id)) return null;
-    if (parsed.mode !== (sandbox ? 'TEST' : 'LIVE') || parsed.pspId !== config.pspId) return null;
-    if (parsed.invoice.test != null && Boolean(parsed.invoice.test) !== sandbox) return null;
-    // The REST transaction and the signed webhook use different invoice field names.
-    return {
-      uuid: parsed.uuid,
-      ...(!sandbox && { instance: { name: config.instance }, originalTransactionUuid: parsed.originalTransactionUuid }),
-      referenceId: parsed.referenceId,
-      status: parsed.status,
-      mode: parsed.mode,
-      pspId: parsed.pspId,
-      paymentType: parsed.paymentType,
-      amount: parsed.invoice.totalAmount,
-      invoice: {
-        referenceId: parsed.invoice.referenceId,
-        currency: parsed.invoice.currencyAlpha3,
-        products: parsed.invoice.products,
-        originalAmount: parsed.invoice.originalAmount,
-        refundedAmount: parsed.invoice.refundedAmount ?? undefined,
-        test: sandbox,
-        ...(!sandbox && { paymentRequestId: gateway.id }),
-      },
-    };
+    return parsed.id === id ? normalizeGatewayTransaction(parsed, order, config, sandbox) : null;
   }));
 
   const connection = await pool.connect();

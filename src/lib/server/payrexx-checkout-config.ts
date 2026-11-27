@@ -44,18 +44,24 @@ export function weeklyLiveWebhookConfiguration() {
   return { sandbox: false as const, instance: config.instance, pspId: provider.data, signingKey: config.signingKey, origin: config.origin };
 }
 
+export function livePayrexxReconciliationConfiguration() {
+  const live = weeklyLiveWebhookConfiguration();
+  const { key } = payrexxConfiguration();
+  if (!live || !key || key === process.env.PAYREXX_SANDBOX_API_KEY) return null;
+  return { ...live, key };
+}
+
 export function weeklyLiveCheckoutConfiguration(verifiedEmail?: string) {
   const billing = payrexxConfiguration();
-  const live = weeklyLiveWebhookConfiguration();
+  const live = livePayrexxReconciliationConfiguration();
   const approvedTerms = termsVersion.safeParse(process.env.PAYREXX_WEEKLY_LIVE_TERMS_VERSION);
   const acceptanceRecipient = process.env.PAYREXX_WEEKLY_LIVE_ACCEPTANCE_EMAIL?.toLowerCase();
   const publicCheckout = billing.enabled && publicProductApproved();
   const acceptance = Boolean(acceptanceRecipient && verifiedEmail?.toLowerCase() === acceptanceRecipient);
-  if (!live || !billing.key || billing.key === process.env.PAYREXX_SANDBOX_API_KEY ||
-      !approvedTerms.success || process.env.PAYREXX_WEEKLY_LIVE_CHECKOUT !== 'true' ||
+  if (!live || !approvedTerms.success || process.env.PAYREXX_WEEKLY_LIVE_CHECKOUT !== 'true' ||
       !(publicCheckout || acceptance) ||
       process.env.EMAIL_TRANSPORT !== 'gmail-api' || !productionGmailConfiguration() ||
       !commercialAiBudgetLimit() || !hasCurrentAiApproval(Date.now() + weeklyAccessWindowMs) ||
       !openAIKeyConfigured()) return null;
-  return { ...live, key: billing.key, termsVersion: approvedTerms.data, pollingEnabled: true as const, acceptanceOnly: !publicCheckout };
+  return { ...live, termsVersion: approvedTerms.data, pollingEnabled: true as const, acceptanceOnly: !publicCheckout };
 }

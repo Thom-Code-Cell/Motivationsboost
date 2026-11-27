@@ -9,6 +9,8 @@ import { payrexxReferenceId } from '@/lib/payrexx-reference';
 import { weeklyCheckoutConfiguration, weeklyLiveWebhookConfiguration } from '@/lib/server/payrexx-checkout-config';
 import { applyWeeklySandboxEvent } from '@/lib/server/payrexx-weekly';
 import { applyWeeklyLiveEvent } from '@/lib/server/payrexx-weekly-live';
+import { applyLiveSubscriptionTransaction } from '@/lib/server/payrexx-subscriptions';
+import { reconcileLiveGatewayNotification } from '@/lib/server/payrexx-sandbox-status';
 
 function recordFields(payload: unknown) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
@@ -57,25 +59,42 @@ export async function POST(request: NextRequest) {
       const result = await recordEvent(databasePool());
       return NextResponse.json({ accepted: true, duplicate: result.rowCount === 0, premiumGranted: false });
     }
-    connection = await databasePool().connect();
-    await connection.query('BEGIN');
+    let confirmedPayment: Awaited<ReturnType<typeof reconcileLiveGatewayNotification>> = null;
     if (live) {
-      const order = referenceId && fields.resourceType === 'transaction' ? (await connection.query<{
-        status: string;
-      }>(`SELECT status FROM payment_orders WHERE reference_id = $1
+      const order = referenceId && fields.resourceType === 'transaction' ? (await databasePool().query<{
+        reference_id: string; status: string; payrexx_gateway_id: number | null;
+      }>(`SELECT reference_id, status, payrexx_gateway_id FROM payment_orders WHERE reference_id = $1
         AND NOT sandbox AND live_psp_id = $2 AND plan = ANY($3::text[])`,
       [referenceId, live.pspId, [...oneTimePlans]])).rows[0] : undefined;
       if (!order) {
+        connection = await databasePool().connect();
+        await connection.query('BEGIN');
+        const subscription = await applyLiveSubscriptionTransaction(connection, payload, live);
+        const receipt = subscription.matched ? await recordEvent(connection) : null;
         await connection.query('COMMIT');
-        return NextResponse.json({ accepted: true, ignored: true, premiumGranted: false });
+        if (subscription.matched) {
+          after(() => sendNextPayrexxWeeklyNotice().catch(() => console.warn('Motivationsboost payment notice queue unavailable')));
+        }
+        return NextResponse.json({
+          accepted: true, ignored: !subscription.matched, duplicate: receipt?.rowCount === 0, premiumGranted: subscription.granted,
+        });
       }
       // A provider event can arrive before the Gateway identifier is written.
       if (order.status === 'pending') throw new Error('Matching gateway has not been bound yet');
+      if (order.payrexx_gateway_id) {
+        if (!config.key || config.key === process.env.PAYREXX_SANDBOX_API_KEY) throw new Error('Production Payrexx key is unavailable');
+        confirmedPayment = await reconcileLiveGatewayNotification(payload,
+          { ...order, payrexx_gateway_id: order.payrexx_gateway_id }, { ...live, key: config.key });
+      }
+      if (!confirmedPayment)
+        return NextResponse.json({ accepted: true, ignored: true, premiumGranted: false });
     }
+    connection = await databasePool().connect();
+    await connection.query('BEGIN');
     const result = await recordEvent(connection);
     const premiumGranted = result.rowCount !== 0 &&
       (sandbox ? await applyWeeklySandboxEvent(connection, payload, sandbox) :
-        live ? await applyWeeklyLiveEvent(connection, payload, live) : false);
+        live && confirmedPayment ? await applyWeeklyLiveEvent(connection, confirmedPayment, live) : false);
     await connection.query('COMMIT');
     if (sandbox) {
       after(() => sendNextPayrexxTestNotice().catch(() => console.warn('Motivationsboost test notice queue unavailable')));

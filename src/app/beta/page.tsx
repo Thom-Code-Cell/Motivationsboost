@@ -11,6 +11,7 @@ import { LocalDocuments } from './local-documents';
 import { JobPostingImport } from './job-posting-import';
 import { WorkspaceBackup } from './workspace-backup';
 import { WeeklyTestCheckout } from './weekly-test-checkout';
+import { SubscriptionCheckout } from './subscription-checkout';
 import { applicationPrivacyNotices, appendApplicationPrivacyNotice, type PrivacyNoticeLanguage } from '@/lib/application-privacy-notice';
 import { readLocalRecord, updateLocalRecord } from '@/lib/local-workspace';
 import { guidedLetter, letterDraftInput, prepareExternalDraftInput } from '@/lib/letter-draft';
@@ -345,7 +346,7 @@ function BetaWorkspace({ user, onSignOut, internal = false }: { user: BetaUser; 
         <button type="button" disabled={deleteBusy} className="underline" onClick={() => setDeletingAccount(false)}>{deleteCopy.deleteCancel}</button>
       </div>
     </form>}
-    {!internal && <WeeklyTestCheckout />}
+    {!internal && <><WeeklyTestCheckout /><SubscriptionCheckout /></>}
     <Applications userId={user.id} internal={internal} />
     <LocalDocuments userId={user.id} onUseText={text => {
       const next = [values.cv.trim(), text.trim()].filter(Boolean).join('\n\n');
