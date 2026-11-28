@@ -46,9 +46,10 @@ export function ReleasedProductHome({ offers, fixedLocale }: { offers: PlanId[];
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap hero-inner">
           <div className="hero-copy">
-            <h1 id="hero-title">{copy.title1}<br />{copy.title2}<br /><em>{copy.title3}</em></h1>
+            <h1 id="hero-title" className="released-hero-title">{copy.title}</h1>
             <p className="lead">{copy.lead}</p>
             <div className="actions"><Link className="button" href="/app">{copy.free}</Link></div>
+            <p className="released-hero-slogan">{copy.slogan}</p>
           </div>
           <figure className="media hero-media" data-slot="hero">
             <div className="media-art"><Image src="/landing/motivationsboost-01-hero-homeoffice.webp" width={1448} height={1086} alt={copy.heroAlt} sizes="(max-width: 610px) 100vw, 50vw" priority /></div>
@@ -70,7 +71,10 @@ export function ReleasedProductHome({ offers, fixedLocale }: { offers: PlanId[];
         </div>
       </section>
       <section className="section wrap" id="preise">
-        <div className="section-heading"><h2>{copy.pricing}</h2></div>
+        <div className="section-heading">
+          <h2>{copy.pricing}</h2>
+          {offers.length > 0 && <p>{copy.creditsExplanation}</p>}
+        </div>
         <div className="pricing">
           <article><h3>FREE</h3><p className="price"><span>CHF</span> 0.00</p><p>{copy.freeDescription}</p><Link className="button outline" href="/app">{copy.free}</Link></article>
           {offers.map(id => {

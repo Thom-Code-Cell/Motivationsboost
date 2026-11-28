@@ -184,4 +184,5 @@
 .motivationsboost-landing .screenshot-slot img { width: 100%; height: auto; border-radius: .65rem; }
 .motivationsboost-landing .screenshot-slot figcaption { margin-top: .6rem; }
 .motivationsboost-landing .pricing .button[disabled] { opacity: .8; cursor: default; }
-
+.motivationsboost-landing .hero h1.released-hero-title{font-size:clamp(2rem,4.1vw,4.1rem);line-height:1.1;overflow-wrap:anywhere;text-wrap:balance}
+.motivationsboost-landing .released-hero-slogan{color:var(--teal);font-size:.95rem;margin:1rem 0 0}
