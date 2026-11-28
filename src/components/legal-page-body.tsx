@@ -11,6 +11,7 @@ import { approvedCommercialTermsPath } from '@/lib/approved-commercial-terms';
 import { productSupportEmail } from '@/lib/public-product';
 
 const paths = ['impressum', 'datenschutz', 'agb'] as const;
+const accountDeletion = { de: 'Konto löschen', en: 'Delete account', fr: 'Supprimer le compte', it: 'Elimina account' };
 const dateLocales = { de: 'de-CH', en: 'en-GB', fr: 'fr-CH', it: 'it-CH' };
 const creditTerms = {
   de: 'Vor einer KI-Aktion zeigt dir die Anwendung, wie viele Credits sie kostet. Du löst sie selbst aus. Bei zu wenig Guthaben bleibt die Aktion gesperrt. Es gibt keinen automatischen Credit-Nachkauf. Deine eigenen lokal gespeicherten Unterlagen bleiben unabhängig vom Guthaben zugänglich.',
@@ -19,7 +20,7 @@ const creditTerms = {
   it: 'Prima di ogni azione IA, l’app mostra quanti crediti costa. Decidi tu se avviarla. Se il saldo è insufficiente, l’azione non è disponibile. Non vengono acquistati crediti automaticamente. I tuoi documenti salvati localmente rimangono accessibili indipendentemente dal saldo.',
 } as const;
 
-export function LegalPageBody({ document, children, email, website, releasedProduct = false, releasedTerms = false, weeklyTermsVersion }: {
+export function LegalPageBody({ document, children, email, website, releasedProduct = false, releasedTerms = false, weeklyTermsVersion, android = false }: {
   document: LegalDocument;
   children: ReactNode;
   email: string;
@@ -27,8 +28,10 @@ export function LegalPageBody({ document, children, email, website, releasedProd
   releasedProduct?: boolean;
   releasedTerms?: boolean;
   weeklyTermsVersion?: string;
+  android?: boolean;
 }) {
   const locale = useProductLanguage();
+  const workspacePath = android ? '/android' : '/app';
   const copy = legalCopy[locale];
   const release = stagedTermsCopy[locale];
   const publicCopy = releasedPrivacyCopy[locale];
@@ -69,9 +72,9 @@ export function LegalPageBody({ document, children, email, website, releasedProd
   return <div lang={locale} className="min-h-dvh min-w-0 bg-background text-foreground">
     <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-5 gap-y-2">
-        <Link href="/" className="min-w-0 text-base font-bold leading-snug tracking-tight sm:text-lg">Motivationsboost</Link>
+        <Link href={android ? workspacePath : '/'} className="min-w-0 text-base font-bold leading-snug tracking-tight sm:text-lg">Motivationsboost</Link>
         <ProductLanguagePicker />
-        <Link href="/app" className="text-sm underline underline-offset-2">{copy.app}</Link>
+        <Link href={workspacePath} className="text-sm underline underline-offset-2">{copy.app}</Link>
       </div>
     </header>
     <main className="mx-auto w-full max-w-3xl min-w-0 px-4 py-7 sm:px-6 sm:py-10">
@@ -80,21 +83,23 @@ export function LegalPageBody({ document, children, email, website, releasedProd
         <p className="mt-2 text-sm text-muted-foreground">{copy.date} {date}</p>
         {releasedTerms && <p className="mt-3 text-base leading-relaxed">{release.intro}</p>}
         {content}
-        {document === 'agb' && releasedTerms && <p className="mt-5" lang="de"><Link className="underline" href={approvedWeeklyTermsPath}>
+        {document === 'agb' && releasedTerms && !android && <p className="mt-5" lang="de"><Link className="underline" href={approvedWeeklyTermsPath}>
           Wochenpass-Nutzungsbedingungen {approvedWeeklyTermsVersion}
         </Link><br /><Link className="underline" href={approvedCommercialTermsPath}>Bedingungen für Zusatzcredits und Abonnemente</Link></p>}
-        {releasedTerms && (weeklyTermsVersion ? <section className="mt-7 space-y-3">
+        {releasedTerms && !android && (weeklyTermsVersion ? <section className="mt-7 space-y-3">
           <h2 className="text-xl font-semibold">{release.heading}</h2>
           <p>{release.weekly}</p>
           <p>{release.refund} <a className="underline" href={'mailto:' + productSupportEmail}>{productSupportEmail}</a></p>
           <p className="text-sm text-muted-foreground">{release.version} {weeklyTermsVersion}</p>
         </section> : <p className="mt-5">{release.free}</p>)}
-        {document === 'agb' && (!releasedTerms || weeklyTermsVersion) && <p className="mt-5 break-words text-base leading-relaxed text-foreground/85">{creditTerms[locale]}</p>}
+        {document === 'agb' && (android || !releasedTerms || weeklyTermsVersion) && <p className="mt-5 break-words text-base leading-relaxed text-foreground/85">{creditTerms[locale]}</p>}
       </article>
     </main>
     <footer className="mx-auto flex max-w-3xl flex-wrap gap-4 px-4 pb-8 text-sm sm:px-6">
-      {paths.map(path => <Link key={path} href={'/' + path} className="underline underline-offset-2">{copy[path]}</Link>)}
-      <a href={website} rel="noopener noreferrer" target="_blank" className="underline underline-offset-2">TH Analytica</a>
+      {paths.map(path => <Link key={path} href={(android ? '/android/' : '/') + path} className="underline underline-offset-2">{copy[path]}</Link>)}
+      {android
+        ? <Link href="/android/konto-loeschen" className="underline underline-offset-2">{accountDeletion[locale]}</Link>
+        : <a href={website} rel="noopener noreferrer" target="_blank" className="underline underline-offset-2">TH Analytica</a>}
     </footer>
   </div>;
 }

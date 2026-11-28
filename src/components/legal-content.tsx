@@ -12,7 +12,7 @@ export function ContactEmail() {
   return <a href={`mailto:${CONTACT_EMAIL}`} className="break-all underline underline-offset-2 hover:text-primary">{CONTACT_EMAIL}</a>;
 }
 
-export function LegalContent({ document, releasedTerms = false }: { document: 'impressum' | 'datenschutz' | 'agb'; releasedTerms?: boolean }) {
+export function LegalContent({ document, releasedTerms = false, privacyPath = '/datenschutz' }: { document: 'impressum' | 'datenschutz' | 'agb'; releasedTerms?: boolean; privacyPath?: string }) {
   if (document === 'impressum') {
     return <>
       <h2 className={h2}>Anbieter und Kontakt</h2>
@@ -71,7 +71,7 @@ export function LegalContent({ document, releasedTerms = false }: { document: 'i
     <h2 className={h2}>5. Kündigung und Rückerstattung</h2>
     <p className={p}>Für künftige Abonnemente werden ein nachvollziehbarer Kündigungsweg und die geltenden gesetzlichen Rückerstattungsansprüche vor der Aktivierung veröffentlicht. Bei Fragen: <ContactEmail />.</p></>}
     <h2 className={h2}>6. Datenschutz und Verfügbarkeit</h2>
-    <p className={p}>Unsere <Link href="/datenschutz" className="underline underline-offset-2">Datenschutzhinweise</Link> erklären die Verarbeitung personenbezogener Daten. Wartung, technische Fehler und Ausfälle externer Dienste sind möglich. Zwingende gesetzliche Ansprüche bleiben unberührt.</p>
+    <p className={p}>Unsere <Link href={privacyPath} className="underline underline-offset-2">Datenschutzhinweise</Link> erklären die Verarbeitung personenbezogener Daten. Wartung, technische Fehler und Ausfälle externer Dienste sind möglich. Zwingende gesetzliche Ansprüche bleiben unberührt.</p>
     <h2 className={h2}>7. Recht</h2>
     <p className={p}>Soweit gesetzlich zulässig gilt schweizerisches Recht. Zwingende Verbraucherschutzbestimmungen am gewöhnlichen Aufenthalt der nutzenden Person bleiben unberührt.</p>
   </>;
